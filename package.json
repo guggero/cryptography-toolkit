@@ -48,6 +48,7 @@
     "browserify": "browserify -o libs/js/bitcoin.js browserify.js --standalone bitcoin",
     "templates": "grunt ngtemplates",
     "maketargz": "tar --exclude=release --exclude=.idea --exclude=node_modules -czvf release/cryptography-toolkit.offline.tar.gz *",
-    "release": "rm -rf release && mkdir release && yarn maketargz && cd release && sha256sum -b * > cryptography-toolkit.offline.sum"
+    "release": "rm -rf release && mkdir release && yarn maketargz && cd release && sha256sum -b * > cryptography-toolkit.offline.sum",
+    "sign": "gpg --clearsign release/cryptography-toolkit.offline.sum"
   }
 }
