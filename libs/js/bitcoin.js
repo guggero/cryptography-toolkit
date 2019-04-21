@@ -42374,16 +42374,22 @@ const ByteBuffer = class ByteBuffer {
     return this._buf.subarray(0, this._length);
   }
   /**
-   * Grow the internal buffer so that it's at least as but as minCap.
+   * Grow the internal buffer so that it's at least as big as minCap.
    * @param {int} minCap The minimum new capacity.
    */
   _grow(minCap) {
-    if (minCap <= this._capacity) {
+    const capacity = this._buf.length;
+    if (minCap <= capacity) {
       return;
     }
-    // TODO could use more intelligent logic to grow more slowly on large buffers.
+    const fiftyPercent = Math.ceil(capacity * 1.5);
     const doubleCap = this._buf.length * 2;
-    const newCap = minCap > doubleCap ? minCap : doubleCap;
+    let newCap = minCap > doubleCap ? minCap : doubleCap;
+    // If the new capacity is only 1 to 9 bytes, try if increasing
+    // the buffer by 50% is enough.
+    if (minCap - capacity < 10 && minCap < fiftyPercent) {
+      newCap = fiftyPercent;
+    }
     const newContent = new Uint8Array(newCap);
     newContent.set(this._buf.subarray(0, this._length));
     this._buf = newContent;

@@ -9,7 +9,25 @@
   <div class="panel-collapse collapse" ng-class="{in: vm.showExplanation}">
     <div class="panel-body">
       Macaroons are Cookies with Contextual Caveats for Decentralized Authorization in the Cloud.<br/><br/>
-      They are used, for example, in the <em>lnd</em> implementation of the Lightning Network.
+      They are used, for example, in the <em>lnd</em> implementation of the Lightning Network.<br/>
+      A <strong>Caveat</strong> (or First Party Caveat) is a condition that is either added by the issuer of the
+      macaroon or the user of the caveat. Because of the used cryptographic one-way function (HMAC), conditions can be added
+      by anyone holding the macaroon, but nobody can remove any condition.<br/>
+      That way, a user can further restrict the access rights of a macaroon that she obtained (for example, add a condition that
+      the macaroon is only valid for the next 3 seconds while transmitting it over the internet and therefore restricting
+      a potential eavesdropper's chance of using a stolen macaroon).<br/>
+      The issuer of the macaroon (who is the holder of the private root key) can verify a signature even if further caveats have
+      been added.<br/><br/>
+      <strong>Third Party Caveats</strong> are conditions that have to be met by a third party. For example, a node operator wants
+      to give all users of her website limited access to her LND node. She would then set up the LND node and the website with a
+      <em>Shared Key</em>. The LND node would only issue macaroons that have a Third Party Caveat added for the website.<br/>
+      This basically tells the macaroon validator that &quot;this macaroon is only valid if the user can also present a discharge macaroon
+      from the service <code>website</code>&quot;.<br/>
+      A user that is logged in to the website would then get a discharge macaroon that basically states &quot;I have been authorized by the
+      service <code>website</code>&quot; and can prove that cryptographically.<br/>
+      When the user wants to connect to the LND node and use its functionality, she would present both macaroons to the node that can
+      then verify they both are valid, bound to each other and meet all conditions.
+
 
       <h3>Sources, tools and other useful information:</h3>
       <ul>
@@ -32,12 +50,12 @@
                class="form-control"
                ng-model="vm.rootKey"
                ng-change="vm.newMacaroon()"
-               ng-class="{'well-error': vm.error}">
+               ng-class="{'well-error': vm.error2}">
         <span class="input-group-addon" ng-if="!vm.error2">&lt;-- paste hex</span>
         <span class="input-group-addon well-error" ng-if="vm.error2"> {{vm.error2}}</span>
         <span class="input-group-btn">
-            <button class="btn btn-primary" ng-click="vm.randomRootKey()">Randomize</button>
-          </span>
+          <button class="btn btn-primary" ng-click="vm.randomRootKey()">Randomize</button>
+        </span>
       </div>
     </div>
 
@@ -69,17 +87,60 @@
     </div>
     <div class="form-group">
       <div class="col-lg-offset-3 col-sm-9 input-group">
-        <div class="input-group-btn">
+        <div class="input-group" style="width: 100%;">
           <button class="btn btn-primary" ng-click="vm.addCaveat()">Add caveat</button>
+          <button class="btn btn-secondary pull-right" ng-if="!vm.thirdPartyMac" ng-click="vm.addThirdPartyCaveat()">
+            Add third party caveat
+          </button>
+          <button class="btn btn-secondary pull-right" ng-if="vm.thirdPartyMac" ng-click="vm.removeThirdPartyCaveat()">
+            Remove third party caveat
+          </button>
         </div>
+      </div>
+    </div>
+
+    <!-- third party caveat -->
+    <div class="form-group" ng-if="vm.thirdPartyMac">
+      <label class="col-sm-3 control-label">Third Party Caveat</label>
+      <div class="col-sm-9 input-group">
+        <div class="input-group">
+          <div class="input-group-addon">Shared Root key (hex):</div>
+          <input class="form-control"
+                 ng-model="vm.thirdPartyMac.rootKey"
+                 ng-change="vm.newMacaroon()"
+                 ng-class="{'well-error': vm.error4}">
+          <span class="input-group-addon" ng-if="!vm.error4">&lt;-- paste hex</span>
+          <span class="input-group-addon well-error" ng-if="vm.error4"> {{vm.error4}}</span>
+          <span class="input-group-btn">
+            <button class="btn btn-primary" ng-click="vm.randomTpmRootKey()">Randomize</button>
+          </span>
+        </div>
+        <div class="input-group">
+          <div class="input-group-addon">Identifier:</div>
+          <input class="form-control" ng-model="vm.thirdPartyMac.identifier" ng-change="vm.newMacaroon()">
+        </div>
+        <div class="input-group">
+          <div class="input-group-addon">Location:</div>
+          <input class="form-control" ng-model="vm.thirdPartyMac.location" ng-change="vm.newMacaroon()">
+        </div>
+      </div>
+    </div>
+
+    <!-- discharge macaroon -->
+    <div class="form-group" ng-if="vm.thirdPartyMac">
+      <label class="col-sm-3 control-label">Discharge macaroon from <br/>Third Party:</label>
+      <div class="col-sm-9 input-group">
+        <input class="form-control" value="{{ vm.serializeMacaroon(vm.thirdPartyMac.macaroon, false) }}" ng-readonly="true">
       </div>
     </div>
 
     <div class="form-group">
       <label class="col-sm-3 control-label" for="json">JSON:</label>
       <div class="col-sm-9 input-group">
-        <textarea id="json2" rows="10" ng-readonly="true"
-                  class="form-control">{{ vm.serializeMacaroon(vm.macaroon2, vm.showJson) }}</textarea><br/>
+        <textarea id="json2" rows="10" ng-readonly="true" class="form-control">{{
+          vm.serializeMacaroon(vm.macaroon2, vm.showJson)
+          }}</textarea>
+        <br/>
         <input type="checkbox" ng-model="vm.showJson"> Show as JSON
       </div>
     </div>
@@ -91,8 +152,8 @@
   <form class="form-horizontal">
 
     <div class="form-group">
-      <label class="col-sm-3 control-label" for="hash">Hex serialized macaroon:</label>
-      <div class="col-sm-9 input-group">
+      <label class="col-sm-4 control-label" for="hash">Hex serialized macaroon:</label>
+      <div class="col-sm-8 input-group">
         <input id="hash"
                class="form-control"
                ng-model="vm.encodedMacaroon"
@@ -104,10 +165,36 @@
     </div>
 
     <div class="form-group">
-      <label class="col-sm-3 control-label" for="json">Decoded as JSON:</label>
-      <div class="col-sm-9 input-group">
+      <label class="col-sm-4 control-label" for="json">Decoded as JSON:</label>
+      <div class="col-sm-8 input-group">
         <textarea id="json" rows="30" ng-readonly="true" class="form-control">{{ vm.serializeMacaroon(vm.macaroon, true) }}</textarea>
         <input type="checkbox" ng-model="vm.tryDecodingId"> Try to decode identifier
+      </div>
+    </div>
+
+    <!-- verify against root key -->
+    <div class="form-group">
+      <label class="col-sm-4 control-label" for="verificationRootKey">Verify signature with root key:</label>
+      <div class="col-sm-8 input-group">
+        <input id="verificationRootKey"
+               class="form-control"
+               ng-model="vm.verificationRootKey"
+               ng-change="vm.verifyMacaroon()"
+               ng-class="{'well-error': vm.error3, 'well-success': vm.valid}">
+        <span class="input-group-addon" ng-if="!vm.error3">&lt;-- paste hex</span>
+        <span class="input-group-addon well-error" ng-if="vm.error3"> {{vm.error3}}</span>
+      </div>
+    </div>
+
+    <!-- verify against root key -->
+    <div class="form-group">
+      <label class="col-sm-4 control-label" for="discharge">Discharge macaroon<br/>(for Third Party Caveat verification):</label>
+      <div class="col-sm-8 input-group">
+        <input id="discharge"
+               class="form-control"
+               ng-model="vm.verificationDischarge"
+               ng-change="vm.verifyMacaroon()">
+        <span class="input-group-addon">&lt;-- paste hex</span>
       </div>
     </div>
   </form>

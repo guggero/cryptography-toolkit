@@ -18,10 +18,13 @@ function MacaroonPageController() {
   vm.showJson = true;
   vm.tryDecodingId = true;
   vm.identifier = 'demo-identifier';
-  vm.location = 'some-location';
-  vm.caveats = ['username = guggero'];
+  vm.location = 'https://some.location';
+  vm.caveats = ['ip = 127.0.0.1'];
   vm.rootKey = null;
   vm.encodedMacaroon = '';
+  vm.verificationRootKey = '';
+  vm.thirdPartyMac = null;
+  vm.verificationDischarge = '';
 
   vm.$onInit = function () {
     vm.randomRootKey();
@@ -38,6 +41,18 @@ function MacaroonPageController() {
       const keyBytes = Buffer.from(vm.rootKey, 'hex');
       vm.macaroon2 = macaroon.newMacaroon({ identifier: vm.identifier, location: vm.location, rootKey: keyBytes, version: 2 });
       vm.caveats.forEach(c => vm.macaroon2.addFirstPartyCaveat(c));
+      if (vm.thirdPartyMac) {
+        const thirdPartyKeyBytes = Buffer.from(vm.thirdPartyMac.rootKey, 'hex');
+        vm.macaroon2.addThirdPartyCaveat(thirdPartyKeyBytes, vm.thirdPartyMac.identifier, vm.thirdPartyMac.location);
+
+        vm.thirdPartyMac.macaroon = macaroon.newMacaroon({
+          identifier: vm.thirdPartyMac.identifier,
+          location: vm.thirdPartyMac.location,
+          rootKey: thirdPartyKeyBytes,
+          version: 2,
+        });
+        vm.thirdPartyMac.macaroon.bindToRoot(vm.macaroon2.signature);
+      }
     } catch (e) {
       vm.error2 = e;
     }
@@ -93,5 +108,43 @@ function MacaroonPageController() {
     } catch (e) {
       vm.error = e;
     }
+  };
+
+  vm.verifyMacaroon = function () {
+    vm.error3 = null;
+    vm.valid = false;
+    if (!vm.verificationRootKey) {
+      return;
+    }
+    try {
+      const buffer = Buffer.from(vm.verificationRootKey, 'hex');
+      const dischargeMacaroons = [];
+      if (vm.verificationDischarge) {
+        const dmBuffer = Buffer.from(vm.verificationDischarge.replace(/\s*/gi, ''), 'hex');
+        dischargeMacaroons.push(macaroon.importMacaroon(dmBuffer));
+      }
+      vm.macaroon.verify(buffer, () => null, dischargeMacaroons);
+      vm.valid = true;
+    } catch (e) {
+      vm.error3 = e;
+    }
+  };
+
+  vm.addThirdPartyCaveat = function () {
+    vm.thirdPartyMac = {
+      identifier: 'other-party',
+      location: 'http://other.party'
+    };
+    vm.randomTpmRootKey();
+  };
+
+  vm.removeThirdPartyCaveat = function () {
+    vm.thirdPartyMac = null;
+    vm.newMacaroon();
+  };
+
+  vm.randomTpmRootKey = function () {
+    vm.thirdPartyMac.rootKey = randomBuffer(32).toString('hex');
+    vm.newMacaroon();
   };
 }

@@ -2247,10 +2247,18 @@ lower-case@^1.1.0, lower-case@^1.1.1, lower-case@^1.1.2:
   resolved "https://registry.yarnpkg.com/lower-case/-/lower-case-1.1.4.tgz#9a2cabd1b9e8e0ae993a4bf7d5875c39c42e8eac"
   integrity sha1-miyr0bno4K6ZOkv31YdcOcQujqw=
 
-macaroon@^3.0.0:
+macaroon@3.0.4:
   version "3.0.4"
   resolved "https://registry.yarnpkg.com/macaroon/-/macaroon-3.0.4.tgz#dac1a4b17cd973c1000703f40b19bdbb1d6191ce"
   integrity sha512-Tja2jvupseKxltPZbu5RPSz2Pgh6peYA3O46YCTcYL8PI1VqtGwDqRhGfP8pows26xx9wTiygk+en62Bq+Y8JA==
+  dependencies:
+    sjcl "^1.0.6"
+    tweetnacl "^1.0.0"
+    tweetnacl-util "^0.15.0"
+
+macaroon@guggero/js-macaroon:
+  version "3.0.4"
+  resolved "https://codeload.github.com/guggero/js-macaroon/tar.gz/3149414d2e21895a086b1851b64047ac027b19cb"
   dependencies:
     sjcl "^1.0.6"
     tweetnacl "^1.0.0"
