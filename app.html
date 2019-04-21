@@ -1,87 +1,70 @@
 <nav class="navbar navbar-inverse navbar-fixed-top">
-    <div class="container">
-        <div class="navbar-header">
-            <a href="#!/" class="navbar-brand">Blockchain Demo</a>
-        </div>
-
-        <div id="navbar" class="collapse navbar-collapse">
-            <form class="navbar-form navbar-right">
-                <div class="form-group" ng-if="$root.expertMode">
-                    <label class="navbar-text" for="difficulty">Block difficulty:</label>
-                    <select id="difficulty"
-                            ng-model="$root.difficulty"
-                            ng-options="(value + ' (' + $root.difficultyPrefix(value) + ')') for value in [3,4,5,6,7,8,9,10]"
-                            ng-change="$root.$broadcast('difficulty-change');"
-                            class="form-control">
-                    </select>
-                </div>
-                <button type="button"
-                        class="btn btn-default"
-                        ng-if="!$root.expertMode"
-                        ng-click="$root.expertMode = true;">
-                    Enable Expert Mode
-                </button>
-            </form>
-            <ul class="nav navbar-nav navbar-right">
-                <li ng-class="{active: $root.isActive('/hash')}">
-                    <a href="#!/hash">Hash</a>
-                </li>
-                <li ng-class="{active: $root.isActive('/block')}">
-                    <a href="#!/block">Block</a>
-                </li>
-                <li ng-class="{active: $root.isActive('/blockchain')}">
-                    <a href="#!/blockchain">Blockchain</a>
-                </li>
-                <li ng-class="{active: $root.isActive('/distributed')}">
-                    <a href="#!/distributed">Distributed</a>
-                </li>
-                <li ng-class="{active: $root.isActive('/tokens')}">
-                    <a href="#!/tokens">Tokens</a>
-                </li>
-                <li ng-class="{active: $root.isActive('/coinbase')}">
-                    <a href="#!/coinbase">Coinbase</a>
-                </li>
-
-                <li class="dropdown">
-                    <a class="dropdown-toggle" data-toggle="dropdown" role="button">
-                        Advanced <span class="caret"></span>
-                    </a>
-                    <ul class="dropdown-menu">
-                        <li ng-class="{active: $root.isActive('/ecc')}">
-                            <a href="#!/ecc">Elliptic Curve Cryptography / Key Pair</a>
-                        </li>
-                        <li ng-class="{active: $root.isActive('/hd-wallet')}">
-                            <a href="#!/hd-wallet">Hierarchical Deterministic Wallet</a>
-                        </li>
-                        <li ng-class="{active: $root.isActive('/bitcoin-block')}">
-                            <a href="#!/bitcoin-block">Bitcoin Block Parser</a>
-                        </li>
-                      <li ng-class="{active: $root.isActive('/shamir-secret-sharing')}">
-                        <a href="#!/shamir-secret-sharing">Shamir's Secret Sharing Scheme</a>
-                      </li>
-                      <li ng-class="{active: $root.isActive('/schnorr')}">
-                        <a href="#!/schnorr">BIP Schnorr Signatures</a>
-                      </li>
-                      <li ng-class="{active: $root.isActive('/mu-sig')}">
-                        <a href="#!/mu-sig">MuSig: Key Aggregation for Schnorr Signatures</a>
-                      </li>
-                      <li ng-class="{active: $root.isActive('/transaction-creator')}">
-                        <a href="#!/transaction-creator">Transaction Creator</a>
-                      </li>
-                      <li ng-class="{active: $root.isActive('/aezeed')}">
-                        <a href="#!/aezeed">aezeed Cipher Seed Scheme</a>
-                      </li>
-                      <li ng-class="{active: $root.isActive('/macaroon')}">
-                        <a href="#!/macaroon">Macaroons</a>
-                      </li>
-                    </ul>
-                </li>
-            </ul>
-        </div>
+  <div class="container">
+    <div class="navbar-header">
+      <a href="#!/" class="navbar-brand">Cryptography Toolkit</a>
     </div>
+
+    <div id="navbar" class="collapse navbar-collapse">
+      <ul class="nav navbar-nav navbar-right">
+        <li ng-class="{active: $root.isActive('/ecc')}">
+          <a href="#!/ecc">ECC/ECDSA</a>
+        </li>
+
+        <li class="dropdown">
+          <a class="dropdown-toggle" data-toggle="dropdown" role="button">
+            Bitcoin <span class="caret"></span>
+          </a>
+          <ul class="dropdown-menu">
+            <li ng-class="{active: $root.isActive('/hd-wallet')}">
+              <a href="#!/hd-wallet">Hierarchical Deterministic Wallet</a>
+            </li>
+            <li ng-class="{active: $root.isActive('/bitcoin-block')}">
+              <a href="#!/bitcoin-block">Bitcoin Block Parser</a>
+            </li>
+            <li ng-class="{active: $root.isActive('/schnorr')}">
+              <a href="#!/schnorr">BIP Schnorr Signatures</a>
+            </li>
+            <li ng-class="{active: $root.isActive('/mu-sig')}">
+              <a href="#!/mu-sig">MuSig: Key Aggregation for Schnorr
+                Signatures</a>
+            </li>
+            <li ng-class="{active: $root.isActive('/transaction-creator')}">
+              <a href="#!/transaction-creator">Transaction Creator</a>
+            </li>
+          </ul>
+        </li>
+        <li class="dropdown">
+          <a class="dropdown-toggle" data-toggle="dropdown" role="button">
+            LND <span class="caret"></span>
+          </a>
+          <ul class="dropdown-menu">
+            <li ng-class="{active: $root.isActive('/aezeed')}">
+              <a href="#!/aezeed">aezeed Cipher Seed Scheme</a>
+            </li>
+            <li ng-class="{active: $root.isActive('/macaroon')}">
+              <a href="#!/macaroon">Macaroons</a>
+            </li>
+          </ul>
+        </li>
+        <li class="dropdown">
+          <a class="dropdown-toggle" data-toggle="dropdown" role="button">
+            Other <span class="caret"></span>
+          </a>
+          <ul class="dropdown-menu">
+            <li ng-class="{active: $root.isActive('/shamir-secret-sharing')}">
+              <a href="#!/shamir-secret-sharing">Shamir's Secret Sharing
+                Scheme</a>
+            </li>
+          </ul>
+        </li>
+      </ul>
+    </div>
+  </div>
 </nav>
-<a ng-if="$root.isActive('/')" href="https://github.com/guggero/blockchain-demo/">
-    <img src="images/fork-me-on-github-ribbon.png" alt="Fork me on GitHub" class="github-ribbon">
+<a ng-if="$root.isActive('/')"
+   href="https://github.com/guggero/cryptography-toolkit/">
+  <img src="images/fork-me-on-github-ribbon.png" alt="Fork me on GitHub"
+       class="github-ribbon">
 </a>
 <div ng-class="$root.$route.current.containerClass" ng-view>
 

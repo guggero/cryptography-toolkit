@@ -27,12 +27,6 @@ function routeConfig($locationProvider, $routeProvider) {
 
   $routeProvider
     .when('/', {template: '<intro-page></intro-page>', containerClass: 'container'})
-    .when('/hash', {template: '<hash-page></hash-page>', containerClass: 'container'})
-    .when('/block', {template: '<block-page></block-page>', containerClass: 'container'})
-    .when('/blockchain', {template: '<blockchain-page></blockchain-page>', containerClass: 'container-fluid'})
-    .when('/distributed', {template: '<distributed-page></distributed-page>', containerClass: 'container-fluid'})
-    .when('/tokens', {template: '<tokens-page></tokens-page>', containerClass: 'container-fluid'})
-    .when('/coinbase', {template: '<coinbase-page></coinbase-page>', containerClass: 'container-fluid'})
     .when('/ecc', {template: '<ecc-page></ecc-page>', containerClass: 'container'})
     .when('/hd-wallet', {template: '<hd-wallet-page></hd-wallet-page>', containerClass: 'container'})
     .when('/bitcoin-block', {template: '<bitcoin-block-page></bitcoin-block-page>', containerClass: 'container'})
@@ -47,7 +41,6 @@ function routeConfig($locationProvider, $routeProvider) {
 
 function run($location, $rootScope, $route, lodash) {
   var id = 0;
-  $rootScope.difficulty = 4;
   $rootScope.$route = $route;
 
   $rootScope.sha256 = function (input) {

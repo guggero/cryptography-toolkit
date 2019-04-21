@@ -1,8 +1,8 @@
 {
-  "name": "blockchain-demo",
+  "name": "cryptography-toolkit",
   "version": "1.0.0",
   "main": "browserify.js",
-  "repository": "git@github.com:guggero/blockchain-demo.git",
+  "repository": "git@github.com:guggero/cryptography-toolkit.git",
   "author": "Oliver Gugger <gugger@gmail.com>",
   "license": "MIT",
   "devDependencies": {
