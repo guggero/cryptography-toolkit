@@ -30,6 +30,7 @@
     "grunt": "^1.0.4",
     "grunt-angular-templates": "^1.1.0",
     "grunt-cli": "^1.3.2",
+    "husky": "^2.1.0",
     "js-sha3": "^0.6.1",
     "macaroon": "guggero/js-macaroon",
     "merkle-lib": "^2.0.10",
@@ -50,5 +51,10 @@
     "maketargz": "tar --exclude=release --exclude=.idea --exclude=node_modules -czvf release/cryptography-toolkit.offline.tar.gz *",
     "release": "rm -rf release && mkdir release && yarn maketargz && cd release && sha256sum -b * > cryptography-toolkit.offline.sum",
     "sign": "gpg --clearsign release/cryptography-toolkit.offline.sum"
+  },
+  "hsuky": {
+    "hooks": {
+      "pre-commit": "yarn browserify && yarn templates"
+    }
   }
 }
