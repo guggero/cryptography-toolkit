@@ -36,6 +36,7 @@ function routeConfig($locationProvider, $routeProvider) {
     .when('/transaction-creator', {template: '<transaction-creator-page></transaction-creator-page>', containerClass: 'container'})
     .when('/aezeed', {template: '<aezeed-page></aezeed-page>', containerClass: 'container'})
     .when('/macaroon', {template: '<macaroon-page></macaroon-page>', containerClass: 'container'})
+    .when('/wallet-import', {template: '<wallet-import-page></wallet-import-page>', containerClass: 'container'})
     .otherwise({redirectTo: '/'})
 }
 

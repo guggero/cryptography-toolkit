@@ -1,0 +1,110 @@
+<h1>Import HD wallet into Bitcoin Core</h1>
+
+<div class="panel panel-default">
+  <div class="panel-heading">
+    <h4 class="panel-title">
+      <a ng-click="vm.showExplanation = !vm.showExplanation">Explanation</a>
+    </h4>
+  </div>
+  <div class="panel-collapse collapse" ng-class="{in: vm.showExplanation}">
+    <div class="panel-body">
+      Currently, there is no easy way to import addresses from a HD seed that has been created by another software into Bitcoin Core.<br/>
+      This tool helps you do that.
+    </div>
+  </div>
+</div>
+
+<h4>Import HD wallet</h4>
+<div class="well">
+  <form class="form-horizontal">
+
+    <!-- mnemonic -->
+    <div class="form-group">
+      <label class="col-sm-3 control-label">Seed Mnemonic (BIP39):</label>
+      <div class="col-sm-9 input-group">
+        <input class="form-control" ng-model="vm.mnemonic" ng-change="vm.fromMnemonic()">
+        <span class="input-group-addon">&lt;-- paste here to import.</span>
+      </div>
+    </div>
+
+    <!-- passphrase -->
+    <div class="form-group">
+      <label class="col-sm-3 control-label">Passphrase:</label>
+      <div class="col-sm-9 input-group">
+        <input class="form-control"
+               ng-model="vm.passphrase"
+               ng-change="vm.fromMnemonic()"
+               type="{{vm.asPassword ? 'password' : 'text'}}">
+        <span class="input-group-btn">
+            <button class="btn btn-primary" ng-click="vm.asPassword = !vm.asPassword">
+                {{vm.asPassword ? 'Show' : 'Hide'}} passphrase
+            </button>
+        </span>
+        <div class="input-group-addon">Method</div>
+        <select ng-model="vm.strenghtening"
+                ng-change="vm.fromMnemonic()"
+                ng-options="s.label for s in vm.strenghteningMethods"
+                class="form-control">
+        </select>
+      </div>
+    </div>
+
+    <!-- derive -->
+    <div class="form-group">
+      <label class="col-sm-3 control-label">Parameters to derive keys:</label>
+      <div class="col-sm-9 input-group">
+        <select ng-model="vm.scheme"
+                ng-options="scheme.label for scheme in vm.schemes"
+                ng-change="vm.fromSeed()"
+                class="form-control">
+        </select>
+      </div>
+    </div>
+
+    <!-- root key base58 -->
+    <div class="form-group">
+      <label class="col-sm-3 control-label">HD master root key:</label>
+      <div class="col-sm-9 input-group as-block">
+        <input class="form-control" value="{{vm.nodeBase58}}" ng-readonly="true">
+      </div>
+    </div>
+
+    <!-- import type -->
+    <div class="form-group">
+      <label class="col-sm-3 control-label">Import parameters:</label>
+      <div class="col-sm-9 input-group">
+        <div class="input-group-addon">Import type</div>
+        <select ng-model="vm.importType" ng-options="type.label for type in vm.importTypes" class="form-control">
+        </select>
+        <div class="input-group-addon">Start Path</div>
+        <input class="form-control" ng-model="vm.path">
+      </div>
+      <div class="col-sm-offset-3 col-sm-9 input-group">
+        <div class="input-group-addon">Change (_chg_): Start value</div>
+        <input class="form-control" ng-model="vm.changeStart">
+        <div class="input-group-addon">End value</div>
+        <input class="form-control" ng-model="vm.changeEnd">
+      </div>
+      <div class="col-sm-offset-3 col-sm-9 input-group">
+        <div class="input-group-addon">Index (_idx_): Start value</div>
+        <input class="form-control" ng-model="vm.indexStart">
+        <div class="input-group-addon">End value</div>
+        <input class="form-control" ng-model="vm.indexEnd">
+      </div>
+    </div>
+
+    <div class="form-group">
+      <div class="col-sm-offset-3 col-sm-9 input-group">
+        <button class="btn btn-primary" ng-click="vm.createExport()">Create export</button>
+      </div>
+    </div>
+
+    <!-- result -->
+    <div class="form-group" ng-if="vm.result">
+      <div class="col-sm-12 input-group">
+        <textarea rows="50" ng-readonly="true" class="form-control" style="white-space: pre">{{vm.result}}</textarea>
+      </div>
+    </div>
+  </form>
+</div>
+

@@ -21,6 +21,7 @@ paste sensitive information into. So consider yourself warned.
 * [Transaction Creator page](https://guggero.github.io/cryptography-toolkit/#!/transaction-creator)
 * [aezeed Cipher Seed Scheme page](https://guggero.github.io/cryptography-toolkit/#!/aezeed)
 * [Macaroons page](https://guggero.github.io/cryptography-toolkit/#!/macaroon)
+* [Wallet Import helper page](https://guggero.github.io/cryptography-toolkit/#!/wallet-import)
 
 ## Send Thanks
 

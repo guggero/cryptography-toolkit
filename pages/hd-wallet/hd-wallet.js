@@ -7,29 +7,16 @@ angular
     bindings: {}
   });
 
-var PBKDF2_SALT = 'Digital Bitbox',
-  PBKDF2_HMACLEN = 64,
-  PBKDF2_ROUNDS_APP = 20480;
-
-var METHOD_NONE = 0,
-  METHOD_PBKDF2 = 1,
-  METHOD_COINOMI = 2;
-
 function HdWalletPageController(lodash, bitcoinNetworks) {
-  var vm = this;
+  const vm = this;
 
-  var BITCOIN = lodash.find(bitcoinNetworks, ['label', 'BTC (Bitcoin)']);
-  var BITCOIN_TESTNET = lodash.find(bitcoinNetworks, ['label', 'BTC (Bitcoin Testnet)']);
-  var PIVX = lodash.find(bitcoinNetworks, ['label', 'PIVX (PIVX)']);
-  var PIVX_TESTNET = lodash.find(bitcoinNetworks, ['label', 'PIVX (PIVX Testnet)']);
-  var ION = lodash.find(bitcoinNetworks, ['label', 'ION (Ion)']);
-  var ION_TESTNET = lodash.find(bitcoinNetworks, ['label', 'ION (Ion Testnet)']);
-  var SLATE = lodash.find(bitcoinNetworks, ['label', 'SLX (Slate)']);
-  var SLATE_TESTNET = lodash.find(bitcoinNetworks, ['label', 'SLX (Slate Testnet)']);
-  var OBSERVER = lodash.find(bitcoinNetworks, ['label', 'OBSR (Observer)']);
-  var OBSERVER_TESTNET = lodash.find(bitcoinNetworks, ['label', 'OBSR (Observer Testnet)']);
-  var WAGERR = lodash.find(bitcoinNetworks, ['label', 'WGR (Wagger)']);
-  var WAGERR_TESTNET = lodash.find(bitcoinNetworks, ['label', 'WGR (Wagerr Testnet)']);
+  const PBKDF2_SALT = 'Digital Bitbox',
+    PBKDF2_HMACLEN = 64,
+    PBKDF2_ROUNDS_APP = 20480;
+  const METHOD_NONE = 0,
+    METHOD_PBKDF2 = 1,
+    METHOD_COINOMI = 2;
+  const BITCOIN = lodash.find(bitcoinNetworks, ['label', 'BTC (Bitcoin)']);
 
   vm.coinTypes = bitcoinNetworks;
   vm.coinType = BITCOIN;

@@ -1,6 +1,6 @@
 {
   "name": "cryptography-toolkit",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "main": "browserify.js",
   "repository": "git@github.com:guggero/cryptography-toolkit.git",
   "author": "Oliver Gugger <gugger@gmail.com>",
