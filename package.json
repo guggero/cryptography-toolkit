@@ -52,7 +52,7 @@
     "release": "rm -rf release && mkdir release && yarn maketargz && cd release && sha256sum -b * > cryptography-toolkit.offline.sum",
     "sign": "gpg --clearsign release/cryptography-toolkit.offline.sum"
   },
-  "hsuky": {
+  "husky": {
     "hooks": {
       "pre-commit": "yarn browserify && yarn templates"
     }

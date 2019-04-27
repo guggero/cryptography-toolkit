@@ -35,6 +35,9 @@ angular.module('app').run(['$templateCache', function($templateCache) {
     "            <li ng-class=\"{active: $root.isActive('/transaction-creator')}\">\n" +
     "              <a href=\"#!/transaction-creator\">Transaction Creator</a>\n" +
     "            </li>\n" +
+    "            <li ng-class=\"{active: $root.isActive('/wallet-import')}\">\n" +
+    "              <a href=\"#!/wallet-import\">Wallet Import helper</a>\n" +
+    "            </li>\n" +
     "          </ul>\n" +
     "        </li>\n" +
     "        <li class=\"dropdown\">\n" +
@@ -146,7 +149,7 @@ angular.module('app').run(['$templateCache', function($templateCache) {
     "  <script src=\"pages/schnorr/schnorr.js\"></script>\n" +
     "  <script src=\"pages/transaction-creator/transaction-creator.js\"></script>\n" +
     "  <script src=\"pages/aezeed/aezeed.js\"></script>\n" +
-    "  <script src=\"pages/macaroon/macaroon.js\"></script>\n" +
+    "  <script src=\"pages/wallet-import/wallet-import.js\"></script>\n" +
     "\n" +
     "  <title>Cryptography Toolkit</title>\n" +
     "</head>\n" +
@@ -3011,36 +3014,34 @@ angular.module('app').run(['$templateCache', function($templateCache) {
     "    <!-- derive -->\n" +
     "    <div class=\"form-group\">\n" +
     "      <label class=\"col-sm-3 control-label\">BIP44 parameters to derive keys:</label>\n" +
-    "      <div class=\"col-sm-9\">\n" +
-    "        <div class=\"input-group\">\n" +
-    "          <div class=\"input-group-addon\">Coin type</div>\n" +
-    "          <select ng-model=\"vm.coinType\"\n" +
-    "                  ng-options=\"coin.label for coin in vm.coinTypes\"\n" +
-    "                  ng-change=\"vm.fromNode()\"\n" +
-    "                  class=\"form-control\">\n" +
-    "          </select>\n" +
-    "          <div class=\"input-group-addon\">Account</div>\n" +
-    "          <input class=\"form-control\"\n" +
-    "                 ng-model=\"vm.account\"\n" +
-    "                 ng-change=\"vm.calculatePath()\"\n" +
-    "                 type=\"number\">\n" +
-    "          <div class=\"input-group-addon\">Change</div>\n" +
-    "          <input class=\"form-control\"\n" +
-    "                 ng-model=\"vm.change\"\n" +
-    "                 ng-change=\"vm.calculatePath()\"\n" +
-    "                 type=\"number\">\n" +
-    "          <div class=\"input-group-addon\">Index</div>\n" +
-    "          <input class=\"form-control\"\n" +
-    "                 ng-model=\"vm.index\"\n" +
-    "                 ng-change=\"vm.calculatePath()\"\n" +
-    "                 type=\"number\">\n" +
-    "        </div>\n" +
-    "        <div class=\"input-group\">\n" +
-    "          <div class=\"input-group-addon\">Path</div>\n" +
-    "          <input class=\"form-control\"\n" +
-    "                 ng-model=\"vm.path\"\n" +
-    "                 ng-change=\"vm.fromPath()\">\n" +
-    "        </div>\n" +
+    "      <div class=\"col-sm-9 input-group\">\n" +
+    "        <div class=\"input-group-addon\">Coin type</div>\n" +
+    "        <select ng-model=\"vm.coinType\"\n" +
+    "                ng-options=\"coin.label for coin in vm.coinTypes\"\n" +
+    "                ng-change=\"vm.fromNode()\"\n" +
+    "                class=\"form-control\">\n" +
+    "        </select>\n" +
+    "        <div class=\"input-group-addon\">Account</div>\n" +
+    "        <input class=\"form-control\"\n" +
+    "               ng-model=\"vm.account\"\n" +
+    "               ng-change=\"vm.calculatePath()\"\n" +
+    "               type=\"number\">\n" +
+    "        <div class=\"input-group-addon\">Change</div>\n" +
+    "        <input class=\"form-control\"\n" +
+    "               ng-model=\"vm.change\"\n" +
+    "               ng-change=\"vm.calculatePath()\"\n" +
+    "               type=\"number\">\n" +
+    "        <div class=\"input-group-addon\">Index</div>\n" +
+    "        <input class=\"form-control\"\n" +
+    "               ng-model=\"vm.index\"\n" +
+    "               ng-change=\"vm.calculatePath()\"\n" +
+    "               type=\"number\">\n" +
+    "      </div>\n" +
+    "      <div class=\"col-sm-offset-3 col-sm-9 input-group\">\n" +
+    "        <div class=\"input-group-addon\">Path</div>\n" +
+    "        <input class=\"form-control\"\n" +
+    "               ng-model=\"vm.path\"\n" +
+    "               ng-change=\"vm.fromPath()\">\n" +
     "      </div>\n" +
     "    </div>\n" +
     "\n" +
@@ -3208,6 +3209,7 @@ angular.module('app').run(['$templateCache', function($templateCache) {
     "  <li><a href=\"#!/transaction-creator\">Transaction Creator page</a></li>\n" +
     "  <li><a href=\"#!/aezeed\">aezeed Cipher Seed Scheme page</a></li>\n" +
     "  <li><a href=\"#!/macaroon\">Macaroons page</a></li>\n" +
+    "  <li><a href=\"#!/wallet-import\">Wallet Import helper page</a></li>\n" +
     "</ul>\n" +
     "\n" +
     "<p class=\"pull-right\">\n" +
@@ -4038,6 +4040,120 @@ angular.module('app').run(['$templateCache', function($templateCache) {
     "    </form>\n" +
     "  </div>\n" +
     "</div>\n"
+  );
+
+
+  $templateCache.put('pages/wallet-import/wallet-import.html',
+    "<h1>Import HD wallet into Bitcoin Core</h1>\n" +
+    "\n" +
+    "<div class=\"panel panel-default\">\n" +
+    "  <div class=\"panel-heading\">\n" +
+    "    <h4 class=\"panel-title\">\n" +
+    "      <a ng-click=\"vm.showExplanation = !vm.showExplanation\">Explanation</a>\n" +
+    "    </h4>\n" +
+    "  </div>\n" +
+    "  <div class=\"panel-collapse collapse\" ng-class=\"{in: vm.showExplanation}\">\n" +
+    "    <div class=\"panel-body\">\n" +
+    "      Currently, there is no easy way to import addresses from a HD seed that has been created by another software into Bitcoin Core.<br/>\n" +
+    "      This tool helps you do that.\n" +
+    "    </div>\n" +
+    "  </div>\n" +
+    "</div>\n" +
+    "\n" +
+    "<h4>Import HD wallet</h4>\n" +
+    "<div class=\"well\">\n" +
+    "  <form class=\"form-horizontal\">\n" +
+    "\n" +
+    "    <!-- mnemonic -->\n" +
+    "    <div class=\"form-group\">\n" +
+    "      <label class=\"col-sm-3 control-label\">Seed Mnemonic (BIP39):</label>\n" +
+    "      <div class=\"col-sm-9 input-group\">\n" +
+    "        <input class=\"form-control\" ng-model=\"vm.mnemonic\" ng-change=\"vm.fromMnemonic()\">\n" +
+    "        <span class=\"input-group-addon\">&lt;-- paste here to import.</span>\n" +
+    "      </div>\n" +
+    "    </div>\n" +
+    "\n" +
+    "    <!-- passphrase -->\n" +
+    "    <div class=\"form-group\">\n" +
+    "      <label class=\"col-sm-3 control-label\">Passphrase:</label>\n" +
+    "      <div class=\"col-sm-9 input-group\">\n" +
+    "        <input class=\"form-control\"\n" +
+    "               ng-model=\"vm.passphrase\"\n" +
+    "               ng-change=\"vm.fromMnemonic()\"\n" +
+    "               type=\"{{vm.asPassword ? 'password' : 'text'}}\">\n" +
+    "        <span class=\"input-group-btn\">\n" +
+    "            <button class=\"btn btn-primary\" ng-click=\"vm.asPassword = !vm.asPassword\">\n" +
+    "                {{vm.asPassword ? 'Show' : 'Hide'}} passphrase\n" +
+    "            </button>\n" +
+    "        </span>\n" +
+    "        <div class=\"input-group-addon\">Method</div>\n" +
+    "        <select ng-model=\"vm.strenghtening\"\n" +
+    "                ng-change=\"vm.fromMnemonic()\"\n" +
+    "                ng-options=\"s.label for s in vm.strenghteningMethods\"\n" +
+    "                class=\"form-control\">\n" +
+    "        </select>\n" +
+    "      </div>\n" +
+    "    </div>\n" +
+    "\n" +
+    "    <!-- derive -->\n" +
+    "    <div class=\"form-group\">\n" +
+    "      <label class=\"col-sm-3 control-label\">Parameters to derive keys:</label>\n" +
+    "      <div class=\"col-sm-9 input-group\">\n" +
+    "        <select ng-model=\"vm.scheme\"\n" +
+    "                ng-options=\"scheme.label for scheme in vm.schemes\"\n" +
+    "                ng-change=\"vm.fromSeed()\"\n" +
+    "                class=\"form-control\">\n" +
+    "        </select>\n" +
+    "      </div>\n" +
+    "    </div>\n" +
+    "\n" +
+    "    <!-- root key base58 -->\n" +
+    "    <div class=\"form-group\">\n" +
+    "      <label class=\"col-sm-3 control-label\">HD master root key:</label>\n" +
+    "      <div class=\"col-sm-9 input-group as-block\">\n" +
+    "        <input class=\"form-control\" value=\"{{vm.nodeBase58}}\" ng-readonly=\"true\">\n" +
+    "      </div>\n" +
+    "    </div>\n" +
+    "\n" +
+    "    <!-- import type -->\n" +
+    "    <div class=\"form-group\">\n" +
+    "      <label class=\"col-sm-3 control-label\">Import parameters:</label>\n" +
+    "      <div class=\"col-sm-9 input-group\">\n" +
+    "        <div class=\"input-group-addon\">Import type</div>\n" +
+    "        <select ng-model=\"vm.importType\" ng-options=\"type.label for type in vm.importTypes\" class=\"form-control\">\n" +
+    "        </select>\n" +
+    "        <div class=\"input-group-addon\">Start Path</div>\n" +
+    "        <input class=\"form-control\" ng-model=\"vm.path\">\n" +
+    "      </div>\n" +
+    "      <div class=\"col-sm-offset-3 col-sm-9 input-group\">\n" +
+    "        <div class=\"input-group-addon\">Change (_chg_): Start value</div>\n" +
+    "        <input class=\"form-control\" ng-model=\"vm.changeStart\">\n" +
+    "        <div class=\"input-group-addon\">End value</div>\n" +
+    "        <input class=\"form-control\" ng-model=\"vm.changeEnd\">\n" +
+    "      </div>\n" +
+    "      <div class=\"col-sm-offset-3 col-sm-9 input-group\">\n" +
+    "        <div class=\"input-group-addon\">Index (_idx_): Start value</div>\n" +
+    "        <input class=\"form-control\" ng-model=\"vm.indexStart\">\n" +
+    "        <div class=\"input-group-addon\">End value</div>\n" +
+    "        <input class=\"form-control\" ng-model=\"vm.indexEnd\">\n" +
+    "      </div>\n" +
+    "    </div>\n" +
+    "\n" +
+    "    <div class=\"form-group\">\n" +
+    "      <div class=\"col-sm-offset-3 col-sm-9 input-group\">\n" +
+    "        <button class=\"btn btn-primary\" ng-click=\"vm.createExport()\">Create export</button>\n" +
+    "      </div>\n" +
+    "    </div>\n" +
+    "\n" +
+    "    <!-- result -->\n" +
+    "    <div class=\"form-group\" ng-if=\"vm.result\">\n" +
+    "      <div class=\"col-sm-12 input-group\">\n" +
+    "        <textarea rows=\"50\" ng-readonly=\"true\" class=\"form-control\" style=\"white-space: pre\">{{vm.result}}</textarea>\n" +
+    "      </div>\n" +
+    "    </div>\n" +
+    "  </form>\n" +
+    "</div>\n" +
+    "\n"
   );
 
 }]);
