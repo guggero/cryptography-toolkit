@@ -3840,9 +3840,8 @@ angular.module('app').run(['$templateCache', function($templateCache) {
     "</div>\n" +
     "\n" +
     "<div class=\"alert alert-warning\">\n" +
-    "  <strong>Warning</strong>: This is meant as a playground only! The author does not take any responsibility for lost\n" +
-    "  funds due to misuse\n" +
-    "  or malfunction!\n" +
+    "  <strong>Warning</strong>: This is meant as a playground only! You should only use testnet keys and never paste real private keys\n" +
+    "  into any web page!\n" +
     "</div>\n" +
     "\n" +
     "<h4>Set target network and private key</h4>\n" +
@@ -4058,6 +4057,11 @@ angular.module('app').run(['$templateCache', function($templateCache) {
     "      This tool helps you do that.\n" +
     "    </div>\n" +
     "  </div>\n" +
+    "</div>\n" +
+    "\n" +
+    "<div class=\"alert alert-warning\">\n" +
+    "  <strong>Warning</strong>: This is meant as a playground only! You should only use testnet keys and never paste real private keys\n" +
+    "  into any web page!\n" +
     "</div>\n" +
     "\n" +
     "<h4>Import HD wallet</h4>\n" +
