@@ -3214,7 +3214,7 @@ angular.module('app').run(['$templateCache', function($templateCache) {
     "\n" +
     "<p class=\"pull-right\">\n" +
     "  by <a href=\"https://github.com/guggero\">Oliver Gugger</a><br>\n" +
-    "  BTC: 1GuggerownoWdKkMUA8C2ySkA8AK7Ucn7n<br/>\n" +
+    "  BTC tip address: bc1qrepygjyxq34d08dqpwhryej5aclpqgzc28seqt<br/>\n" +
     "</p>\n"
   );
 
