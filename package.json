@@ -54,7 +54,7 @@
   },
   "husky": {
     "hooks": {
-      "pre-commit": "yarn browserify && yarn templates"
+      "pre-commit": "yarn browserify && yarn templates && git add ."
     }
   }
 }
