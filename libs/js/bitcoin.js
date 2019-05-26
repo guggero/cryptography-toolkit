@@ -63,12 +63,13 @@ module.exports = {
   crc32: require('fast-crc32c/impls/js_crc32c'),
   unorm: require('unorm'),
   macaroon: require('macaroon'),
+  createHmac: require('create-hmac'),
 
   protobuf: require('google-protobuf'),
   macaroonIdProtobuf: require('./pages/macaroon/id-protobuf'),
 };
 
-},{"./pages/macaroon/id-protobuf":284,"aez":7,"bigi":28,"bip-schnorr":32,"bip32-utils":39,"bip38":40,"bip39":42,"bip39/wordlists/english.json":50,"bitcoin-ops":56,"bitcoinjs-lib/src/address":58,"bitcoinjs-lib/src/block":59,"bitcoinjs-lib/src/bufferutils":60,"bitcoinjs-lib/src/crypto":61,"bitcoinjs-lib/src/ecdsa":62,"bitcoinjs-lib/src/ecpair":63,"bitcoinjs-lib/src/ecsignature":64,"bitcoinjs-lib/src/hdnode":65,"bitcoinjs-lib/src/networks":67,"bitcoinjs-lib/src/script":68,"bitcoinjs-lib/src/transaction":92,"bitcoinjs-lib/src/transaction_builder":93,"bs58check":129,"bs58check/base":128,"ecurve":158,"fast-crc32c/impls/js_crc32c":179,"google-protobuf":180,"js-sha3":201,"macaroon":202,"merkle-lib/fastRoot":203,"pbkdf2":217,"random-bytes":231,"safe-buffer":248,"scrypt-js":249,"secrets.js-grempe":256,"unorm":275,"varuint-bitcoin":280,"wif":282}],2:[function(require,module,exports){
+},{"./pages/macaroon/id-protobuf":284,"aez":7,"bigi":28,"bip-schnorr":32,"bip32-utils":39,"bip38":40,"bip39":42,"bip39/wordlists/english.json":50,"bitcoin-ops":56,"bitcoinjs-lib/src/address":58,"bitcoinjs-lib/src/block":59,"bitcoinjs-lib/src/bufferutils":60,"bitcoinjs-lib/src/crypto":61,"bitcoinjs-lib/src/ecdsa":62,"bitcoinjs-lib/src/ecpair":63,"bitcoinjs-lib/src/ecsignature":64,"bitcoinjs-lib/src/hdnode":65,"bitcoinjs-lib/src/networks":67,"bitcoinjs-lib/src/script":68,"bitcoinjs-lib/src/transaction":92,"bitcoinjs-lib/src/transaction_builder":93,"bs58check":129,"bs58check/base":128,"create-hmac":138,"ecurve":158,"fast-crc32c/impls/js_crc32c":179,"google-protobuf":180,"js-sha3":201,"macaroon":202,"merkle-lib/fastRoot":203,"pbkdf2":217,"random-bytes":231,"safe-buffer":248,"scrypt-js":249,"secrets.js-grempe":256,"unorm":275,"varuint-bitcoin":280,"wif":282}],2:[function(require,module,exports){
 /* eslint-disable node/no-deprecated-api */
 var buffer = require('buffer')
 var Buffer = buffer.Buffer

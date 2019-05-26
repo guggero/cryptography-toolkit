@@ -62,6 +62,7 @@ module.exports = {
   crc32: require('fast-crc32c/impls/js_crc32c'),
   unorm: require('unorm'),
   macaroon: require('macaroon'),
+  createHmac: require('create-hmac'),
 
   protobuf: require('google-protobuf'),
   macaroonIdProtobuf: require('./pages/macaroon/id-protobuf'),
