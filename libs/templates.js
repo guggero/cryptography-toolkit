@@ -149,6 +149,7 @@ angular.module('app').run(['$templateCache', function($templateCache) {
     "  <script src=\"pages/schnorr/schnorr.js\"></script>\n" +
     "  <script src=\"pages/transaction-creator/transaction-creator.js\"></script>\n" +
     "  <script src=\"pages/aezeed/aezeed.js\"></script>\n" +
+    "  <script src=\"pages/macaroon/macaroon.js\"></script>\n" +
     "  <script src=\"pages/wallet-import/wallet-import.js\"></script>\n" +
     "\n" +
     "  <title>Cryptography Toolkit</title>\n" +
