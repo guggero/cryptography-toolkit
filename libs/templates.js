@@ -3358,7 +3358,7 @@ angular.module('app').run(['$templateCache', function($templateCache) {
     "    </div>\n" +
     "\n" +
     "    <div class=\"form-group\">\n" +
-    "      <label class=\"col-sm-3 control-label\" for=\"json\">JSON:</label>\n" +
+    "      <label class=\"col-sm-3 control-label\" for=\"json\">{{vm.showJson ? 'JSON' : 'Hex'}}:</label>\n" +
     "      <div class=\"col-sm-9 input-group\">\n" +
     "        <textarea id=\"json2\" rows=\"10\" ng-readonly=\"true\" class=\"form-control\">{{\n" +
     "          vm.serializeMacaroon(vm.macaroon2, vm.showJson)\n" +

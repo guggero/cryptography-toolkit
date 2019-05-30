@@ -135,7 +135,7 @@
     </div>
 
     <div class="form-group">
-      <label class="col-sm-3 control-label" for="json">JSON:</label>
+      <label class="col-sm-3 control-label" for="json">{{vm.showJson ? 'JSON' : 'Hex'}}:</label>
       <div class="col-sm-9 input-group">
         <textarea id="json2" rows="10" ng-readonly="true" class="form-control">{{
           vm.serializeMacaroon(vm.macaroon2, vm.showJson)
