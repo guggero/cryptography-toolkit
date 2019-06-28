@@ -1,4 +1,4 @@
-<h1>Hierarchical Deterministic Wallet (BIP32, BIP38, BIP39, BIP44)</h1>
+<h1>Hierarchical Deterministic Wallet (BIP32/38/39/44/49/84)</h1>
 
 <div class="panel panel-default">
   <div class="panel-heading">
@@ -24,6 +24,14 @@
         <li>
           <a href="https://github.com/bitcoin/bips/blob/master/bip-0044.mediawiki">
             BIP44: Multi-Account Hierarchy for Deterministic Wallets</a>
+        </li>
+        <li>
+          <a href="https://github.com/bitcoin/bips/blob/master/bip-0049.mediawiki">
+            BIP49: Derivation scheme for P2WPKH-nested-in-P2SH based accounts</a>
+        </li>
+        <li>
+          <a href="https://github.com/bitcoin/bips/blob/master/bip-0084.mediawiki">
+            BIP84: Derivation scheme for P2WPKH based accounts</a>
         </li>
         <li><a href="https://github.com/bitcoinjs/bip38">bitcoinjs/bip38</a></li>
         <li><a href="https://github.com/bitcoinjs/bip39">bitcoinjs/bip39</a></li>
@@ -152,16 +160,29 @@
   </form>
 </div>
 
-<h4>BIP44 key derivation</h4>
+<h4>BIP32/44/49/84 key derivation</h4>
 <div class="well">
   <form class="form-horizontal">
 
+    <!-- BIP selection -->
+    <div class="form-group">
+      <label class="col-sm-3 control-label">BIP:</label>
+      <div class="col-sm-9 input-group">
+        <select ng-model="vm.selectedBip"
+                ng-options="bip.label for bip in vm.bips"
+                ng-change="vm.fromNode()"
+                class="form-control">
+        </select>
+      </div>
+    </div>
+
     <!-- derive -->
     <div class="form-group">
-      <label class="col-sm-3 control-label">BIP44 parameters to derive keys:</label>
+      <label class="col-sm-3 control-label">BIP{{vm.selectedBip.bip}} parameters to derive keys:</label>
       <div class="col-sm-9 input-group">
-        <div class="input-group-addon">Coin type</div>
-        <select ng-model="vm.coinType"
+        <div class="input-group-addon" ng-if="vm.selectedBip.hasCoinType">Coin type</div>
+        <select ng-if="vm.selectedBip.hasCoinType"
+                ng-model="vm.coinType"
                 ng-options="coin.label for coin in vm.coinTypes"
                 ng-change="vm.fromNode()"
                 class="form-control">
@@ -170,16 +191,22 @@
         <input class="form-control"
                ng-model="vm.account"
                ng-change="vm.calculatePath()"
+               min="0"
+               max="2147483647"
                type="number">
         <div class="input-group-addon">Change</div>
         <input class="form-control"
                ng-model="vm.change"
                ng-change="vm.calculatePath()"
+               min="0"
+               max="2147483647"
                type="number">
         <div class="input-group-addon">Index</div>
         <input class="form-control"
                ng-model="vm.index"
                ng-change="vm.calculatePath()"
+               min="0"
+               max="2147483647"
                type="number">
       </div>
       <div class="col-sm-offset-3 col-sm-9 input-group">
@@ -238,7 +265,7 @@
 
     <!-- SegWit native p2wpkh -->
     <div class="form-group" ng-if="vm.network.config.bech32">
-      <label class="col-sm-3 control-label">SegWit bech32 P2WPKH address:</label>
+      <label class="col-sm-3 control-label">Native SegWit bech32 P2WPKH address:</label>
       <div class="col-sm-9 input-group">
         <input class="form-control" ng-readonly="true" value="{{vm.derivedKey.keyPair.P2WPKHAddress}}">
       </div>
@@ -321,7 +348,7 @@
 
     <!-- SegWit native p2wpkh -->
     <div class="form-group" ng-if="vm.network.config.bech32">
-      <label class="col-sm-3 control-label">SegWit bech32 P2WPKH address:</label>
+      <label class="col-sm-3 control-label">Native SegWit bech32 P2WPKH address:</label>
       <div class="col-sm-9 input-group">
         <input class="form-control" ng-readonly="true" value="{{vm.customDerivedKey.keyPair.P2WPKHAddress}}">
       </div>

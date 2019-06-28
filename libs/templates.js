@@ -2854,7 +2854,7 @@ angular.module('app').run(['$templateCache', function($templateCache) {
 
 
   $templateCache.put('pages/hd-wallet/hd-wallet.html',
-    "<h1>Hierarchical Deterministic Wallet (BIP32, BIP38, BIP39, BIP44)</h1>\n" +
+    "<h1>Hierarchical Deterministic Wallet (BIP32/38/39/44/49/84)</h1>\n" +
     "\n" +
     "<div class=\"panel panel-default\">\n" +
     "  <div class=\"panel-heading\">\n" +
@@ -2880,6 +2880,14 @@ angular.module('app').run(['$templateCache', function($templateCache) {
     "        <li>\n" +
     "          <a href=\"https://github.com/bitcoin/bips/blob/master/bip-0044.mediawiki\">\n" +
     "            BIP44: Multi-Account Hierarchy for Deterministic Wallets</a>\n" +
+    "        </li>\n" +
+    "        <li>\n" +
+    "          <a href=\"https://github.com/bitcoin/bips/blob/master/bip-0049.mediawiki\">\n" +
+    "            BIP49: Derivation scheme for P2WPKH-nested-in-P2SH based accounts</a>\n" +
+    "        </li>\n" +
+    "        <li>\n" +
+    "          <a href=\"https://github.com/bitcoin/bips/blob/master/bip-0084.mediawiki\">\n" +
+    "            BIP84: Derivation scheme for P2WPKH based accounts</a>\n" +
     "        </li>\n" +
     "        <li><a href=\"https://github.com/bitcoinjs/bip38\">bitcoinjs/bip38</a></li>\n" +
     "        <li><a href=\"https://github.com/bitcoinjs/bip39\">bitcoinjs/bip39</a></li>\n" +
@@ -3008,16 +3016,29 @@ angular.module('app').run(['$templateCache', function($templateCache) {
     "  </form>\n" +
     "</div>\n" +
     "\n" +
-    "<h4>BIP44 key derivation</h4>\n" +
+    "<h4>BIP32/44/49/84 key derivation</h4>\n" +
     "<div class=\"well\">\n" +
     "  <form class=\"form-horizontal\">\n" +
     "\n" +
+    "    <!-- BIP selection -->\n" +
+    "    <div class=\"form-group\">\n" +
+    "      <label class=\"col-sm-3 control-label\">BIP:</label>\n" +
+    "      <div class=\"col-sm-9 input-group\">\n" +
+    "        <select ng-model=\"vm.selectedBip\"\n" +
+    "                ng-options=\"bip.label for bip in vm.bips\"\n" +
+    "                ng-change=\"vm.fromNode()\"\n" +
+    "                class=\"form-control\">\n" +
+    "        </select>\n" +
+    "      </div>\n" +
+    "    </div>\n" +
+    "\n" +
     "    <!-- derive -->\n" +
     "    <div class=\"form-group\">\n" +
-    "      <label class=\"col-sm-3 control-label\">BIP44 parameters to derive keys:</label>\n" +
+    "      <label class=\"col-sm-3 control-label\">BIP{{vm.selectedBip.bip}} parameters to derive keys:</label>\n" +
     "      <div class=\"col-sm-9 input-group\">\n" +
-    "        <div class=\"input-group-addon\">Coin type</div>\n" +
-    "        <select ng-model=\"vm.coinType\"\n" +
+    "        <div class=\"input-group-addon\" ng-if=\"vm.selectedBip.hasCoinType\">Coin type</div>\n" +
+    "        <select ng-if=\"vm.selectedBip.hasCoinType\"\n" +
+    "                ng-model=\"vm.coinType\"\n" +
     "                ng-options=\"coin.label for coin in vm.coinTypes\"\n" +
     "                ng-change=\"vm.fromNode()\"\n" +
     "                class=\"form-control\">\n" +
@@ -3026,16 +3047,22 @@ angular.module('app').run(['$templateCache', function($templateCache) {
     "        <input class=\"form-control\"\n" +
     "               ng-model=\"vm.account\"\n" +
     "               ng-change=\"vm.calculatePath()\"\n" +
+    "               min=\"0\"\n" +
+    "               max=\"2147483647\"\n" +
     "               type=\"number\">\n" +
     "        <div class=\"input-group-addon\">Change</div>\n" +
     "        <input class=\"form-control\"\n" +
     "               ng-model=\"vm.change\"\n" +
     "               ng-change=\"vm.calculatePath()\"\n" +
+    "               min=\"0\"\n" +
+    "               max=\"2147483647\"\n" +
     "               type=\"number\">\n" +
     "        <div class=\"input-group-addon\">Index</div>\n" +
     "        <input class=\"form-control\"\n" +
     "               ng-model=\"vm.index\"\n" +
     "               ng-change=\"vm.calculatePath()\"\n" +
+    "               min=\"0\"\n" +
+    "               max=\"2147483647\"\n" +
     "               type=\"number\">\n" +
     "      </div>\n" +
     "      <div class=\"col-sm-offset-3 col-sm-9 input-group\">\n" +
@@ -3094,7 +3121,7 @@ angular.module('app').run(['$templateCache', function($templateCache) {
     "\n" +
     "    <!-- SegWit native p2wpkh -->\n" +
     "    <div class=\"form-group\" ng-if=\"vm.network.config.bech32\">\n" +
-    "      <label class=\"col-sm-3 control-label\">SegWit bech32 P2WPKH address:</label>\n" +
+    "      <label class=\"col-sm-3 control-label\">Native SegWit bech32 P2WPKH address:</label>\n" +
     "      <div class=\"col-sm-9 input-group\">\n" +
     "        <input class=\"form-control\" ng-readonly=\"true\" value=\"{{vm.derivedKey.keyPair.P2WPKHAddress}}\">\n" +
     "      </div>\n" +
@@ -3177,7 +3204,7 @@ angular.module('app').run(['$templateCache', function($templateCache) {
     "\n" +
     "    <!-- SegWit native p2wpkh -->\n" +
     "    <div class=\"form-group\" ng-if=\"vm.network.config.bech32\">\n" +
-    "      <label class=\"col-sm-3 control-label\">SegWit bech32 P2WPKH address:</label>\n" +
+    "      <label class=\"col-sm-3 control-label\">Native SegWit bech32 P2WPKH address:</label>\n" +
     "      <div class=\"col-sm-9 input-group\">\n" +
     "        <input class=\"form-control\" ng-readonly=\"true\" value=\"{{vm.customDerivedKey.keyPair.P2WPKHAddress}}\">\n" +
     "      </div>\n" +

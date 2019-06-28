@@ -7,6 +7,17 @@ angular
     bindings: {}
   });
 
+const calculatePath = function (bip, coinType, account, change, index) {
+  let path = bip.path;
+  if (bip.hasCoinType) {
+    path = path.replace(/coin/g, coinType.config.bip44);
+  }
+  path = path.replace(/account/g, account);
+  path = path.replace(/change/g, change);
+  path = path.replace(/index/g, index);
+  return path;
+};
+
 function HdWalletPageController(lodash, bitcoinNetworks) {
   const vm = this;
 
@@ -16,7 +27,7 @@ function HdWalletPageController(lodash, bitcoinNetworks) {
   const METHOD_NONE = 0,
     METHOD_PBKDF2 = 1,
     METHOD_COINOMI = 2;
-  const BITCOIN = lodash.find(bitcoinNetworks, ['label', 'BTC (Bitcoin)']);
+  const BITCOIN = lodash.find(bitcoinNetworks, ['label', 'BTC (Bitcoin, legacy, BIP32/44)']);
 
   vm.coinTypes = bitcoinNetworks;
   vm.coinType = BITCOIN;
@@ -35,7 +46,14 @@ function HdWalletPageController(lodash, bitcoinNetworks) {
   vm.account = 0;
   vm.change = 0;
   vm.index = 0;
-  vm.path = 'm/44\'/0\'/0\'/0/0';
+  vm.bips = [
+    {id: 0, label: 'BIP32 (Bitcoin Core)', bip: '32', hasCoinType: false, path: 'm/account\'/change\'/index'},
+    {id: 1, label: 'BIP44 (Legagy wallets, multi coin wallets)', bip: '44', hasCoinType: true, path: 'm/44\'/coin\'/account\'/change/index'},
+    {id: 2, label: 'BIP49 (SegWit P2SH-P2WPKH)', bip: '49', hasCoinType: true, path: 'm/49\'/coin\'/account\'/change/index'},
+    {id: 3, label: 'BIP84 (Native SegWit bech32 P2WPKH)', bip: '84', hasCoinType: true, path: 'm/84\'/coin\'/account\'/change/index'},
+  ];
+  vm.selectedBip = vm.bips[1];
+  vm.path = calculatePath(vm.selectedBip, vm.coinType, vm.account, vm.change, vm.index);
   vm.customPath = '0/0';
   vm.strenghteningMethods = [
     { label: 'BIP39 default (like Coinomi)', id: METHOD_COINOMI },
@@ -123,7 +141,7 @@ function HdWalletPageController(lodash, bitcoinNetworks) {
   };
 
   vm.calculatePath = function () {
-    vm.path = 'm/44\'/' + vm.coinType.config.bip44 + '\'/' + vm.account + '\'/' + vm.change + '/' + vm.index;
+    vm.path = calculatePath(vm.selectedBip, vm.coinType, vm.account, vm.change, vm.index);
     vm.fromPath();
   };
 
