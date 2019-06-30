@@ -27,8 +27,8 @@ var AEZEED_DEFAULT_PASSPHRASE = 'aezeed',
 function AezeedPageController($timeout, lodash, bitcoinNetworks) {
   var vm = this;
 
-  var BITCOIN = lodash.find(bitcoinNetworks, ['label', 'BTC (Bitcoin)']);
-  var BITCOIN_TESTNET = lodash.find(bitcoinNetworks, ['label', 'BTC (Bitcoin Testnet)']);
+  var BITCOIN = lodash.find(bitcoinNetworks, ['label', 'BTC (Bitcoin, legacy, BIP32/44)']);
+  var BITCOIN_TESTNET = lodash.find(bitcoinNetworks, ['label', 'BTC (Bitcoin Testnet, legagy, BIP32/44)']);
 
   vm.networks = [BITCOIN, BITCOIN_TESTNET];
   vm.network = BITCOIN;

@@ -11,7 +11,7 @@ function EccPageController(lodash, bitcoinNetworks) {
   var vm = this;
 
   vm.networks = bitcoinNetworks;
-  vm.network = lodash.find(vm.networks, ['label', 'BTC (Bitcoin)']);
+  vm.network = lodash.find(vm.networks, ['label', 'BTC (Bitcoin, legacy, BIP32/44)']);
   vm.message = 'Insert famous quote here!';
   vm.qrPrivUncompressed = new QRCode('qrPrivUncompressed');
   vm.qrPrivCompressed = new QRCode('qrPrivCompressed');

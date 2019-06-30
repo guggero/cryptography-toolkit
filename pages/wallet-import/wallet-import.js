@@ -16,8 +16,8 @@ function WalletImportPageController(lodash, bitcoinNetworks) {
   const METHOD_NONE = 0,
     METHOD_PBKDF2 = 1,
     METHOD_COINOMI = 2;
-  const BITCOIN = lodash.find(bitcoinNetworks, ['label', 'BTC (Bitcoin)']);
-  const BITCOIN_TESTNET = lodash.find(bitcoinNetworks, ['label', 'BTC (Bitcoin Testnet)']);
+  const BITCOIN = lodash.find(bitcoinNetworks, ['label', 'BTC (Bitcoin, legacy, BIP32/44)']);
+  const BITCOIN_TESTNET = lodash.find(bitcoinNetworks, ['label', 'BTC (Bitcoin Testnet, legagy, BIP32/44)']);
   const SCHEMES = [
     {
       label: "Bitcoin xprv (P2PKH/P2SH, m/44'/0')",

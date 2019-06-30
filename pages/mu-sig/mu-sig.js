@@ -13,7 +13,7 @@ function MuSigPageController(lodash, bitcoinNetworks) {
   const muSig = schnorr.muSig;
   const Buffer = bitcoin.Buffer;
   const BigInteger = bitcoin.BigInteger;
-  const network = lodash.find(bitcoinNetworks, ['label', 'BTC (Bitcoin)']).config;
+  const network = lodash.find(bitcoinNetworks, ['label', 'BTC (Bitcoin, legacy, BIP32/44)']).config;
   const randomBuffer = (len) => Buffer.from(bitcoin.randomBytes(len));
 
   vm.steps = [

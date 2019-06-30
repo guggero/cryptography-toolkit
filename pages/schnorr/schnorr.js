@@ -10,7 +10,7 @@ angular
 function SchnorrPageController(lodash, bitcoinNetworks) {
   var vm = this;
 
-  vm.network = lodash.find(bitcoinNetworks, ['label', 'BTC (Bitcoin)']);
+  vm.network = lodash.find(bitcoinNetworks, ['label', 'BTC (Bitcoin, legacy, BIP32/44)']);
   vm.keyPair = null;
   vm.privateKey = null;
   vm.publicKey = null;
