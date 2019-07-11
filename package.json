@@ -1,6 +1,6 @@
 {
   "name": "cryptography-toolkit",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "main": "browserify.js",
   "repository": "git@github.com:guggero/cryptography-toolkit.git",
   "author": "Oliver Gugger <gugger@gmail.com>",
@@ -48,9 +48,9 @@
   "scripts": {
     "browserify": "browserify -o libs/js/bitcoin.js browserify.js --standalone bitcoin",
     "templates": "grunt ngtemplates",
-    "maketargz": "tar --exclude=release --exclude=.idea --exclude=node_modules -czvf release/cryptography-toolkit.offline.tar.gz *",
-    "release": "rm -rf release && mkdir release && yarn maketargz && cd release && sha256sum -b * > cryptography-toolkit.offline.sum",
-    "sign": "gpg --clearsign release/cryptography-toolkit.offline.sum"
+    "maketargz": "tar --exclude=release --exclude=.idea --exclude=node_modules -czvf release/cryptography-toolkit.offline.v$npm_package_version.tar.gz *",
+    "release": "rm -rf release && mkdir release && yarn maketargz && cd release && sha256sum -b * > cryptography-toolkit.offline.v$npm_package_version.sum",
+    "sign": "gpg --clearsign release/cryptography-toolkit.offline.v$npm_package_version.sum"
   },
   "husky": {
     "hooks": {
