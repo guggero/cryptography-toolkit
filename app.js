@@ -8,7 +8,10 @@ angular
   ])
   .constant('moment', window.moment)
   .constant('lodash', window._)
+  .constant('allNetworks', window.allNetworks)
   .constant('bitcoinNetworks', window.bitcoinNetworks)
+  .constant('bitcoin', window.bitcoin)
+  .constant('Buffer', window.bitcoin.Buffer)
   .filter('ago', function (moment) {
     return function (input) {
       var duration = moment.duration(moment().diff(moment(input)));

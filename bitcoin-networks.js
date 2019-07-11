@@ -1,5 +1,5 @@
 // sorted by label, not by preference ;-)
-var bitcoinNetworks = [{
+window.allNetworks = [{
   label: 'ARK (Ark)',
   config: {
     messagePrefix: '\x18Ark Signed Message:\n',
@@ -399,6 +399,8 @@ var bitcoinNetworks = [{
     bip44: 0x37
   }
 }];
+
+window.bitcoinNetworks = _.filter(allNetworks, n => n.config.bech32 && (n.config.bip44 === 0x00 || n.config.bip44 === 0x01));
 
 function customToWIF(keyPair, network) {
   if (network.customHash) {

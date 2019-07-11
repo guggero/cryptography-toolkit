@@ -7,7 +7,7 @@ angular
     bindings: {}
   });
 
-var AEZEED_DEFAULT_PASSPHRASE = 'aezeed',
+const AEZEED_DEFAULT_PASSPHRASE = 'aezeed',
   AEZEED_VERSION = 0,
   BITCOIN_GENESIS_BLOCK_TIMESTAMP = 1231006505,
   SCRYPT_N = 32768,
@@ -24,14 +24,14 @@ var AEZEED_DEFAULT_PASSPHRASE = 'aezeed',
   CHECKSUM_OFFSET = ENCIPHERED_LENGTH - CHECKSUM_LENGTH,
   SALT_OFFSET = CHECKSUM_OFFSET - SALT_LENGTH;
 
-function AezeedPageController($timeout, lodash, bitcoinNetworks) {
-  var vm = this;
+function AezeedPageController($timeout, lodash, bitcoin, bitcoinNetworks, Buffer) {
+  const vm = this;
 
-  var BITCOIN = lodash.find(bitcoinNetworks, ['label', 'BTC (Bitcoin, legacy, BIP32/44)']);
-  var BITCOIN_TESTNET = lodash.find(bitcoinNetworks, ['label', 'BTC (Bitcoin Testnet, legagy, BIP32/44)']);
+  const BITCOIN = lodash.find(bitcoinNetworks, ['label', 'BTC (Bitcoin, legacy, BIP32/44)']);
 
-  vm.networks = [BITCOIN, BITCOIN_TESTNET];
+  vm.networks = bitcoinNetworks;
   vm.network = BITCOIN;
+  vm.network2 = BITCOIN;
   vm.asPassword = true;
   vm.version = AEZEED_VERSION;
   vm.birthday = 0;
@@ -49,7 +49,7 @@ function AezeedPageController($timeout, lodash, bitcoinNetworks) {
   };
 
   vm.formatBase58 = function () {
-    vm.nodeBase58 = bitcoin.HDNode.fromSeedBuffer(bitcoin.Buffer.from(vm.entropy, 'hex'), vm.network.config).toBase58();
+    vm.nodeBase58 = bitcoin.HDNode.fromSeedBuffer(Buffer.from(vm.entropy, 'hex'), vm.network.config).toBase58();
   };
 
   vm.generateSalt = function () {
@@ -59,8 +59,8 @@ function AezeedPageController($timeout, lodash, bitcoinNetworks) {
   vm.generateSeed = function () {
     vm.error = null;
 
-    var password = bitcoin.Buffer.from(vm.passphrase || AEZEED_DEFAULT_PASSPHRASE, 'utf8');
-    var salt = bitcoin.Buffer.from(vm.salt, 'hex');
+    const password = Buffer.from(vm.passphrase || AEZEED_DEFAULT_PASSPHRASE, 'utf8');
+    const salt = Buffer.from(vm.salt, 'hex');
     vm.mnemonic = 'please wait...';
     bitcoin.scrypt(password, salt, SCRYPT_N, SCRYPT_R, SCRYPT_P, SCRYPT_KEY_LENGTH, function (error, progress, key) {
       if (error) {
@@ -77,38 +77,38 @@ function AezeedPageController($timeout, lodash, bitcoinNetworks) {
   };
 
   vm.calculateBirthday = function () {
-    var unixTimestamp = Math.round((new Date()).getTime() / 1000);
+    const unixTimestamp = Math.round((new Date()).getTime() / 1000);
     return Math.floor((unixTimestamp - BITCOIN_GENESIS_BLOCK_TIMESTAMP) / (60 * 60 * 24));
   };
 
   vm.getSeedBytes = function () {
-    var seedBytes = bitcoin.Buffer.alloc(PLAINTEXT_LENGTH);
+    const seedBytes = Buffer.alloc(PLAINTEXT_LENGTH);
     seedBytes.writeUInt8(vm.version);
     seedBytes.writeUInt16BE(vm.birthday, 1);
-    bitcoin.Buffer.from(vm.entropy, 'hex').copy(seedBytes, 3);
+    Buffer.from(vm.entropy, 'hex').copy(seedBytes, 3);
     return seedBytes;
   };
 
   vm.getAD = function (salt) {
-    var ad = bitcoin.Buffer.alloc(AD_LENGTH, AEZEED_VERSION);
+    const ad = Buffer.alloc(AD_LENGTH, AEZEED_VERSION);
     salt.copy(ad, 1);
     return ad;
   };
 
   vm.getMnemonicBytes = function (cipherText) {
-    const mnemonicBytes = bitcoin.Buffer.alloc(ENCIPHERED_LENGTH);
+    const mnemonicBytes = Buffer.alloc(ENCIPHERED_LENGTH);
     mnemonicBytes.writeUInt8(vm.version);
     cipherText.copy(mnemonicBytes, 1);
-    bitcoin.Buffer.from(vm.salt, 'hex').copy(mnemonicBytes, SALT_OFFSET);
-    var checkSum = bitcoin.crc32.calculate(mnemonicBytes.slice(0, CHECKSUM_OFFSET));
+    Buffer.from(vm.salt, 'hex').copy(mnemonicBytes, SALT_OFFSET);
+    const checkSum = bitcoin.crc32.calculate(mnemonicBytes.slice(0, CHECKSUM_OFFSET));
     mnemonicBytes.writeUInt32BE(checkSum, CHECKSUM_OFFSET);
     return mnemonicBytes;
   };
 
   vm.seedToMnemonic = function (seed) {
-    var entropyBits = bytesToBinary([].slice.call(seed));
-    var words = entropyBits.match(/(.{1,11})/g).map(function (binary) {
-      var index = parseInt(binary, 2);
+    const entropyBits = bytesToBinary([].slice.call(seed));
+    const words = entropyBits.match(/(.{1,11})/g).map(function (binary) {
+      const index = parseInt(binary, 2);
       return bitcoin.bip39wordlist[index];
     });
     return words.join(' ');
@@ -116,7 +116,10 @@ function AezeedPageController($timeout, lodash, bitcoinNetworks) {
 
   vm.fromMnemonic = function () {
     vm.error2 = null;
-    var words = vm.mnemonic2.split(' ');
+    if (!vm.mnemonic2) {
+      return;
+    }
+    const words = vm.mnemonic2.split(' ');
 
     if (words.length !== NUM_WORDS) {
       vm.error2 = 'Must be 24 words!';
@@ -124,24 +127,21 @@ function AezeedPageController($timeout, lodash, bitcoinNetworks) {
       return;
     }
 
-    var belongToList = words.every(function (word) {
-      return bitcoin.bip39wordlist.indexOf(word) > -1;
-    });
-
+    const belongToList = words.every(word => bitcoin.bip39wordlist.indexOf(word) > -1);
     if (!belongToList) {
       vm.error2 = 'Some words are not in the wordlist!';
       vm.decoded = {};
       return;
     }
 
-    var bits = words.map(function (word) {
-      var index = bitcoin.bip39wordlist.indexOf(word);
-      return lpad(index.toString(2), '0', 11)
-    }).join('');
-    var seedBytes = bits.match(/(.{1,8})/g).map(function (bin) {
-      return parseInt(bin, 2)
-    });
-    vm.decodeSeed(bitcoin.Buffer.from(seedBytes));
+    const bits = words
+      .map(word => {
+        const index = bitcoin.bip39wordlist.indexOf(word);
+        return lpad(index.toString(2), '0', 11)
+      })
+      .join('');
+    const seedBytes = bits.match(/(.{1,8})/g).map(bin => parseInt(bin, 2));
+    vm.decodeSeed(Buffer.from(seedBytes));
   };
 
   vm.decodeSeed = function (seed) {
@@ -151,24 +151,23 @@ function AezeedPageController($timeout, lodash, bitcoinNetworks) {
       return;
     }
 
-    var salt = seed.slice(SALT_OFFSET, SALT_OFFSET + SALT_LENGTH);
-    var password = bitcoin.Buffer.from(vm.passphrase2 || AEZEED_DEFAULT_PASSPHRASE, 'utf8');
-    var cipherSeed = seed.slice(1, SALT_OFFSET);
-    var checksum = seed.slice(CHECKSUM_OFFSET);
+    const salt = seed.slice(SALT_OFFSET, SALT_OFFSET + SALT_LENGTH);
+    const password = Buffer.from(vm.passphrase2 || AEZEED_DEFAULT_PASSPHRASE, 'utf8');
+    const cipherSeed = seed.slice(1, SALT_OFFSET);
+    const checksum = seed.slice(CHECKSUM_OFFSET);
 
-    var newChecksum = bitcoin.crc32.calculate(seed.slice(0, CHECKSUM_OFFSET));
+    const newChecksum = bitcoin.crc32.calculate(seed.slice(0, CHECKSUM_OFFSET));
     if (newChecksum !== checksum.readUInt32BE(0)) {
       vm.error2 = 'Invalid seed checksum!';
       vm.decoded = {};
       return;
     }
 
-    var ad = [vm.getAD(salt)];
     vm.decoded = {
       salt: salt.toString('hex'),
       entropy: 'please wait...'
     };
-    bitcoin.scrypt(password, salt, SCRYPT_N, SCRYPT_R, SCRYPT_P, SCRYPT_KEY_LENGTH, function (error, progress, key) {
+    bitcoin.scrypt(password, salt, SCRYPT_N, SCRYPT_R, SCRYPT_P, SCRYPT_KEY_LENGTH, (error, progress, key) => {
       if (error) {
         vm.error2 = error;
       } else if (key) {
@@ -178,21 +177,24 @@ function AezeedPageController($timeout, lodash, bitcoinNetworks) {
           vm.decoded = {};
           vm.error2 = 'Decryption failed. Invalid passphrase?';
         } else {
-          $timeout(function () {
+          $timeout(() => {
             vm.decoded.version = plainSeedBytes.readUInt8(0);
             vm.decoded.birthday = plainSeedBytes.readUInt16BE(1);
             vm.decoded.entropy = plainSeedBytes.slice(3).toString('hex');
-            vm.decoded.nodeBase58 = bitcoin.HDNode.fromSeedBuffer(plainSeedBytes.slice(3), vm.network.config).toBase58();
+            vm.fromEntropy();
           });
         }
       }
     });
   };
 
+  vm.fromEntropy = function () {
+    vm.decoded.nodeBase58 = bitcoin.HDNode.fromSeedBuffer(Buffer.from(vm.decoded.entropy, 'hex'), vm.network2.config).toBase58();
+  };
+
   function bytesToBinary(bytes) {
-    return bytes.map(function (x) {
-      return lpad(x.toString(2), '0', 8)
-    }).join('');
+    return bytes.map(x => lpad(x.toString(2), '0', 8))
+      .join('');
   }
 
   function lpad(str, padString, length) {

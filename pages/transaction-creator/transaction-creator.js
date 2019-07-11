@@ -7,10 +7,10 @@ angular
     bindings: {}
   });
 
-function TransactionCreatorPageController(lodash, bitcoinNetworks) {
+function TransactionCreatorPageController(lodash, allNetworks) {
   var vm = this;
 
-  vm.networks = bitcoinNetworks;
+  vm.networks = allNetworks;
   vm.network = lodash.find(vm.networks, ['label', 'BTC (Bitcoin Testnet, legagy, BIP32/44)']);
   vm.keyPair = {};
   vm.keyValid = false;

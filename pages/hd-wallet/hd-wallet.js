@@ -18,7 +18,7 @@ const calculatePath = function (bip, coinType, account, change, index) {
   return path;
 };
 
-function HdWalletPageController(lodash, bitcoinNetworks) {
+function HdWalletPageController(lodash, allNetworks) {
   const vm = this;
 
   const PBKDF2_SALT = 'Digital Bitbox',
@@ -27,11 +27,11 @@ function HdWalletPageController(lodash, bitcoinNetworks) {
   const METHOD_NONE = 0,
     METHOD_PBKDF2 = 1,
     METHOD_COINOMI = 2;
-  const BITCOIN = lodash.find(bitcoinNetworks, ['label', 'BTC (Bitcoin, legacy, BIP32/44)']);
+  const BITCOIN = lodash.find(allNetworks, ['label', 'BTC (Bitcoin, legacy, BIP32/44)']);
 
-  vm.coinTypes = bitcoinNetworks;
+  vm.coinTypes = allNetworks;
   vm.coinType = BITCOIN;
-  vm.networks = bitcoinNetworks;
+  vm.networks = allNetworks;
   vm.network = BITCOIN;
   vm.mnemonic = null;
   vm.asPassword = true;

@@ -7,7 +7,7 @@ angular
     bindings: {}
   });
 
-function WalletImportPageController(lodash, bitcoinNetworks) {
+function WalletImportPageController(lodash, allNetworks) {
   const vm = this;
 
   const PBKDF2_SALT = 'Digital Bitbox',
@@ -16,8 +16,8 @@ function WalletImportPageController(lodash, bitcoinNetworks) {
   const METHOD_NONE = 0,
     METHOD_PBKDF2 = 1,
     METHOD_COINOMI = 2;
-  const BITCOIN = lodash.find(bitcoinNetworks, ['label', 'BTC (Bitcoin, legacy, BIP32/44)']);
-  const BITCOIN_TESTNET = lodash.find(bitcoinNetworks, ['label', 'BTC (Bitcoin Testnet, legagy, BIP32/44)']);
+  const BITCOIN = lodash.find(allNetworks, ['label', 'BTC (Bitcoin, legacy, BIP32/44)']);
+  const BITCOIN_TESTNET = lodash.find(allNetworks, ['label', 'BTC (Bitcoin Testnet, legagy, BIP32/44)']);
   const SCHEMES = [
     {
       label: "Bitcoin xprv (P2PKH/P2SH, m/44'/0')",

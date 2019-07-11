@@ -2284,9 +2284,8 @@ angular.module('app').run(['$templateCache', function($templateCache) {
     "               style=\"width: 60%\"\n" +
     "               value=\"{{vm.nodeBase58}}\"\n" +
     "               ng-readonly=\"true\">\n" +
-    "        <span class=\"input-group-addon\" style=\"width: 20%\">&lt;-- paste here to import.</span>\n" +
     "        <select ng-model=\"vm.network\"\n" +
-    "                style=\"width: 20%\"\n" +
+    "                style=\"width: 40%\"\n" +
     "                ng-options=\"network.label for network in vm.networks\"\n" +
     "                ng-change=\"vm.formatBase58()\"\n" +
     "                class=\"form-control\">\n" +
@@ -2371,11 +2370,10 @@ angular.module('app').run(['$templateCache', function($templateCache) {
     "               style=\"width: 60%\"\n" +
     "               value=\"{{vm.decoded.nodeBase58}}\"\n" +
     "               ng-readonly=\"true\">\n" +
-    "        <span class=\"input-group-addon\" style=\"width: 20%\">&lt;-- paste here to import.</span>\n" +
-    "        <select ng-model=\"vm.network\"\n" +
-    "                style=\"width: 20%\"\n" +
+    "        <select ng-model=\"vm.network2\"\n" +
+    "                style=\"width: 40%\"\n" +
     "                ng-options=\"network.label for network in vm.networks\"\n" +
-    "                ng-change=\"vm.fromMnemonic()\"\n" +
+    "                ng-change=\"vm.fromEntropy()\"\n" +
     "                class=\"form-control\">\n" +
     "        </select>\n" +
     "      </div>\n" +
