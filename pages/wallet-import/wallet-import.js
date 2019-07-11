@@ -7,7 +7,7 @@ angular
     bindings: {}
   });
 
-function WalletImportPageController(lodash, allNetworks) {
+function WalletImportPageController(lodash, bitcoin, allNetworks, Buffer) {
   const vm = this;
 
   const PBKDF2_SALT = 'Digital Bitbox',
@@ -73,11 +73,17 @@ function WalletImportPageController(lodash, allNetworks) {
     {label: 'bitcoin-cli importprivkey', id: 'importprivkey'},
     {label: 'bitcoin-cli importpubkey', id: 'importpubkey'},
   ];
+  const MODES = [
+    {label: 'Import from BIP39 Mnemonic', id: 'mnemonic'},
+    {label: 'Import from BIP32 HD master root key', id: 'hdroot'},
+  ];
 
   vm.schemes = SCHEMES;
   vm.scheme = SCHEMES[0];
   vm.importTypes = TYPES;
   vm.importType = TYPES[0];
+  vm.modes = MODES;
+  vm.mode = MODES[0];
   vm.mnemonic = null;
   vm.asPassword = true;
   vm.passphrase = null;
@@ -109,7 +115,7 @@ function WalletImportPageController(lodash, allNetworks) {
     if (vm.passphrase) {
       if (vm.strenghtening.id === METHOD_PBKDF2) {
         pw = bitcoin.pbkdf2.pbkdf2Sync(
-          bitcoin.Buffer.from(vm.passphrase, 'utf8'),
+          Buffer.from(vm.passphrase, 'utf8'),
           PBKDF2_SALT,
           PBKDF2_ROUNDS_APP,
           PBKDF2_HMACLEN,
@@ -118,7 +124,7 @@ function WalletImportPageController(lodash, allNetworks) {
       } else if (vm.strenghtening.id === METHOD_COINOMI) {
         pw = vm.passphrase;
       } else {
-        pw = bitcoin.Buffer.from(vm.passphrase, 'utf8').toString('hex');
+        pw = Buffer.from(vm.passphrase, 'utf8').toString('hex');
       }
     }
     vm.seed = bitcoin.bip39.mnemonicToSeed(vm.mnemonic, pw);
@@ -133,6 +139,15 @@ function WalletImportPageController(lodash, allNetworks) {
       vm.nodeBase58 = vm.node.toBase58();
     }
     vm.path = vm.scheme.path;
+  };
+
+  vm.fromBase58 = function () {
+    vm.error = null;
+    try {
+      vm.node = bitcoin.HDNode.fromBase58(vm.nodeBase58, vm.getConfig());
+    } catch (e) {
+      vm.error = e;
+    }
   };
 
   vm.getConfig = function () {
@@ -176,8 +191,7 @@ function WalletImportPageController(lodash, allNetworks) {
     return str;
   };
 
-  vm.getResultAsImportprivkey = function (rootNode, basePath, network) {
-    const date = new Date().toISOString();
+  vm.getResultAsImportprivkey = function (rootNode, basePath) {
     const baseKey = rootNode.derivePath(basePath);
     let str = `# Paste the following lines into a command line window.
 # You might want to adjust the block number to rescan from at the bottom of the 
@@ -189,7 +203,6 @@ function WalletImportPageController(lodash, allNetworks) {
       for (let index = vm.indexStart; index <= vm.indexEnd; index++) {
         const indexPath = `${index}${vm.path.indexOf('_idx_\'') >= 0 ? '\'' : ''}`;
         const key = changeKey.derivePath(indexPath);
-        const addr = vm.getAddress(key.keyPair, network);
         str += `bitcoin-cli importprivkey ${key.keyPair.toWIF()} "${basePath}/${changePath}/${indexPath}" false\n`;
       }
     }
@@ -197,8 +210,7 @@ function WalletImportPageController(lodash, allNetworks) {
     return str;
   };
 
-  vm.getResultAsImportpubkey = function (rootNode, basePath, network) {
-    const date = new Date().toISOString();
+  vm.getResultAsImportpubkey = function (rootNode, basePath) {
     const baseKey = rootNode.derivePath(basePath);
     let str = `# Paste the following lines into a command line window.
 # You might want to adjust the block number to rescan from at the bottom of the 
@@ -210,7 +222,6 @@ function WalletImportPageController(lodash, allNetworks) {
       for (let index = vm.indexStart; index <= vm.indexEnd; index++) {
         const indexPath = `${index}${vm.path.indexOf('_idx_\'') >= 0 ? '\'' : ''}`;
         const key = changeKey.derivePath(indexPath);
-        const addr = vm.getAddress(key.keyPair, network);
         str += `bitcoin-cli importpubkey ${key.keyPair.getPublicKeyBuffer().toString('hex')} "${basePath}/${changePath}/${indexPath}" false\n`;
       }
     }

@@ -4094,8 +4094,20 @@ angular.module('app').run(['$templateCache', function($templateCache) {
     "<div class=\"well\">\n" +
     "  <form class=\"form-horizontal\">\n" +
     "\n" +
-    "    <!-- mnemonic -->\n" +
+    "    <!-- mode -->\n" +
     "    <div class=\"form-group\">\n" +
+    "      <label class=\"col-sm-3 control-label\">Import mode:</label>\n" +
+    "      <div class=\"col-sm-9 input-group\">\n" +
+    "        <select ng-model=\"vm.mode\"\n" +
+    "                ng-options=\"mode.label for mode in vm.modes\"\n" +
+    "                ng-change=\"vm.fromSeed()\"\n" +
+    "                class=\"form-control\">\n" +
+    "        </select>\n" +
+    "      </div>\n" +
+    "    </div>\n" +
+    "\n" +
+    "    <!-- mnemonic -->\n" +
+    "    <div class=\"form-group\" ng-if=\"vm.mode.id === 'mnemonic'\">\n" +
     "      <label class=\"col-sm-3 control-label\">Seed Mnemonic (BIP39):</label>\n" +
     "      <div class=\"col-sm-9 input-group\">\n" +
     "        <input class=\"form-control\" ng-model=\"vm.mnemonic\" ng-change=\"vm.fromMnemonic()\">\n" +
@@ -4104,7 +4116,7 @@ angular.module('app').run(['$templateCache', function($templateCache) {
     "    </div>\n" +
     "\n" +
     "    <!-- passphrase -->\n" +
-    "    <div class=\"form-group\">\n" +
+    "    <div class=\"form-group\" ng-if=\"vm.mode.id === 'mnemonic'\">\n" +
     "      <label class=\"col-sm-3 control-label\">Passphrase:</label>\n" +
     "      <div class=\"col-sm-9 input-group\">\n" +
     "        <input class=\"form-control\"\n" +
@@ -4141,7 +4153,14 @@ angular.module('app').run(['$templateCache', function($templateCache) {
     "    <div class=\"form-group\">\n" +
     "      <label class=\"col-sm-3 control-label\">HD master root key:</label>\n" +
     "      <div class=\"col-sm-9 input-group as-block\">\n" +
-    "        <input class=\"form-control\" value=\"{{vm.nodeBase58}}\" ng-readonly=\"true\">\n" +
+    "        <input class=\"form-control\"\n" +
+    "               style=\"width: 80%\"\n" +
+    "               ng-model=\"vm.nodeBase58\"\n" +
+    "               ng-readonly=\"vm.mode.id === 'mnemonic'\"\n" +
+    "               ng-change=\"vm.fromBase58()\"\n" +
+    "               ng-class=\"{'well-error': vm.mode.id === 'hdroot' && vm.error}\">\n" +
+    "        <span class=\"input-group-addon\" ng-if=\"vm.mode.id === 'hdroot' && !vm.error\" style=\"width: 20%\">&lt;-- paste here to import.</span>\n" +
+    "        <span class=\"input-group-addon well-error\" ng-if=\"vm.mode.id === 'hdroot' && vm.error\" style=\"width: 20%\"> {{vm.error}}</span>\n" +
     "      </div>\n" +
     "    </div>\n" +
     "\n" +

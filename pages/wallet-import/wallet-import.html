@@ -23,8 +23,20 @@
 <div class="well">
   <form class="form-horizontal">
 
-    <!-- mnemonic -->
+    <!-- mode -->
     <div class="form-group">
+      <label class="col-sm-3 control-label">Import mode:</label>
+      <div class="col-sm-9 input-group">
+        <select ng-model="vm.mode"
+                ng-options="mode.label for mode in vm.modes"
+                ng-change="vm.fromSeed()"
+                class="form-control">
+        </select>
+      </div>
+    </div>
+
+    <!-- mnemonic -->
+    <div class="form-group" ng-if="vm.mode.id === 'mnemonic'">
       <label class="col-sm-3 control-label">Seed Mnemonic (BIP39):</label>
       <div class="col-sm-9 input-group">
         <input class="form-control" ng-model="vm.mnemonic" ng-change="vm.fromMnemonic()">
@@ -33,7 +45,7 @@
     </div>
 
     <!-- passphrase -->
-    <div class="form-group">
+    <div class="form-group" ng-if="vm.mode.id === 'mnemonic'">
       <label class="col-sm-3 control-label">Passphrase:</label>
       <div class="col-sm-9 input-group">
         <input class="form-control"
@@ -70,7 +82,14 @@
     <div class="form-group">
       <label class="col-sm-3 control-label">HD master root key:</label>
       <div class="col-sm-9 input-group as-block">
-        <input class="form-control" value="{{vm.nodeBase58}}" ng-readonly="true">
+        <input class="form-control"
+               style="width: 80%"
+               ng-model="vm.nodeBase58"
+               ng-readonly="vm.mode.id === 'mnemonic'"
+               ng-change="vm.fromBase58()"
+               ng-class="{'well-error': vm.mode.id === 'hdroot' && vm.error}">
+        <span class="input-group-addon" ng-if="vm.mode.id === 'hdroot' && !vm.error" style="width: 20%">&lt;-- paste here to import.</span>
+        <span class="input-group-addon well-error" ng-if="vm.mode.id === 'hdroot' && vm.error" style="width: 20%"> {{vm.error}}</span>
       </div>
     </div>
 
