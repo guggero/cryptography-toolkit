@@ -67,7 +67,7 @@ window.allNetworks = [{
   config: {
     messagePrefix: '\u0018Bitcoin Signed Message:\n',
     bech32: 'tb',
-    bip32: {public: 0x045f18bc, private: 0x045f1cf6},
+    bip32: {public: 0x045f1cf6, private: 0x045f18bc},
     pubKeyHash: 111,
     scriptHash: 196,
     wif: 239,
