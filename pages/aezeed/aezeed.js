@@ -146,7 +146,7 @@ function AezeedPageController($timeout, lodash, bitcoin, bitcoinNetworks, Buffer
 
   vm.decodeSeed = function (seed) {
     if (!seed || seed.length === 0 || seed[0] !== AEZEED_VERSION) {
-      vm.error = 'Invalid seed or version!';
+      vm.error2 = 'Invalid seed or version!';
       vm.decoded = {};
       return;
     }
