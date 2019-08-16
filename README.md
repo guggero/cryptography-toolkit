@@ -26,4 +26,4 @@ paste sensitive information into. So consider yourself warned.
 ## Send Thanks
 
 Created by [Oliver Gugger](https://github.com/guggero):
-* BTC tip address: `bc1qrepygjyxq34d08dqpwhryej5aclpqgzc28seqt`
+* BTC tip address: `bc1qfgua5vhwm6myajak9p4crhwmwm2k6mczf789eh`
