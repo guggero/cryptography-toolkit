@@ -11,7 +11,7 @@ function TransactionCreatorPageController(lodash, allNetworks) {
   var vm = this;
 
   vm.networks = allNetworks;
-  vm.network = lodash.find(vm.networks, ['label', 'BTC (Bitcoin Testnet, legagy, BIP32/44)']);
+  vm.network = lodash.find(vm.networks, ['label', 'BTC (Bitcoin Testnet, legacy, BIP32/44)']);
   vm.keyPair = {};
   vm.keyValid = false;
   vm.inputTxVout = 0;
