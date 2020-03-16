@@ -41,7 +41,7 @@ window.allNetworks = [{
     bip44: 0x0a
   }
 }, {
-  label: 'BTC (Bitcoin Testnet, legagy, BIP32/44)',
+  label: 'BTC (Bitcoin Testnet, legacy, BIP32/44)',
   config: {
     messagePrefix: '\u0018Bitcoin Signed Message:\n',
     bech32: 'tb',
