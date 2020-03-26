@@ -41,6 +41,39 @@ window.allNetworks = [{
     bip44: 0x0a
   }
 }, {
+  label: 'BTC (Bitcoin Regtest, legacy, BIP32/44)',
+  config: {
+    messagePrefix: '\u0018Bitcoin Signed Message:\n',
+    bech32: 'bcrt',
+    bip32: {public: 0x043587cf, private: 0x04358394},
+    pubKeyHash: 111,
+    scriptHash: 196,
+    wif: 239,
+    bip44: 0x01
+  }
+}, {
+  label: 'BTC (Bitcoin Regtest, SegWit, BIP49)',
+  config: {
+    messagePrefix: '\u0018Bitcoin Signed Message:\n',
+    bech32: 'bcrt',
+    bip32: {public: 0x044a5262, private: 0x044a4e28},
+    pubKeyHash: 111,
+    scriptHash: 196,
+    wif: 239,
+    bip44: 0x01
+  }
+}, {
+  label: 'BTC (Bitcoin Regtest, Native SegWit, BIP84)',
+  config: {
+    messagePrefix: '\u0018Bitcoin Signed Message:\n',
+    bech32: 'bcrt',
+    bip32: {public: 0x045f1cf6, private: 0x045f18bc},
+    pubKeyHash: 111,
+    scriptHash: 196,
+    wif: 239,
+    bip44: 0x01
+  }
+}, {
   label: 'BTC (Bitcoin Testnet, legacy, BIP32/44)',
   config: {
     messagePrefix: '\u0018Bitcoin Signed Message:\n',
