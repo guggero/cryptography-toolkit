@@ -38,7 +38,7 @@
     "pushdata-bitcoin": "^1.0.1",
     "random-bytes": "^1.0.0",
     "safe-buffer": "^5.0.1",
-    "scrypt-js": "^2.0.3",
+    "scrypt-js": "^3.0.0",
     "secrets.js-grempe": "^1.1.0",
     "typeforce": "^1.11.3",
     "unorm": "^1.4.1",

@@ -62,11 +62,8 @@ function AezeedPageController($timeout, lodash, bitcoin, bitcoinNetworks, Buffer
     const password = Buffer.from(vm.passphrase || AEZEED_DEFAULT_PASSPHRASE, 'utf8');
     const salt = Buffer.from(vm.salt, 'hex');
     vm.mnemonic = 'please wait...';
-    bitcoin.scrypt(password, salt, SCRYPT_N, SCRYPT_R, SCRYPT_P, SCRYPT_KEY_LENGTH, function (error, progress, key) {
-      if (error) {
-        vm.error = error;
-      } else if (key) {
-
+    bitcoin.scrypt(password, salt, SCRYPT_N, SCRYPT_R, SCRYPT_P, SCRYPT_KEY_LENGTH).then(key => {
+      if (key) {
         const cipherText = bitcoin.aez.encrypt(key, null, [vm.getAD(salt)], AEZ_TAU, vm.getSeedBytes());
         const mnemonicBytes = vm.getMnemonicBytes(cipherText);
         $timeout(function () {
@@ -167,15 +164,14 @@ function AezeedPageController($timeout, lodash, bitcoin, bitcoinNetworks, Buffer
       salt: salt.toString('hex'),
       entropy: 'please wait...'
     };
-    bitcoin.scrypt(password, salt, SCRYPT_N, SCRYPT_R, SCRYPT_P, SCRYPT_KEY_LENGTH, (error, progress, key) => {
-      if (error) {
-        vm.error2 = error;
-      } else if (key) {
-
+    bitcoin.scrypt(password, salt, SCRYPT_N, SCRYPT_R, SCRYPT_P, SCRYPT_KEY_LENGTH).then(key => {
+      if (key) {
         const plainSeedBytes = bitcoin.aez.decrypt(key, null, [vm.getAD(salt)], AEZ_TAU, cipherSeed);
         if (plainSeedBytes == null) {
-          vm.decoded = {};
-          vm.error2 = 'Decryption failed. Invalid passphrase?';
+          $timeout(() => {
+            vm.decoded = {};
+            vm.error2 = 'Decryption failed. Invalid passphrase?';
+          });
         } else {
           $timeout(() => {
             vm.decoded.version = plainSeedBytes.readUInt8(0);

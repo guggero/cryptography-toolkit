@@ -57,7 +57,7 @@ module.exports = {
   secrets: require('secrets.js-grempe'),
   schnorr: require('bip-schnorr'),
   randomBytes: require('random-bytes').sync,
-  scrypt: require('scrypt-js'),
+  scrypt: require('scrypt-js').scrypt,
   aez: require('aez'),
   crc32: require('fast-crc32c/impls/js_crc32c'),
   unorm: require('unorm'),
