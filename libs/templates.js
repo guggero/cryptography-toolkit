@@ -2428,16 +2428,23 @@ angular.module('app').run(['$templateCache', function($templateCache) {
     "    </div>\n" +
     "\n" +
     "    <div class=\"form-group\" ng-if=\"vm.network.config.bech32\">\n" +
-    "      <label class=\"col-sm-4 control-label\">SegWit P2SH-P2WPKH address:</label>\n" +
+    "      <label class=\"col-sm-4 control-label\">SegWit v0 P2SH-P2WPKH address:</label>\n" +
     "      <div class=\"col-sm-8 input-group\">\n" +
     "        <input class=\"form-control\" ng-readonly=\"true\" value=\"{{vm.keyPair.nestedP2WPKHAddress}}\">\n" +
     "      </div>\n" +
     "    </div>\n" +
     "\n" +
     "    <div class=\"form-group\" ng-if=\"vm.network.config.bech32\">\n" +
-    "      <label class=\"col-sm-4 control-label\">SegWit bech32 P2WPKH address:</label>\n" +
+    "      <label class=\"col-sm-4 control-label\">SegWit v0 bech32 P2WPKH address:</label>\n" +
     "      <div class=\"col-sm-8 input-group\">\n" +
     "        <input class=\"form-control\" ng-readonly=\"true\" value=\"{{vm.keyPair.P2WPKHAddress}}\">\n" +
+    "      </div>\n" +
+    "    </div>\n" +
+    "\n" +
+    "    <div class=\"form-group\" ng-if=\"vm.network.config.bech32\">\n" +
+    "      <label class=\"col-sm-4 control-label\">SegWit v1 bech32 P2TR address:</label>\n" +
+    "      <div class=\"col-sm-8 input-group\">\n" +
+    "        <input class=\"form-control\" ng-readonly=\"true\" value=\"{{vm.keyPair.P2TRAddress}}\">\n" +
     "      </div>\n" +
     "    </div>\n" +
     "  </form>\n" +

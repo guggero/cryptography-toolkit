@@ -143,10 +143,8 @@ function customGetAddress(keyPair, network) {
 }
 
 function customGetScriptAddress(keyPair, network) {
-  var hash = null;
-  var payload = null;
-  hash = bitcoin.crypto.hash160(keyPair.getPublicKeyBuffer());
-  payload = bitcoin.Buffer.allocUnsafe(21);
+  let hash = bitcoin.crypto.hash160(keyPair.getPublicKeyBuffer());
+  let payload = bitcoin.Buffer.allocUnsafe(21);
   payload.writeUInt8(network.scriptHash, 0);
   hash.copy(payload, 1);
 
@@ -158,16 +156,21 @@ function customImportFromWif(wifUncompressed, network) {
 }
 
 function getP2WPKHAddress(keyPair, network) {
-  var pubKey = keyPair.getPublicKeyBuffer();
-  var scriptPubKey = bitcoin.script.witnessPubKeyHash.output.encode(bitcoin.crypto.hash160(pubKey));
+  const pubKey = keyPair.getPublicKeyBuffer();
+  const scriptPubKey = bitcoin.script.witnessPubKeyHash.output.encode(bitcoin.crypto.hash160(pubKey));
   return bitcoin.address.fromOutputScript(scriptPubKey, network);
 }
 
 function getNestedP2WPKHAddress(keyPair, network) {
-  var pubKey = keyPair.getPublicKeyBuffer();
-  var witnessScript = bitcoin.script.witnessPubKeyHash.output.encode(bitcoin.crypto.hash160(pubKey));
-  var scriptPubKey = bitcoin.script.scriptHash.output.encode(bitcoin.crypto.hash160(witnessScript));
+  const pubKey = keyPair.getPublicKeyBuffer();
+  const witnessScript = bitcoin.script.witnessPubKeyHash.output.encode(bitcoin.crypto.hash160(pubKey));
+  const scriptPubKey = bitcoin.script.scriptHash.output.encode(bitcoin.crypto.hash160(witnessScript));
   return bitcoin.address.fromOutputScript(scriptPubKey, network);
+}
+
+function getP2TRAddress(keyPair, network) {
+  const taprootPubkey = bitcoin.schnorr.taproot.taprootConstruct(keyPair.Q);
+  return bitcoin.address.toBech32(taprootPubkey, 1, network.bech32);
 }
 
 function calculateAddresses(keyPair, network) {
@@ -181,5 +184,6 @@ function calculateAddresses(keyPair, network) {
   if (network.bech32) {
     keyPair.nestedP2WPKHAddress = getNestedP2WPKHAddress(keyPair, network);
     keyPair.P2WPKHAddress = getP2WPKHAddress(keyPair, network);
+    keyPair.P2TRAddress = getP2TRAddress(keyPair, network);
   }
 }

@@ -40,6 +40,7 @@ function EccPageController(lodash, allNetworks) {
     if (network.bech32) {
       vm.keyPair.nestedP2WPKHAddress = getNestedP2WPKHAddress(vm.keyPair, network);
       vm.keyPair.P2WPKHAddress = getP2WPKHAddress(vm.keyPair, network);
+      vm.keyPair.P2TRAddress = getP2TRAddress(vm.keyPair, network);
     }
     vm.pubKey = vm.keyPair.getPublicKeyBuffer();
     vm.pubKeyDecimal = bitcoin.BigInteger.fromBuffer(vm.pubKey);
