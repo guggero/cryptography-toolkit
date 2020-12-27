@@ -5949,14 +5949,8 @@ function checkBatchVerifyParams(pubKeys, messages, signatures) {
 function checkSessionParams(sessionId, privateKey, message, pubKeyCombined, ell) {
   checkSignParams(privateKey, message);
   checkBuffer('sessionId', sessionId, 32);
-  checkPoint('pubKeyCombined', pubKeyCombined);
+  checkBuffer('pubKeyCombined', pubKeyCombined, 32);
   checkBuffer('ell', ell, 32);
-}
-
-function checkPoint(name, P) {
-  if (!P.curve || P.curve.isInfinity(P)) {
-    throw new Error(name + ' must be a point on the curve')
-  }
 }
 
 function checkRange(name, scalar) {
@@ -6031,12 +6025,13 @@ module.exports = {
 const schnorr = require('./schnorr');
 schnorr.check = require('./check');
 schnorr.convert = require('./convert');
+schnorr.math = require('./math');
 schnorr.muSig = require('./mu-sig');
 schnorr.taproot = require('./taproot');
 
 module.exports = schnorr;
 
-},{"./check":31,"./convert":32,"./mu-sig":35,"./schnorr":36,"./taproot":37}],34:[function(require,module,exports){
+},{"./check":31,"./convert":32,"./math":34,"./mu-sig":35,"./schnorr":36,"./taproot":37}],34:[function(require,module,exports){
 const BigInteger = require('bigi');
 const Buffer = require('safe-buffer').Buffer;
 const ecurve = require('ecurve');
@@ -6176,14 +6171,14 @@ function pubKeyCombine(pubKeys, pubKeyHash) {
   return X;
 }
 
-function sessionInitialize(sessionId, privateKey, message, pubKeyCombined, ell, idx) {
+function sessionInitialize(sessionId, privateKey, message, pubKeyCombined, pkParity, ell, idx) {
   check.checkSessionParams(sessionId, privateKey, message, pubKeyCombined, ell);
 
   const session = {
     sessionId,
     message,
     pubKeyCombined,
-    pkParity: math.isEven(pubKeyCombined),
+    pkParity,
     ell,
     idx,
   };
@@ -6195,7 +6190,7 @@ function sessionInitialize(sessionId, privateKey, message, pubKeyCombined, ell, 
     session.secretKey = n.subtract(session.secretKey);
   }
 
-  const nonceData = concat([sessionId, message, convert.intToBuffer(pubKeyCombined.affineX), convert.intToBuffer(privateKey)]);
+  const nonceData = concat([sessionId, message, session.pubKeyCombined, convert.intToBuffer(privateKey)]);
   session.secretNonce = convert.bufferToInt(convert.hash(nonceData));
   check.checkRange('secretNonce', session.secretNonce);
   const R = G.multiply(session.secretNonce);
@@ -6216,8 +6211,7 @@ function sessionNonceCombine(session, nonces) {
 }
 
 function partialSign(session, message, nonceCombined, pubKeyCombined) {
-  const Px = convert.intToBuffer(pubKeyCombined.affineX);
-  const e = math.getE(nonceCombined, Px, message);
+  const e = math.getE(nonceCombined, pubKeyCombined, message);
   const sk = session.secretKey;
   let k = session.secretNonce;
   if (session.nonceParity !== session.combinedNonceParity) {
@@ -6227,8 +6221,7 @@ function partialSign(session, message, nonceCombined, pubKeyCombined) {
 }
 
 function partialSigVerify(session, partialSig, nonceCombined, idx, pubKey, nonce) {
-  const Px = convert.intToBuffer(session.pubKeyCombined.affineX);
-  let e = math.getE(nonceCombined, Px, session.message);
+  let e = math.getE(nonceCombined, session.pubKeyCombined, session.message);
   const coefficient = computeCoefficient(session.ell, idx);
   const Pj = math.liftX(pubKey);
   const Ri = math.liftX(nonce);

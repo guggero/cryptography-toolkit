@@ -36,6 +36,7 @@ function MuSigPageController(lodash, bitcoinNetworks) {
     message: null,
     pubKeyHash: null,
     pubKeyCombined: null,
+    pkParity: null,
     commitments: [],
     nonces: [],
     nonceCombined: null,
@@ -72,7 +73,7 @@ function MuSigPageController(lodash, bitcoinNetworks) {
   vm.newPrivateKey = function () {
     const keyPair = bitcoin.ECPair.makeRandom();
     keyPair.privateKey = keyPair.d.toString(16);
-    keyPair.publicKey = keyPair.getPublicKeyBuffer().toString('hex');
+    keyPair.publicKey = schnorr.convert.intToBuffer(keyPair.Q.affineX).toString('hex');
     vm.keyPairs.push(keyPair);
     vm.keyPairsChanged();
   };
@@ -95,7 +96,7 @@ function MuSigPageController(lodash, bitcoinNetworks) {
   vm.setPrivateKey = function (index, newPrivKey) {
     const keyPair = new bitcoin.ECPair(newPrivKey, null, { compressed: true, network: network });
     keyPair.privateKey = newPrivKey.toString(16);
-    keyPair.publicKey = keyPair.getPublicKeyBuffer().toString('hex');
+    keyPair.publicKey = schnorr.convert.intToBuffer(keyPair.Q.affineX).toString('hex');
     vm.keyPairs[index] = keyPair;
     vm.keyPairsChanged();
   };
@@ -125,7 +126,9 @@ function MuSigPageController(lodash, bitcoinNetworks) {
   vm.toStep1 = function () {
     const pubKeyBuffers = vm.publicData.pubKeys.map(pk => Buffer.from(pk, 'hex'));
     vm.publicData.pubKeyHash = muSig.computeEll(pubKeyBuffers);
-    vm.publicData.pubKeyCombined = muSig.pubKeyCombine(pubKeyBuffers, vm.publicData.pubKeyHash);
+    const pkCombined = muSig.pubKeyCombine(pubKeyBuffers, vm.publicData.pubKeyHash);
+    vm.publicData.pubKeyCombined = schnorr.convert.intToBuffer(pkCombined.affineX);
+    vm.publicData.pkParity = schnorr.math.isEven(pkCombined);
   };
 
   vm.toStep2 = function () {
@@ -136,6 +139,7 @@ function MuSigPageController(lodash, bitcoinNetworks) {
         data.privateKey,
         vm.publicData.message,
         vm.publicData.pubKeyCombined,
+        vm.publicData.pkParity,
         vm.publicData.pubKeyHash,
         idx
       );
@@ -158,7 +162,7 @@ function MuSigPageController(lodash, bitcoinNetworks) {
 
   vm.toStep5 = function () {
     vm.publicData.nonceCombined = muSig.sessionNonceCombine(vm.signerSession, vm.publicData.nonces);
-    vm.signerPrivateData.forEach(data => (data.session.nonceIsNegated = vm.signerSession.nonceIsNegated));
+    vm.signerPrivateData.forEach(data => (data.session.combinedNonceParity = vm.signerSession.combinedNonceParity));
   };
 
   vm.toStep6 = function () {
