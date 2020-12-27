@@ -2709,7 +2709,7 @@ angular.module('app').run(['$templateCache', function($templateCache) {
     "  </form>\n" +
     "</div>\n" +
     "\n" +
-    "<h4>BIP32/44/49/84 key derivation</h4>\n" +
+    "<h4>BIP32/44/49/84/341 key derivation</h4>\n" +
     "<div class=\"well\">\n" +
     "  <form class=\"form-horizontal\">\n" +
     "\n" +
@@ -2804,19 +2804,27 @@ angular.module('app').run(['$templateCache', function($templateCache) {
     "      </div>\n" +
     "    </div>\n" +
     "\n" +
-    "    <!-- SegWit p2wpkh -->\n" +
+    "    <!-- SegWit v0 p2wpkh -->\n" +
     "    <div class=\"form-group\" ng-if=\"vm.network.config.bech32\">\n" +
-    "      <label class=\"col-sm-3 control-label\">SegWit P2SH-P2WPKH address:</label>\n" +
+    "      <label class=\"col-sm-3 control-label\">SegWit v0 P2SH-P2WPKH address:</label>\n" +
     "      <div class=\"col-sm-9 input-group\">\n" +
     "        <input class=\"form-control\" ng-readonly=\"true\" value=\"{{vm.derivedKey.keyPair.nestedP2WPKHAddress}}\">\n" +
     "      </div>\n" +
     "    </div>\n" +
     "\n" +
-    "    <!-- SegWit native p2wpkh -->\n" +
+    "    <!-- SegWit v0 native p2wpkh -->\n" +
     "    <div class=\"form-group\" ng-if=\"vm.network.config.bech32\">\n" +
-    "      <label class=\"col-sm-3 control-label\">Native SegWit bech32 P2WPKH address:</label>\n" +
+    "      <label class=\"col-sm-3 control-label\">Native v0 SegWit bech32 P2WPKH address:</label>\n" +
     "      <div class=\"col-sm-9 input-group\">\n" +
     "        <input class=\"form-control\" ng-readonly=\"true\" value=\"{{vm.derivedKey.keyPair.P2WPKHAddress}}\">\n" +
+    "      </div>\n" +
+    "    </div>\n" +
+    "\n" +
+    "    <!-- SegWit v1 native p2tr -->\n" +
+    "    <div class=\"form-group\" ng-if=\"vm.network.config.bech32\">\n" +
+    "      <label class=\"col-sm-3 control-label\">Native v1 SegWit bech32 P2TR address:</label>\n" +
+    "      <div class=\"col-sm-9 input-group\">\n" +
+    "        <input class=\"form-control\" ng-readonly=\"true\" value=\"{{vm.derivedKey.keyPair.P2TRAddress}}\">\n" +
     "      </div>\n" +
     "    </div>\n" +
     "  </form>\n" +

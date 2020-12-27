@@ -160,7 +160,7 @@
   </form>
 </div>
 
-<h4>BIP32/44/49/84 key derivation</h4>
+<h4>BIP32/44/49/84/341 key derivation</h4>
 <div class="well">
   <form class="form-horizontal">
 
@@ -255,19 +255,27 @@
       </div>
     </div>
 
-    <!-- SegWit p2wpkh -->
+    <!-- SegWit v0 p2wpkh -->
     <div class="form-group" ng-if="vm.network.config.bech32">
-      <label class="col-sm-3 control-label">SegWit P2SH-P2WPKH address:</label>
+      <label class="col-sm-3 control-label">SegWit v0 P2SH-P2WPKH address:</label>
       <div class="col-sm-9 input-group">
         <input class="form-control" ng-readonly="true" value="{{vm.derivedKey.keyPair.nestedP2WPKHAddress}}">
       </div>
     </div>
 
-    <!-- SegWit native p2wpkh -->
+    <!-- SegWit v0 native p2wpkh -->
     <div class="form-group" ng-if="vm.network.config.bech32">
-      <label class="col-sm-3 control-label">Native SegWit bech32 P2WPKH address:</label>
+      <label class="col-sm-3 control-label">Native v0 SegWit bech32 P2WPKH address:</label>
       <div class="col-sm-9 input-group">
         <input class="form-control" ng-readonly="true" value="{{vm.derivedKey.keyPair.P2WPKHAddress}}">
+      </div>
+    </div>
+
+    <!-- SegWit v1 native p2tr -->
+    <div class="form-group" ng-if="vm.network.config.bech32">
+      <label class="col-sm-3 control-label">Native v1 SegWit bech32 P2TR address:</label>
+      <div class="col-sm-9 input-group">
+        <input class="form-control" ng-readonly="true" value="{{vm.derivedKey.keyPair.P2TRAddress}}">
       </div>
     </div>
   </form>
