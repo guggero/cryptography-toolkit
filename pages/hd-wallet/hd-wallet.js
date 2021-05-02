@@ -82,7 +82,7 @@ function HdWalletPageController(lodash, allNetworks) {
   };
 
   vm.fromMnemonic = function () {
-    var pw = null;
+    let pw = null;
     if (vm.passphrase) {
       if (vm.strenghtening.id === METHOD_PBKDF2) {
         pw = bitcoin.pbkdf2.pbkdf2Sync(
@@ -106,7 +106,7 @@ function HdWalletPageController(lodash, allNetworks) {
     if (vm.seed) {
       vm.seedHex = vm.seed.toString('hex');
 
-      vm.node = bitcoin.HDNode.fromSeedBuffer(vm.seed, vm.network.config);
+      vm.node = bitcoin.bip32.fromSeed(vm.seed, vm.network.config);
       vm.nodeBase58 = vm.node.toBase58();
       vm.customParentBase58 = vm.node.toBase58();
       vm.fromNode();
@@ -123,7 +123,7 @@ function HdWalletPageController(lodash, allNetworks) {
   vm.fromBase58Seed = function () {
     vm.error = null;
     try {
-      vm.node = bitcoin.HDNode.fromBase58(vm.nodeBase58, vm.network.config);
+      vm.node = bitcoin.bip32.fromBase58(vm.nodeBase58, vm.network.config);
       vm.seed = null;
       vm.seedHex = 'Cannot be reversed! Seed is hashed to create HD node';
       vm.mnemonic = 'Cannot be reversed! Mnemonic to seed is a one way street...';
@@ -134,10 +134,8 @@ function HdWalletPageController(lodash, allNetworks) {
   };
 
   vm.fromNode = function () {
-    vm.node.keyPair.network = vm.network.config;
-    vm.privKeyWif = vm.node.keyPair.toWIF();
     vm.publicKeyWif = vm.node.neutered().toBase58();
-    vm.address = vm.node.keyPair.getAddress();
+    vm.address = getP2PKHAddress(vm.node, vm.network.config);
     vm.calculatePath();
   };
 
@@ -148,13 +146,13 @@ function HdWalletPageController(lodash, allNetworks) {
 
   vm.fromPath = function () {
     vm.derivedKey = vm.node.derivePath(vm.path);
-    calculateAddresses(vm.derivedKey.keyPair, vm.network.config);
+    calculateAddresses(vm.derivedKey, vm.network.config);
   };
 
   vm.fromCustomParent = function () {
     vm.customParentError = null;
     try {
-      vm.customParent = bitcoin.HDNode.fromBase58(vm.customParentBase58, vm.network.config);
+      vm.customParent = bitcoin.bip32.fromBase58(vm.customParentBase58, vm.network.config);
       vm.customPath = '0/0';
       vm.fromCustomPath();
     } catch (e) {
@@ -163,8 +161,7 @@ function HdWalletPageController(lodash, allNetworks) {
   };
 
   vm.fromCustomPath = function () {
-    var network = vm.network.config;
-    vm.customDerivedKey = vm.customParent.derivePath(vm.customPath, network);
-    calculateAddresses(vm.customDerivedKey.keyPair, network);
+    vm.customDerivedKey = vm.customParent.derivePath(vm.customPath, vm.network.config);
+    calculateAddresses(vm.customDerivedKey, vm.network.config);
   };
 }

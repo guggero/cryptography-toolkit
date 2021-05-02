@@ -72,19 +72,19 @@ function MuSigPageController(lodash, bitcoinNetworks) {
 
   vm.newPrivateKey = function () {
     const keyPair = bitcoin.ECPair.makeRandom();
-    keyPair.privateKey = keyPair.d.toString(16);
-    keyPair.publicKey = schnorr.convert.intToBuffer(keyPair.Q.affineX).toString('hex');
+    keyPair.privateKeyHex = keyPair.privateKey.toString('hex');
+    keyPair.publicKeyHex = bitcoin.tinySecp256k1.pointCompress(keyPair.publicKey).slice(1, 33).toString('hex');
     vm.keyPairs.push(keyPair);
     vm.keyPairsChanged();
   };
 
   vm.updateKeyPair = function (index) {
-    const newPrivKey = BigInteger.fromHex(vm.keyPairs[index].privateKey);
+    const newPrivKey = bitcoin.Buffer.from(vm.keyPairs[index].privateKeyHex, 'hex');
     vm.setPrivateKey(index, newPrivKey);
   };
 
   vm.randomKeyPair = function (index) {
-    const newPrivKey = bitcoin.ECPair.makeRandom().d;
+    const newPrivKey = bitcoin.ECPair.makeRandom().privateKey;
     vm.setPrivateKey(index, newPrivKey);
   };
 
@@ -94,9 +94,9 @@ function MuSigPageController(lodash, bitcoinNetworks) {
   };
 
   vm.setPrivateKey = function (index, newPrivKey) {
-    const keyPair = new bitcoin.ECPair(newPrivKey, null, { compressed: true, network: network });
-    keyPair.privateKey = newPrivKey.toString(16);
-    keyPair.publicKey = schnorr.convert.intToBuffer(keyPair.Q.affineX).toString('hex');
+    const keyPair = bitcoin.ECPair.fromPrivateKey(newPrivKey, null, { compressed: true, network: network });
+    keyPair.privateKeyHex = newPrivKey.toString('hex');
+    keyPair.publicKeyHex = bitcoin.tinySecp256k1.pointCompress(keyPair.publicKey).slice(1, 33).toString('hex');
     vm.keyPairs[index] = keyPair;
     vm.keyPairsChanged();
   };
@@ -107,12 +107,12 @@ function MuSigPageController(lodash, bitcoinNetworks) {
 
   vm.keyPairsChanged = function () {
     // public data
-    vm.publicData.pubKeys = vm.keyPairs.map(p => p.publicKey);
+    vm.publicData.pubKeys = vm.keyPairs.map(p => p.publicKeyHex);
 
     // private data
     vm.signerPrivateData = vm.keyPairs.map((p, index) => ({
       onlyKnownBy: 'Key pair ' + (index + 1),
-      privateKey: BigInteger.fromHex(p.privateKey),
+      privateKey: BigInteger.fromBuffer(p.privateKey),
       session: null
     }));
   };

@@ -138,49 +138,29 @@ function customToWIF(keyPair, network) {
   return keyPair.toWIF();
 }
 
-function customGetAddress(keyPair, network) {
-  return keyPair.getAddress();
-}
-
-function customGetScriptAddress(keyPair, network) {
-  let hash = bitcoin.crypto.hash160(keyPair.getPublicKeyBuffer());
-  let payload = bitcoin.Buffer.allocUnsafe(21);
-  payload.writeUInt8(network.scriptHash, 0);
-  hash.copy(payload, 1);
-
-  return bitcoin.bs58check.encode(payload);
-}
-
-function customImportFromWif(wifUncompressed, network) {
-  return bitcoin.ECPair.fromWIF(wifUncompressed, network).d;
+function getP2PKHAddress(keyPair, network) {
+  return bitcoin.payments.p2pkh({ pubkey: keyPair.publicKey, network: network }).address;
 }
 
 function getP2WPKHAddress(keyPair, network) {
-  const pubKey = keyPair.getPublicKeyBuffer();
-  const scriptPubKey = bitcoin.script.witnessPubKeyHash.output.encode(bitcoin.crypto.hash160(pubKey));
-  return bitcoin.address.fromOutputScript(scriptPubKey, network);
+  return bitcoin.payments.p2wpkh({ pubkey: keyPair.publicKey, network: network }).address;
 }
 
 function getNestedP2WPKHAddress(keyPair, network) {
-  const pubKey = keyPair.getPublicKeyBuffer();
-  const witnessScript = bitcoin.script.witnessPubKeyHash.output.encode(bitcoin.crypto.hash160(pubKey));
-  const scriptPubKey = bitcoin.script.scriptHash.output.encode(bitcoin.crypto.hash160(witnessScript));
-  return bitcoin.address.fromOutputScript(scriptPubKey, network);
+  const p2wpkh = bitcoin.payments.p2wpkh({ pubkey: keyPair.publicKey, network: network });
+  return bitcoin.payments.p2sh({ redeem: p2wpkh }).address;
 }
 
 function getP2TRAddress(keyPair, network) {
-  const taprootPubkey = bitcoin.schnorr.taproot.taprootConstruct(keyPair.Q);
-  return bitcoin.address.toBech32(taprootPubkey, 1, network.bech32);
+  const pubKey = bitcoin.ecurve.Point.decodeFrom(bitcoin.secp256k1, keyPair.publicKey);
+  const taprootPubkey = bitcoin.schnorr.taproot.taprootConstruct(pubKey);
+  const words = bitcoin.bech32.toWords(taprootPubkey);
+  words.unshift(1);
+  return bitcoin.bech32m.encode(network.bech32, words);
 }
 
 function calculateAddresses(keyPair, network) {
-  if (keyPair.d) {
-    keyPair.wif = customToWIF(keyPair, network);
-  } else {
-    keyPair.wif = '-';
-  }
-  keyPair.address = customGetAddress(keyPair, network);
-  keyPair.scriptAddress = customGetScriptAddress(keyPair, network);
+  keyPair.address = getP2PKHAddress(keyPair, network);
   if (network.bech32) {
     keyPair.nestedP2WPKHAddress = getNestedP2WPKHAddress(keyPair, network);
     keyPair.P2WPKHAddress = getP2WPKHAddress(keyPair, network);

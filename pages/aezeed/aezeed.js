@@ -49,7 +49,7 @@ function AezeedPageController($timeout, lodash, bitcoin, bitcoinNetworks, Buffer
   };
 
   vm.formatBase58 = function () {
-    vm.nodeBase58 = bitcoin.HDNode.fromSeedBuffer(Buffer.from(vm.entropy, 'hex'), vm.network.config).toBase58();
+    vm.nodeBase58 = bitcoin.bip32.fromSeed(Buffer.from(vm.entropy, 'hex'), vm.network.config).toBase58();
   };
 
   vm.generateSalt = function () {
@@ -185,7 +185,7 @@ function AezeedPageController($timeout, lodash, bitcoin, bitcoinNetworks, Buffer
   };
 
   vm.fromEntropy = function () {
-    vm.decoded.nodeBase58 = bitcoin.HDNode.fromSeedBuffer(Buffer.from(vm.decoded.entropy, 'hex'), vm.network2.config).toBase58();
+    vm.decoded.nodeBase58 = bitcoin.bip32.fromSeed(Buffer.from(vm.decoded.entropy, 'hex'), vm.network2.config).toBase58();
   };
 
   function bytesToBinary(bytes) {

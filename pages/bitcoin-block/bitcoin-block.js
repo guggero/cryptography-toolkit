@@ -7,7 +7,7 @@ angular
     bindings: {}
   });
 
-var BLOCK_SOURCE_API_URLS = [{
+const BLOCK_SOURCE_API_URLS = [{
   label: 'blockchain.info',
   url: 'https://blockchain.info/rawblock/%s?format=hex&cors=true'
 }, {
@@ -16,7 +16,7 @@ var BLOCK_SOURCE_API_URLS = [{
 }];
 
 function BitcoinBlockPageController($rootScope, $http, lodash) {
-  var vm = this;
+  const vm = this;
 
   vm.hash = '0000000000000000079c58e8b5bce4217f7515a74b170049398ed9b8428beb4a';
   vm.sources = BLOCK_SOURCE_API_URLS;
@@ -51,7 +51,7 @@ function BitcoinBlockPageController($rootScope, $http, lodash) {
         return tx.weight();
       });
       vm.block.legacySize = 80 + bitcoin.varuint.encodingLength(vm.block.transactions.length) + vm.block.transactions.reduce(function (a, x) {
-        return a + x.__byteLength(false);
+        return a + x.byteLength(false);
       }, 0);
       vm.decodedBlock = lodash.deeply(lodash.mapValues)(angular.copy(vm.block), bufferToString);
       paintMerkleTree();

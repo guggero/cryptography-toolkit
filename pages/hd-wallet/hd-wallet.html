@@ -132,7 +132,7 @@
       <label class="col-sm-3 control-label">Private key (WIF, compressed):</label>
       <div class="col-sm-9 input-group">
         <input class="form-control"
-               value="{{vm.privKeyWif}}"
+               value="{{vm.node.toWIF()}}"
                ng-readonly="true">
       </div>
     </div>
@@ -232,7 +232,7 @@
       <label class="col-sm-3 control-label">Private key (WIF, compressed):</label>
       <div class="col-sm-9 input-group">
         <input class="form-control"
-               value="{{vm.derivedKey.keyPair.wif}}"
+               value="{{vm.derivedKey.toWIF()}}"
                ng-readonly="true">
       </div>
     </div>
@@ -242,16 +242,8 @@
       <label class="col-sm-3 control-label">P2PKH address:</label>
       <div class="col-sm-9 input-group">
         <input class="form-control"
-               value="{{vm.derivedKey.keyPair.address}}"
+               value="{{vm.derivedKey.address}}"
                ng-readonly="true">
-      </div>
-    </div>
-
-    <!-- p2sh address -->
-    <div class="form-group">
-      <label class="col-sm-3 control-label">Pay to Script Hash (P2SH) address:</label>
-      <div class="col-sm-9 input-group">
-        <input class="form-control" ng-readonly="true" value="{{vm.derivedKey.keyPair.scriptAddress}}">
       </div>
     </div>
 
@@ -259,7 +251,7 @@
     <div class="form-group" ng-if="vm.network.config.bech32">
       <label class="col-sm-3 control-label">SegWit v0 P2SH-P2WPKH address:</label>
       <div class="col-sm-9 input-group">
-        <input class="form-control" ng-readonly="true" value="{{vm.derivedKey.keyPair.nestedP2WPKHAddress}}">
+        <input class="form-control" ng-readonly="true" value="{{vm.derivedKey.nestedP2WPKHAddress}}">
       </div>
     </div>
 
@@ -267,15 +259,15 @@
     <div class="form-group" ng-if="vm.network.config.bech32">
       <label class="col-sm-3 control-label">Native v0 SegWit bech32 P2WPKH address:</label>
       <div class="col-sm-9 input-group">
-        <input class="form-control" ng-readonly="true" value="{{vm.derivedKey.keyPair.P2WPKHAddress}}">
+        <input class="form-control" ng-readonly="true" value="{{vm.derivedKey.P2WPKHAddress}}">
       </div>
     </div>
 
     <!-- SegWit v1 native p2tr -->
     <div class="form-group" ng-if="vm.network.config.bech32">
-      <label class="col-sm-3 control-label">Native v1 SegWit bech32 P2TR address:</label>
+      <label class="col-sm-3 control-label">Native v1 SegWit bech32m P2TR address:</label>
       <div class="col-sm-9 input-group">
-        <input class="form-control" ng-readonly="true" value="{{vm.derivedKey.keyPair.P2TRAddress}}">
+        <input class="form-control" ng-readonly="true" value="{{vm.derivedKey.P2TRAddress}}">
       </div>
     </div>
   </form>
@@ -323,7 +315,7 @@
       <label class="col-sm-3 control-label">Private key (WIF, compressed):</label>
       <div class="col-sm-9 input-group">
         <input class="form-control"
-               value="{{vm.customDerivedKey.keyPair.wif}}"
+               value="{{vm.customDerivedKey.toWIF()}}"
                ng-readonly="true">
       </div>
     </div>
@@ -333,16 +325,8 @@
       <label class="col-sm-3 control-label">P2PKH address:</label>
       <div class="col-sm-9 input-group">
         <input class="form-control"
-               value="{{vm.customDerivedKey.keyPair.address}}"
+               value="{{vm.customDerivedKey.address}}"
                ng-readonly="true">
-      </div>
-    </div>
-
-    <!-- p2sh address -->
-    <div class="form-group">
-      <label class="col-sm-3 control-label">Pay to Script Hash (P2SH) address:</label>
-      <div class="col-sm-9 input-group">
-        <input class="form-control" ng-readonly="true" value="{{vm.customDerivedKey.keyPair.scriptAddress}}">
       </div>
     </div>
 
@@ -350,7 +334,7 @@
     <div class="form-group" ng-if="vm.network.config.bech32">
       <label class="col-sm-3 control-label">SegWit P2SH-P2WPKH address:</label>
       <div class="col-sm-9 input-group">
-        <input class="form-control" ng-readonly="true" value="{{vm.customDerivedKey.keyPair.nestedP2WPKHAddress}}">
+        <input class="form-control" ng-readonly="true" value="{{vm.customDerivedKey.nestedP2WPKHAddress}}">
       </div>
     </div>
 
@@ -358,7 +342,15 @@
     <div class="form-group" ng-if="vm.network.config.bech32">
       <label class="col-sm-3 control-label">Native SegWit bech32 P2WPKH address:</label>
       <div class="col-sm-9 input-group">
-        <input class="form-control" ng-readonly="true" value="{{vm.customDerivedKey.keyPair.P2WPKHAddress}}">
+        <input class="form-control" ng-readonly="true" value="{{vm.customDerivedKey.P2WPKHAddress}}">
+      </div>
+    </div>
+
+    <!-- SegWit v1 native P2TR -->
+    <div class="form-group" ng-if="vm.network.config.bech32">
+      <label class="col-sm-3 control-label">SegWit v1 bech32m P2TR address:</label>
+      <div class="col-sm-9 input-group">
+        <input class="form-control" ng-readonly="true" value="{{vm.customDerivedKey.P2TRAddress}}">
       </div>
     </div>
   </form>

@@ -8,7 +8,7 @@ angular
   });
 
 function TransactionCreatorPageController(lodash, allNetworks) {
-  var vm = this;
+  const vm = this;
 
   vm.networks = allNetworks;
   vm.network = lodash.find(vm.networks, ['label', 'BTC (Bitcoin Testnet, legacy, BIP32/44)']);
@@ -24,21 +24,20 @@ function TransactionCreatorPageController(lodash, allNetworks) {
   vm.importFromWif = function () {
     vm.error = null;
     vm.keyValid = false;
-    var network = vm.network.config;
+    const network = vm.network.config;
     try {
-      var decimalKey = customImportFromWif(vm.keyPair.wif, network);
-      vm.keyPair = new bitcoin.ECPair(decimalKey, null, {compressed: true, network: network});
+      vm.keyPair = bitcoin.ECPair.fromWIF(vm.keyPair.wif, network);
       vm.keyValid = true;
       vm.formatKeyForNetwork();
     } catch (e) {
+      console.error(e);
       vm.error = e;
     }
   };
 
   vm.formatKeyForNetwork = function () {
-    var network = vm.network.config;
-    vm.keyPair.address = customGetAddress(vm.keyPair, network);
-    vm.keyPair.scriptAddress = customGetScriptAddress(vm.keyPair, network);
+    const network = vm.network.config;
+    vm.keyPair.address = getP2PKHAddress(vm.keyPair, network);
     vm.keyPair.wif = customToWIF(vm.keyPair, network);
     if (network.bech32) {
       vm.keyPair.nestedP2WPKHAddress = getNestedP2WPKHAddress(vm.keyPair, network);
@@ -63,7 +62,7 @@ function TransactionCreatorPageController(lodash, allNetworks) {
   vm.createTransaction = function () {
     vm.txError = null;
     try {
-      var pubKey = vm.keyPair.getPublicKeyBuffer();
+      var pubKey = vm.keyPair.publicKey;
 
       var pubKeyHash = null;
       var redeemScript = null;

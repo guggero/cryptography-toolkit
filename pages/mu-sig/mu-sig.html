@@ -49,7 +49,7 @@
       <div class="col-sm-9 input-group">
         <div class="input-group">
           <div class="input-group-addon">Private key</div>
-          <input class="form-control" ng-model="pair.privateKey" ng-change="vm.updateKeyPair($index)" ng-readonly="vm.step > 0">
+          <input class="form-control" ng-model="pair.privateKeyHex" ng-change="vm.updateKeyPair($index)" ng-readonly="vm.step > 0">
           <span class="input-group-addon">&lt;-- paste hex</span>
           <span class="input-group-btn">
             <button class="btn btn-primary" ng-click="vm.randomKeyPair($index)" ng-disabled="vm.step > 0">Randomize</button>
@@ -57,7 +57,7 @@
         </div>
         <div class="input-group">
           <div class="input-group-addon">Public key</div>
-          <input class="form-control" ng-readonly="true" value="{{pair.publicKey}}">
+          <input class="form-control" ng-readonly="true" value="{{pair.publicKeyHex}}">
         </div>
       </div>
     </div>

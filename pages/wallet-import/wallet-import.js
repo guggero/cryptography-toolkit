@@ -135,7 +135,7 @@ function WalletImportPageController(lodash, bitcoin, allNetworks, Buffer) {
     if (vm.seed) {
       vm.seedHex = vm.seed.toString('hex');
 
-      vm.node = bitcoin.HDNode.fromSeedBuffer(vm.seed, vm.getConfig());
+      vm.node = bitcoin.bip32.fromSeed(vm.seed, vm.getConfig());
       vm.nodeBase58 = vm.node.toBase58();
     }
     vm.path = vm.scheme.path;
@@ -144,7 +144,7 @@ function WalletImportPageController(lodash, bitcoin, allNetworks, Buffer) {
   vm.fromBase58 = function () {
     vm.error = null;
     try {
-      vm.node = bitcoin.HDNode.fromBase58(vm.nodeBase58, vm.getConfig());
+      vm.node = bitcoin.bip32.fromBase58(vm.nodeBase58, vm.getConfig());
     } catch (e) {
       vm.error = e;
     }
@@ -184,8 +184,8 @@ function WalletImportPageController(lodash, bitcoin, allNetworks, Buffer) {
       for (let index = vm.indexStart; index <= vm.indexEnd; index++) {
         const indexPath = `${index}${vm.path.indexOf('_idx_\'') >= 0 ? '\'' : ''}`;
         const key = changeKey.derivePath(indexPath);
-        const addr = vm.getAddress(key.keyPair, network);
-        str += `${key.keyPair.toWIF()} ${date} reserve=0 # addr=${addr} hdkeypath=${basePath}/${changePath}/${indexPath}\n`;
+        const addr = vm.getAddress(key, network);
+        str += `${key.toWIF()} ${date} reserve=0 # addr=${addr} hdkeypath=${basePath}/${changePath}/${indexPath}\n`;
       }
     }
     return str;
@@ -194,7 +194,7 @@ function WalletImportPageController(lodash, bitcoin, allNetworks, Buffer) {
   vm.getResultAsImportprivkey = function (rootNode, basePath) {
     const baseKey = rootNode.derivePath(basePath);
     let str = `# Paste the following lines into a command line window.
-# You might want to adjust the block number to rescan from at the bottom of the 
+# You might want to adjust the block number to rescan from at the bottom of the
 # file if the wallet was originally created before 2017-12-18 18:35:25.
 `;
     for (let change = vm.changeStart; change <= vm.changeEnd; change++) {
@@ -203,7 +203,7 @@ function WalletImportPageController(lodash, bitcoin, allNetworks, Buffer) {
       for (let index = vm.indexStart; index <= vm.indexEnd; index++) {
         const indexPath = `${index}${vm.path.indexOf('_idx_\'') >= 0 ? '\'' : ''}`;
         const key = changeKey.derivePath(indexPath);
-        str += `bitcoin-cli importprivkey ${key.keyPair.toWIF()} "${basePath}/${changePath}/${indexPath}" false\n`;
+        str += `bitcoin-cli importprivkey ${key.toWIF()} "${basePath}/${changePath}/${indexPath}" false\n`;
       }
     }
     str += 'bitcoin-cli rescanblockchain 500000\n';
@@ -213,7 +213,7 @@ function WalletImportPageController(lodash, bitcoin, allNetworks, Buffer) {
   vm.getResultAsImportpubkey = function (rootNode, basePath) {
     const baseKey = rootNode.derivePath(basePath);
     let str = `# Paste the following lines into a command line window.
-# You might want to adjust the block number to rescan from at the bottom of the 
+# You might want to adjust the block number to rescan from at the bottom of the
 # file if the wallet was originally created before 2017-12-18 18:35:25.
 `;
     for (let change = vm.changeStart; change <= vm.changeEnd; change++) {
@@ -222,7 +222,7 @@ function WalletImportPageController(lodash, bitcoin, allNetworks, Buffer) {
       for (let index = vm.indexStart; index <= vm.indexEnd; index++) {
         const indexPath = `${index}${vm.path.indexOf('_idx_\'') >= 0 ? '\'' : ''}`;
         const key = changeKey.derivePath(indexPath);
-        str += `bitcoin-cli importpubkey ${key.keyPair.getPublicKeyBuffer().toString('hex')} "${basePath}/${changePath}/${indexPath}" false\n`;
+        str += `bitcoin-cli importpubkey ${key.publicKey.toString('hex')} "${basePath}/${changePath}/${indexPath}" false\n`;
       }
     }
     str += 'bitcoin-cli rescanblockchain 500000\n';
@@ -231,7 +231,7 @@ function WalletImportPageController(lodash, bitcoin, allNetworks, Buffer) {
 
   vm.getAddress = function (keyPair, network) {
     if (vm.scheme.id === 'xprv' || vm.scheme.id === 'tprv') {
-      return keyPair.getAddress();
+      return getP2PKHAddress(keyPair, network);
     } else if (vm.scheme.id === 'yprv' || vm.scheme.id === 'uprv') {
       return getNestedP2WPKHAddress(keyPair, network);
     } else {

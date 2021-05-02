@@ -530,35 +530,6 @@ angular.module('app').run(['$templateCache', function($templateCache) {
   );
 
 
-  $templateCache.put('node_modules/js-sha3/tests/index.html',
-    "<!doctype html>\n" +
-    "<html lang=\"en\">\n" +
-    "<head>\n" +
-    "  <meta charset=\"UTF-8\">\n" +
-    "  <title>SHA3</title>\n" +
-    "  <link rel=\"stylesheet\" href=\"https://cdnjs.cloudflare.com/ajax/libs/mocha/2.1.0/mocha.min.css\">\n" +
-    "  <script src=\"https://cdnjs.cloudflare.com/ajax/libs/mocha/2.1.0/mocha.min.js\"></script>\n" +
-    "  <script src=\"https://cdnjs.cloudflare.com/ajax/libs/expect.js/0.2.0/expect.min.js\"></script>\n" +
-    "  <script src=\"../src/sha3.js\"></script>\n" +
-    "</head>\n" +
-    "<body>\n" +
-    "  <div id=\"mocha\"></div>\n" +
-    "  <script>\n" +
-    "    mocha.setup('bdd');\n" +
-    "  </script>\n" +
-    "  <script src=\"test.js\"></script>\n" +
-    "  <script src=\"test-shake.js\"></script>\n" +
-    "  <script src=\"test-cshake.js\"></script>\n" +
-    "  <script src=\"test-kmac.js\"></script>\n" +
-    "  <script>\n" +
-    "    mocha.checkLeaks();\n" +
-    "    mocha.run();\n" +
-    "  </script>\n" +
-    "</body>\n" +
-    "</html>\n"
-  );
-
-
   $templateCache.put('node_modules/scrypt-js/index.html',
     "<html>\n" +
     "    <head>\n" +
@@ -2345,7 +2316,7 @@ angular.module('app').run(['$templateCache', function($templateCache) {
     "    <div class=\"form-group\">\n" +
     "      <label class=\"col-sm-4 control-label\">Private key (decimal):</label>\n" +
     "      <div class=\"col-sm-8 input-group\">\n" +
-    "        <input class=\"form-control\" ng-readonly=\"true\" value=\"{{vm.decimalKey}}\">\n" +
+    "        <input class=\"form-control\" ng-readonly=\"true\" value=\"{{vm.privKeyDecimal.toString('10')}}\">\n" +
     "        <span class=\"input-group-btn\">\n" +
     "          <button class=\"btn btn-primary\" ng-click=\"vm.newPrivateKey()\">Generate new</button>\n" +
     "        </span>\n" +
@@ -2355,7 +2326,7 @@ angular.module('app').run(['$templateCache', function($templateCache) {
     "    <div class=\"form-group\">\n" +
     "      <label class=\"col-sm-4 control-label\">Private key (hex):</label>\n" +
     "      <div class=\"col-sm-8 input-group\">\n" +
-    "        <input class=\"form-control\" ng-readonly=\"true\" value=\"{{vm.decimalKey.toString(16)}}\">\n" +
+    "        <input class=\"form-control\" ng-readonly=\"true\" value=\"{{vm.keyPair.privateKey.toString('hex')}}\">\n" +
     "      </div>\n" +
     "    </div>\n" +
     "\n" +
@@ -2420,13 +2391,6 @@ angular.module('app').run(['$templateCache', function($templateCache) {
     "      <div ng-show=\"vm.showPubkey\" class=\"col-sm-offset-4 col-sm-8 qr-code\" id=\"qrPubkey\"></div>\n" +
     "    </div>\n" +
     "\n" +
-    "    <div class=\"form-group\">\n" +
-    "      <label class=\"col-sm-4 control-label\">Pay to Script Hash (P2SH) address:</label>\n" +
-    "      <div class=\"col-sm-8 input-group\">\n" +
-    "        <input class=\"form-control\" ng-readonly=\"true\" value=\"{{vm.keyPair.scriptAddress}}\">\n" +
-    "      </div>\n" +
-    "    </div>\n" +
-    "\n" +
     "    <div class=\"form-group\" ng-if=\"vm.network.config.bech32\">\n" +
     "      <label class=\"col-sm-4 control-label\">SegWit v0 P2SH-P2WPKH address:</label>\n" +
     "      <div class=\"col-sm-8 input-group\">\n" +
@@ -2442,7 +2406,7 @@ angular.module('app').run(['$templateCache', function($templateCache) {
     "    </div>\n" +
     "\n" +
     "    <div class=\"form-group\" ng-if=\"vm.network.config.bech32\">\n" +
-    "      <label class=\"col-sm-4 control-label\">SegWit v1 bech32 P2TR address:</label>\n" +
+    "      <label class=\"col-sm-4 control-label\">SegWit v1 bech32m P2TR address:</label>\n" +
     "      <div class=\"col-sm-8 input-group\">\n" +
     "        <input class=\"form-control\" ng-readonly=\"true\" value=\"{{vm.keyPair.P2TRAddress}}\">\n" +
     "      </div>\n" +
@@ -2681,7 +2645,7 @@ angular.module('app').run(['$templateCache', function($templateCache) {
     "      <label class=\"col-sm-3 control-label\">Private key (WIF, compressed):</label>\n" +
     "      <div class=\"col-sm-9 input-group\">\n" +
     "        <input class=\"form-control\"\n" +
-    "               value=\"{{vm.privKeyWif}}\"\n" +
+    "               value=\"{{vm.node.toWIF()}}\"\n" +
     "               ng-readonly=\"true\">\n" +
     "      </div>\n" +
     "    </div>\n" +
@@ -2781,7 +2745,7 @@ angular.module('app').run(['$templateCache', function($templateCache) {
     "      <label class=\"col-sm-3 control-label\">Private key (WIF, compressed):</label>\n" +
     "      <div class=\"col-sm-9 input-group\">\n" +
     "        <input class=\"form-control\"\n" +
-    "               value=\"{{vm.derivedKey.keyPair.wif}}\"\n" +
+    "               value=\"{{vm.derivedKey.toWIF()}}\"\n" +
     "               ng-readonly=\"true\">\n" +
     "      </div>\n" +
     "    </div>\n" +
@@ -2791,16 +2755,8 @@ angular.module('app').run(['$templateCache', function($templateCache) {
     "      <label class=\"col-sm-3 control-label\">P2PKH address:</label>\n" +
     "      <div class=\"col-sm-9 input-group\">\n" +
     "        <input class=\"form-control\"\n" +
-    "               value=\"{{vm.derivedKey.keyPair.address}}\"\n" +
+    "               value=\"{{vm.derivedKey.address}}\"\n" +
     "               ng-readonly=\"true\">\n" +
-    "      </div>\n" +
-    "    </div>\n" +
-    "\n" +
-    "    <!-- p2sh address -->\n" +
-    "    <div class=\"form-group\">\n" +
-    "      <label class=\"col-sm-3 control-label\">Pay to Script Hash (P2SH) address:</label>\n" +
-    "      <div class=\"col-sm-9 input-group\">\n" +
-    "        <input class=\"form-control\" ng-readonly=\"true\" value=\"{{vm.derivedKey.keyPair.scriptAddress}}\">\n" +
     "      </div>\n" +
     "    </div>\n" +
     "\n" +
@@ -2808,7 +2764,7 @@ angular.module('app').run(['$templateCache', function($templateCache) {
     "    <div class=\"form-group\" ng-if=\"vm.network.config.bech32\">\n" +
     "      <label class=\"col-sm-3 control-label\">SegWit v0 P2SH-P2WPKH address:</label>\n" +
     "      <div class=\"col-sm-9 input-group\">\n" +
-    "        <input class=\"form-control\" ng-readonly=\"true\" value=\"{{vm.derivedKey.keyPair.nestedP2WPKHAddress}}\">\n" +
+    "        <input class=\"form-control\" ng-readonly=\"true\" value=\"{{vm.derivedKey.nestedP2WPKHAddress}}\">\n" +
     "      </div>\n" +
     "    </div>\n" +
     "\n" +
@@ -2816,15 +2772,15 @@ angular.module('app').run(['$templateCache', function($templateCache) {
     "    <div class=\"form-group\" ng-if=\"vm.network.config.bech32\">\n" +
     "      <label class=\"col-sm-3 control-label\">Native v0 SegWit bech32 P2WPKH address:</label>\n" +
     "      <div class=\"col-sm-9 input-group\">\n" +
-    "        <input class=\"form-control\" ng-readonly=\"true\" value=\"{{vm.derivedKey.keyPair.P2WPKHAddress}}\">\n" +
+    "        <input class=\"form-control\" ng-readonly=\"true\" value=\"{{vm.derivedKey.P2WPKHAddress}}\">\n" +
     "      </div>\n" +
     "    </div>\n" +
     "\n" +
     "    <!-- SegWit v1 native p2tr -->\n" +
     "    <div class=\"form-group\" ng-if=\"vm.network.config.bech32\">\n" +
-    "      <label class=\"col-sm-3 control-label\">Native v1 SegWit bech32 P2TR address:</label>\n" +
+    "      <label class=\"col-sm-3 control-label\">Native v1 SegWit bech32m P2TR address:</label>\n" +
     "      <div class=\"col-sm-9 input-group\">\n" +
-    "        <input class=\"form-control\" ng-readonly=\"true\" value=\"{{vm.derivedKey.keyPair.P2TRAddress}}\">\n" +
+    "        <input class=\"form-control\" ng-readonly=\"true\" value=\"{{vm.derivedKey.P2TRAddress}}\">\n" +
     "      </div>\n" +
     "    </div>\n" +
     "  </form>\n" +
@@ -2872,7 +2828,7 @@ angular.module('app').run(['$templateCache', function($templateCache) {
     "      <label class=\"col-sm-3 control-label\">Private key (WIF, compressed):</label>\n" +
     "      <div class=\"col-sm-9 input-group\">\n" +
     "        <input class=\"form-control\"\n" +
-    "               value=\"{{vm.customDerivedKey.keyPair.wif}}\"\n" +
+    "               value=\"{{vm.customDerivedKey.toWIF()}}\"\n" +
     "               ng-readonly=\"true\">\n" +
     "      </div>\n" +
     "    </div>\n" +
@@ -2882,16 +2838,8 @@ angular.module('app').run(['$templateCache', function($templateCache) {
     "      <label class=\"col-sm-3 control-label\">P2PKH address:</label>\n" +
     "      <div class=\"col-sm-9 input-group\">\n" +
     "        <input class=\"form-control\"\n" +
-    "               value=\"{{vm.customDerivedKey.keyPair.address}}\"\n" +
+    "               value=\"{{vm.customDerivedKey.address}}\"\n" +
     "               ng-readonly=\"true\">\n" +
-    "      </div>\n" +
-    "    </div>\n" +
-    "\n" +
-    "    <!-- p2sh address -->\n" +
-    "    <div class=\"form-group\">\n" +
-    "      <label class=\"col-sm-3 control-label\">Pay to Script Hash (P2SH) address:</label>\n" +
-    "      <div class=\"col-sm-9 input-group\">\n" +
-    "        <input class=\"form-control\" ng-readonly=\"true\" value=\"{{vm.customDerivedKey.keyPair.scriptAddress}}\">\n" +
     "      </div>\n" +
     "    </div>\n" +
     "\n" +
@@ -2899,7 +2847,7 @@ angular.module('app').run(['$templateCache', function($templateCache) {
     "    <div class=\"form-group\" ng-if=\"vm.network.config.bech32\">\n" +
     "      <label class=\"col-sm-3 control-label\">SegWit P2SH-P2WPKH address:</label>\n" +
     "      <div class=\"col-sm-9 input-group\">\n" +
-    "        <input class=\"form-control\" ng-readonly=\"true\" value=\"{{vm.customDerivedKey.keyPair.nestedP2WPKHAddress}}\">\n" +
+    "        <input class=\"form-control\" ng-readonly=\"true\" value=\"{{vm.customDerivedKey.nestedP2WPKHAddress}}\">\n" +
     "      </div>\n" +
     "    </div>\n" +
     "\n" +
@@ -2907,7 +2855,15 @@ angular.module('app').run(['$templateCache', function($templateCache) {
     "    <div class=\"form-group\" ng-if=\"vm.network.config.bech32\">\n" +
     "      <label class=\"col-sm-3 control-label\">Native SegWit bech32 P2WPKH address:</label>\n" +
     "      <div class=\"col-sm-9 input-group\">\n" +
-    "        <input class=\"form-control\" ng-readonly=\"true\" value=\"{{vm.customDerivedKey.keyPair.P2WPKHAddress}}\">\n" +
+    "        <input class=\"form-control\" ng-readonly=\"true\" value=\"{{vm.customDerivedKey.P2WPKHAddress}}\">\n" +
+    "      </div>\n" +
+    "    </div>\n" +
+    "\n" +
+    "    <!-- SegWit v1 native P2TR -->\n" +
+    "    <div class=\"form-group\" ng-if=\"vm.network.config.bech32\">\n" +
+    "      <label class=\"col-sm-3 control-label\">SegWit v1 bech32m P2TR address:</label>\n" +
+    "      <div class=\"col-sm-9 input-group\">\n" +
+    "        <input class=\"form-control\" ng-readonly=\"true\" value=\"{{vm.customDerivedKey.P2TRAddress}}\">\n" +
     "      </div>\n" +
     "    </div>\n" +
     "  </form>\n" +
@@ -3205,7 +3161,7 @@ angular.module('app').run(['$templateCache', function($templateCache) {
     "      <div class=\"col-sm-9 input-group\">\n" +
     "        <div class=\"input-group\">\n" +
     "          <div class=\"input-group-addon\">Private key</div>\n" +
-    "          <input class=\"form-control\" ng-model=\"pair.privateKey\" ng-change=\"vm.updateKeyPair($index)\" ng-readonly=\"vm.step > 0\">\n" +
+    "          <input class=\"form-control\" ng-model=\"pair.privateKeyHex\" ng-change=\"vm.updateKeyPair($index)\" ng-readonly=\"vm.step > 0\">\n" +
     "          <span class=\"input-group-addon\">&lt;-- paste hex</span>\n" +
     "          <span class=\"input-group-btn\">\n" +
     "            <button class=\"btn btn-primary\" ng-click=\"vm.randomKeyPair($index)\" ng-disabled=\"vm.step > 0\">Randomize</button>\n" +
@@ -3213,7 +3169,7 @@ angular.module('app').run(['$templateCache', function($templateCache) {
     "        </div>\n" +
     "        <div class=\"input-group\">\n" +
     "          <div class=\"input-group-addon\">Public key</div>\n" +
-    "          <input class=\"form-control\" ng-readonly=\"true\" value=\"{{pair.publicKey}}\">\n" +
+    "          <input class=\"form-control\" ng-readonly=\"true\" value=\"{{pair.publicKeyHex}}\">\n" +
     "        </div>\n" +
     "      </div>\n" +
     "    </div>\n" +
@@ -3374,44 +3330,6 @@ angular.module('app').run(['$templateCache', function($templateCache) {
     "               ng-model=\"vm.signatureToVerify\"\n" +
     "               ng-change=\"vm.verifySignature()\"\n" +
     "               class=\"form-control\">\n" +
-    "      </div>\n" +
-    "    </div>\n" +
-    "  </form>\n" +
-    "</div>\n" +
-    "\n" +
-    "<h4>Naïve signature aggregation of multiple private keys over same message</h4>\n" +
-    "<small>\n" +
-    "  <b>Note:</b> this is just a demo of how the most simple aggregation works. This is not secure and is not part of any BIP!\n" +
-    "  See <a href=\"https://github.com/guggero/bip-schnorr\">bip-schnorr</a> for more information.\n" +
-    "</small>\n" +
-    "<div class=\"well\">\n" +
-    "  <form class=\"form-horizontal\">\n" +
-    "    <!-- private keys -->\n" +
-    "    <div class=\"form-group\">\n" +
-    "      <label class=\"col-sm-3 control-label\">Private keys:</label>\n" +
-    "      <div class=\"col-sm-9 input-group\">\n" +
-    "        <div class=\"input-group\">\n" +
-    "          <div class=\"input-group-addon\">Private key 1</div>\n" +
-    "          <input class=\"form-control\" ng-readonly=\"true\" value=\"{{vm.privateKey}}\">\n" +
-    "        </div>\n" +
-    "        <div class=\"input-group\">\n" +
-    "          <div class=\"input-group-addon\">Private key 2</div>\n" +
-    "          <input class=\"form-control\" ng-readonly=\"true\" value=\"{{vm.privateKey2}}\">\n" +
-    "        </div>\n" +
-    "      </div>\n" +
-    "    </div>\n" +
-    "\n" +
-    "    <div class=\"form-group\">\n" +
-    "      <label for=\"messageHash\" class=\"col-sm-3 control-label\">Sum of public keys:</label>\n" +
-    "      <div class=\"col-sm-9 no-left-padding\">\n" +
-    "        <input class=\"form-control\" ng-readonly=\"true\" value=\"{{vm.sumOfPublicKeys}}\">\n" +
-    "      </div>\n" +
-    "    </div>\n" +
-    "\n" +
-    "    <div class=\"form-group\">\n" +
-    "      <label class=\"col-sm-3 control-label\">Signature:</label>\n" +
-    "      <div class=\"col-sm-9 no-left-padding\">\n" +
-    "        <textarea rows=\"2\" class=\"form-control\" ng-readonly=\"true\">{{vm.aggregatedSignature}}</textarea>\n" +
     "      </div>\n" +
     "    </div>\n" +
     "  </form>\n" +
@@ -3609,8 +3527,6 @@ angular.module('app').run(['$templateCache', function($templateCache) {
     "        <div class=\"input-group\">\n" +
     "          <div class=\"input-group-addon\">P2PKH</div>\n" +
     "          <input class=\"form-control\" ng-readonly=\"true\" value=\"{{vm.keyPair.address}}\">\n" +
-    "          <div class=\"input-group-addon\">P2SH</div>\n" +
-    "          <input class=\"form-control\" ng-readonly=\"true\" value=\"{{vm.keyPair.scriptAddress}}\">\n" +
     "        </div>\n" +
     "      </div>\n" +
     "    </div>\n" +
