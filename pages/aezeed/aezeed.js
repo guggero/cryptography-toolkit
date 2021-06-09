@@ -57,6 +57,7 @@ function AezeedPageController($timeout, lodash, bitcoin, bitcoinNetworks, Buffer
   };
 
   vm.generateSeed = function () {
+    vm.formatBase58();
     vm.error = null;
 
     const password = Buffer.from(vm.passphrase || AEZEED_DEFAULT_PASSPHRASE, 'utf8');
