@@ -6070,9 +6070,19 @@ function checkNonceArr(nonces) {
 
 function checkPrivateKey(privateKey, idx) {
   const idxStr = (idx !== undefined ? '[' + idx + ']' : '');
-  if (!BigInteger.isBigInteger(privateKey)) {
-    throw new Error('privateKey' + idxStr + ' must be a BigInteger');
+  if (!BigInteger.isBigInteger(privateKey) && !(typeof privateKey == 'string')) {
+    throw new Error('privateKey' + idxStr + ' must be a BigInteger or valid hex string');
   }
+
+  if (typeof(privateKey) == 'string') {
+    if (privateKey.match(/[^a-f^A-F^0-9]+/)) {
+      throw new Error('privateKey must be a BigInteger or valid hex string');
+    }
+
+    checkRange('privateKey', BigInteger.fromHex(privateKey));
+    return
+  }
+
   checkRange('privateKey', privateKey);
 }
 
@@ -6201,10 +6211,10 @@ const three = BigInteger.valueOf(3);
 const four = BigInteger.valueOf(4);
 const seven = BigInteger.valueOf(7);
 
-function deterministicGetK0(privateKey, message) {
+function deterministicGetK0(privateKey, publicKey, message) {
   check.checkSignParams(privateKey, message);
 
-  const h = convert.hash(concat([convert.intToBuffer(privateKey), message]));
+  const h = taggedHash('BIP0340/nonce', concat([convert.intToBuffer(privateKey), publicKey, message]));
   const i = convert.bufferToInt(h);
   return i.mod(n);
 }
@@ -6430,6 +6440,7 @@ const zero = BigInteger.ZERO;
 function sign(privateKey, message, aux) {
   // https://github.com/bitcoin/bips/blob/master/bip-0340.mediawiki#signing
   check.checkSignParams(privateKey, message);
+  privateKey = typeof (privateKey) == 'string' ? BigInteger.fromHex(privateKey) : privateKey;
 
   const P = G.multiply(privateKey);
   const Px = convert.intToBuffer(P.affineX);
@@ -6443,7 +6454,7 @@ function sign(privateKey, message, aux) {
     const rand = math.taggedHash('BIP0340/nonce', concat([t, Px, message]))
     kPrime = convert.bufferToInt(rand).mod(n);
   } else {
-    kPrime = math.deterministicGetK0(d, message);
+    kPrime = math.deterministicGetK0(d, Px, message);
   }
 
   if (kPrime.signum() === 0) {
@@ -6540,8 +6551,11 @@ function taprootConstruct(pubKey, scripts) {
 function taprootTree(scripts) {
   let h = Buffer.alloc(32, 0);
   if (!scripts || scripts.length === 0) {
-    return h;
+    return new Buffer(0);
   }
+
+  // TODO(guggero): Implement script part.
+  return h;
 }
 
 module.exports = {
