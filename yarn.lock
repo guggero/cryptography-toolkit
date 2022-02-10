@@ -746,10 +746,10 @@ bindings@^1.3.0:
   dependencies:
     file-uri-to-path "1.0.0"
 
-bip-schnorr@0.6.4:
-  version "0.6.4"
-  resolved "https://registry.yarnpkg.com/bip-schnorr/-/bip-schnorr-0.6.4.tgz#6fde7f301fe6b207dbd05f8ec2caf08fa5a51d0d"
-  integrity sha512-dNKw7Lea8B0wMIN4OjEmOk/Z5qUGqoPDY0P2QttLqGk1hmDPytLWW8PR5Pb6Vxy6CprcdEgfJpOjUu+ONQveyg==
+bip-schnorr@0.6.5:
+  version "0.6.5"
+  resolved "https://registry.yarnpkg.com/bip-schnorr/-/bip-schnorr-0.6.5.tgz#33fc61948cbc21585b285de25e1e7326aba5217a"
+  integrity sha512-fwycTojG2zdajsIUMpveCNUlx4qXEtWIqVzcnFqljBwYU5fdEp+yxiebAURF9x0tRJgVQjCSynLw/IMnzQd8LA==
   dependencies:
     bigi "^1.4.2"
     ecurve "^1.0.6"
