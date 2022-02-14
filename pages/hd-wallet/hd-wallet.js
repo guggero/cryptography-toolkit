@@ -51,7 +51,7 @@ function HdWalletPageController(lodash, allNetworks) {
     {id: 1, label: 'BIP44 (Legacy wallets, multi coin wallets)', bip: '44', hasCoinType: true, path: 'm/44\'/coin\'/account\'/change/index'},
     {id: 2, label: 'BIP49 (SegWit P2SH-P2WPKH)', bip: '49', hasCoinType: true, path: 'm/49\'/coin\'/account\'/change/index'},
     {id: 3, label: 'BIP84 (Native SegWit bech32 P2WPKH)', bip: '84', hasCoinType: true, path: 'm/84\'/coin\'/account\'/change/index'},
-    {id: 4, label: 'BIP341 (Native SegWit v1 bech32 P2TR)', bip: '341', hasCoinType: true, path: 'm/341\'/coin\'/account\'/change/index'},
+    {id: 4, label: 'BIP86 (Native SegWit v1 bech32m P2TR)', bip: '86', hasCoinType: true, path: 'm/86\'/coin\'/account\'/change/index'},
   ];
   vm.selectedBip = vm.bips[1];
   vm.path = calculatePath(vm.selectedBip, vm.coinType, vm.account, vm.change, vm.index);
