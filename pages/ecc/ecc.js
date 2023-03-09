@@ -17,12 +17,14 @@ function EccPageController(lodash, allNetworks) {
   vm.qrPrivUncompressed = new QRCode('qrPrivUncompressed');
   vm.qrPrivCompressed = new QRCode('qrPrivCompressed');
   vm.qrPubkey = new QRCode('qrPubkey');
+  vm.trMerkleRoot = '';
 
   vm.$onInit = function () {
     vm.newPrivateKey();
     vm.formatKeyForNetwork();
     vm.signMessage();
     vm.eccMultiply();
+    vm.trTweak();
   };
 
   vm.newPrivateKey = function () {
@@ -49,6 +51,7 @@ function EccPageController(lodash, allNetworks) {
     vm.eccMultiplicand = vm.pubKey.toString('hex');
     vm.eccMultiplier = 'aabbccddeeff00112233445566778899';
     vm.multiplicandPrivKey = false;
+    vm.trInternalKey = vm.keyPair.publicKey.toString('hex');
 
     // update QR codes
     vm.qrPrivUncompressed.makeCode(vm.keyPairUncompressed.wif);
@@ -111,4 +114,14 @@ function EccPageController(lodash, allNetworks) {
     }
     vm.eccResult = resultPoint.getEncoded(true).toString('hex');
   }
+
+  vm.trTweak = function () {
+    const internalKeyBuf = bitcoin.Buffer.from(vm.trInternalKey, 'hex');
+    const internalKey = bitcoin.ecurve.Point.decodeFrom(bitcoin.secp256k1, internalKeyBuf)
+    let merkleRoot = bitcoin.Buffer.alloc(0, 0);
+    if (vm.trMerkleRoot !== "") {
+      merkleRoot = bitcoin.Buffer.from(vm.trMerkleRoot, 'hex');
+    }
+    vm.trOutputKey = bitcoin.schnorr.taproot.taprootConstruct(internalKey, merkleRoot).toString('hex');
+  };
 }

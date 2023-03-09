@@ -2506,6 +2506,38 @@ angular.module('app').run(['$templateCache', function($templateCache) {
     "      </div>\n" +
     "    </div>\n" +
     "  </form>\n" +
+    "</div>\n" +
+    "\n" +
+    "<h4>Taproot keys</h4>\n" +
+    "<div class=\"well\">\n" +
+    "  <form class=\"form-horizontal\">\n" +
+    "    <div class=\"form-group\">\n" +
+    "      <label for=\"internalkey\" class=\"col-sm-4 control-label\">Internal key:</label>\n" +
+    "      <div class=\"col-sm-8 input-group\">\n" +
+    "        <input id=\"internalkey\"\n" +
+    "               ng-model=\"vm.trInternalKey\"\n" +
+    "               ng-change=\"vm.trTweak()\"\n" +
+    "               class=\"form-control\">\n" +
+    "      </div>\n" +
+    "    </div>\n" +
+    "\n" +
+    "    <div class=\"form-group\">\n" +
+    "      <label for=\"merkleroot\" class=\"col-sm-4 control-label\">Tap tree merkle root:</label>\n" +
+    "      <div class=\"col-sm-8 no-left-padding\">\n" +
+    "        <input id=\"merkleroot\"\n" +
+    "               ng-model=\"vm.trMerkleRoot\"\n" +
+    "               ng-change=\"vm.trTweak()\"\n" +
+    "               class=\"form-control\">\n" +
+    "      </div>\n" +
+    "    </div>\n" +
+    "\n" +
+    "    <div class=\"form-group\">\n" +
+    "      <label class=\"col-sm-4 control-label\">Taproot output key:</label>\n" +
+    "      <div class=\"col-sm-8 no-left-padding\">\n" +
+    "        <input class=\"form-control\" ng-readonly=\"true\" value=\"{{vm.trOutputKey}}\">\n" +
+    "      </div>\n" +
+    "    </div>\n" +
+    "  </form>\n" +
     "</div>\n"
   );
 
