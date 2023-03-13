@@ -18,13 +18,13 @@ function EccPageController(lodash, allNetworks) {
   vm.qrPrivCompressed = new QRCode('qrPrivCompressed');
   vm.qrPubkey = new QRCode('qrPubkey');
   vm.trMerkleRoot = '';
+  vm.trAddress = '';
 
   vm.$onInit = function () {
     vm.newPrivateKey();
     vm.formatKeyForNetwork();
     vm.signMessage();
     vm.eccMultiply();
-    vm.trTweak();
   };
 
   vm.newPrivateKey = function () {
@@ -57,6 +57,8 @@ function EccPageController(lodash, allNetworks) {
     vm.qrPrivUncompressed.makeCode(vm.keyPairUncompressed.wif);
     vm.qrPrivCompressed.makeCode(vm.keyPair.wif);
     vm.qrPubkey.makeCode(vm.keyPair.address);
+
+    vm.trTweak();
   };
 
   vm.importFromWif = function () {
@@ -122,6 +124,10 @@ function EccPageController(lodash, allNetworks) {
     if (vm.trMerkleRoot !== "") {
       merkleRoot = bitcoin.Buffer.from(vm.trMerkleRoot, 'hex');
     }
-    vm.trOutputKey = bitcoin.schnorr.taproot.taprootConstruct(internalKey, merkleRoot).toString('hex');
+    const taprootPubkey = bitcoin.schnorr.taproot.taprootConstruct(internalKey, merkleRoot);
+    vm.trOutputKey = taprootPubkey.toString('hex');
+    const words = bitcoin.bech32.toWords(taprootPubkey);
+    words.unshift(1);
+    vm.trAddress = bitcoin.bech32m.encode(vm.network.config.bech32, words);
   };
 }

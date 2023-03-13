@@ -2537,6 +2537,13 @@ angular.module('app').run(['$templateCache', function($templateCache) {
     "        <input class=\"form-control\" ng-readonly=\"true\" value=\"{{vm.trOutputKey}}\">\n" +
     "      </div>\n" +
     "    </div>\n" +
+    "\n" +
+    "    <div class=\"form-group\">\n" +
+    "      <label class=\"col-sm-4 control-label\">P2TR address:</label>\n" +
+    "      <div class=\"col-sm-8 no-left-padding\">\n" +
+    "        <input class=\"form-control\" ng-readonly=\"true\" value=\"{{vm.trAddress}}\">\n" +
+    "      </div>\n" +
+    "    </div>\n" +
     "  </form>\n" +
     "</div>\n"
   );
