@@ -18,6 +18,10 @@ const calculatePath = function (bip, coinType, account, change, index) {
   return path;
 };
 
+const deepCopy = function (obj) {
+  return JSON.parse(JSON.stringify(obj));
+};
+
 function HdWalletPageController(lodash, allNetworks) {
   const vm = this;
 
@@ -41,17 +45,47 @@ function HdWalletPageController(lodash, allNetworks) {
   vm.node = null;
   vm.nodeBase58 = null;
   vm.privKeyWif = null;
-  vm.publicKeyWif = null;
+  vm.xPub = null;
   vm.address = null;
   vm.account = 0;
   vm.change = 0;
   vm.index = 0;
   vm.bips = [
-    {id: 0, label: 'BIP32 (Bitcoin Core)', bip: '32', hasCoinType: false, path: 'm/account\'/change\'/index'},
-    {id: 1, label: 'BIP44 (Legacy wallets, multi coin wallets)', bip: '44', hasCoinType: true, path: 'm/44\'/coin\'/account\'/change/index'},
-    {id: 2, label: 'BIP49 (SegWit P2SH-P2WPKH)', bip: '49', hasCoinType: true, path: 'm/49\'/coin\'/account\'/change/index'},
-    {id: 3, label: 'BIP84 (Native SegWit bech32 P2WPKH)', bip: '84', hasCoinType: true, path: 'm/84\'/coin\'/account\'/change/index'},
-    {id: 4, label: 'BIP86 (Native SegWit v1 bech32m P2TR)', bip: '86', hasCoinType: true, path: 'm/86\'/coin\'/account\'/change/index'},
+    {
+      id: 0, label: 'BIP32 (Bitcoin Core)', bip: '32', hasCoinType: false,
+      path: 'm/account\'/change\'/index', base58Prefixes: [
+        {public: 0x0488b21e, private: 0x0488ade4}, // xpub, xprv
+        {public: 0x043587cf, private: 0x04358394}  // tpub, tprv
+      ],
+    },
+    {
+      id: 1, label: 'BIP44 (Legacy wallets, multi coin wallets)', bip: '44', hasCoinType: true,
+      path: 'm/44\'/coin\'/account\'/change/index',base58Prefixes: [
+        {public: 0x0488b21e, private: 0x0488ade4}, // xpub, xprv
+        {public: 0x043587cf, private: 0x04358394}  // tpub, tprv
+      ],
+    },
+    {
+      id: 2, label: 'BIP49 (SegWit P2SH-P2WPKH)', bip: '49', hasCoinType: true,
+      path: 'm/49\'/coin\'/account\'/change/index',base58Prefixes: [
+        {public: 0x049d7cb2, private: 0x049d7878}, // ypub, yprv
+        {public: 0x044a5262, private: 0x044a4e28}  // upub, uprv
+      ],
+    },
+    {
+      id: 3, label: 'BIP84 (Native SegWit bech32 P2WPKH)', bip: '84', hasCoinType: true,
+      path: 'm/84\'/coin\'/account\'/change/index',base58Prefixes: [
+        {public: 0x04b24746, private: 0x04b2430c}, // zpub, zprv
+        {public: 0x045f1cf6, private: 0x045f18bc}  // vpub, vprv
+      ],
+    },
+    {
+      id: 4, label: 'BIP86 (Native SegWit v1 bech32m P2TR)', bip: '86', hasCoinType: true,
+      path: 'm/86\'/coin\'/account\'/change/index',base58Prefixes: [
+        {public: 0x0488b21e, private: 0x0488ade4}, // xpub, xprv
+        {public: 0x043587cf, private: 0x04358394}  // tpub, tprv
+      ],
+    },
   ];
   vm.selectedBip = vm.bips[1];
   vm.path = calculatePath(vm.selectedBip, vm.coinType, vm.account, vm.change, vm.index);
@@ -134,8 +168,11 @@ function HdWalletPageController(lodash, allNetworks) {
   };
 
   vm.fromNode = function () {
-    vm.publicKeyWif = vm.node.neutered().toBase58();
-    vm.address = getP2PKHAddress(vm.node, vm.network.config);
+    let configCopy = deepCopy(vm.network.config);
+    configCopy.bip32 = vm.selectedBip.base58Prefixes[configCopy.bip44];
+    vm.customNode = new bitcoin.bip32.fromPrivateKey(vm.node.privateKey, vm.node.chainCode, configCopy);
+    vm.xPub = vm.customNode.neutered().toBase58();
+    vm.address = getP2PKHAddress(vm.customNode, vm.network.config);
     vm.calculatePath();
   };
 
@@ -145,7 +182,8 @@ function HdWalletPageController(lodash, allNetworks) {
   };
 
   vm.fromPath = function () {
-    vm.derivedKey = vm.node.derivePath(vm.path);
+    vm.derivedKey = vm.customNode.derivePath(vm.path);
+    vm.derivedXPub = vm.derivedKey.neutered().toBase58();
     calculateAddresses(vm.derivedKey, vm.network.config);
   };
 

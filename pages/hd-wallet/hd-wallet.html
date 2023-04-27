@@ -142,7 +142,7 @@
       <label class="col-sm-3 control-label">Extended public key (base58):</label>
       <div class="col-sm-9 input-group">
         <input class="form-control"
-               value="{{vm.publicKeyWif}}"
+               value="{{vm.xPub}}"
                ng-readonly="true">
       </div>
     </div>
@@ -217,12 +217,22 @@
       </div>
     </div>
 
-    <!-- derived key base58 -->
+    <!-- derived private key base58 -->
     <div class="form-group">
-      <label class="col-sm-3 control-label">Derived key base58:</label>
+      <label class="col-sm-3 control-label">Derived private key base58:</label>
       <div class="col-sm-9 input-group">
         <input class="form-control"
                value="{{vm.derivedKey.toBase58()}}"
+               ng-readonly="true">
+      </div>
+    </div>
+
+    <!-- derived public key base58 -->
+    <div class="form-group">
+      <label class="col-sm-3 control-label">Derived public key base58:</label>
+      <div class="col-sm-9 input-group">
+        <input class="form-control"
+               value="{{vm.derivedXPub}}"
                ng-readonly="true">
       </div>
     </div>

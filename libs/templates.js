@@ -2694,7 +2694,7 @@ angular.module('app').run(['$templateCache', function($templateCache) {
     "      <label class=\"col-sm-3 control-label\">Extended public key (base58):</label>\n" +
     "      <div class=\"col-sm-9 input-group\">\n" +
     "        <input class=\"form-control\"\n" +
-    "               value=\"{{vm.publicKeyWif}}\"\n" +
+    "               value=\"{{vm.xPub}}\"\n" +
     "               ng-readonly=\"true\">\n" +
     "      </div>\n" +
     "    </div>\n" +
@@ -2769,12 +2769,22 @@ angular.module('app').run(['$templateCache', function($templateCache) {
     "      </div>\n" +
     "    </div>\n" +
     "\n" +
-    "    <!-- derived key base58 -->\n" +
+    "    <!-- derived private key base58 -->\n" +
     "    <div class=\"form-group\">\n" +
-    "      <label class=\"col-sm-3 control-label\">Derived key base58:</label>\n" +
+    "      <label class=\"col-sm-3 control-label\">Derived private key base58:</label>\n" +
     "      <div class=\"col-sm-9 input-group\">\n" +
     "        <input class=\"form-control\"\n" +
     "               value=\"{{vm.derivedKey.toBase58()}}\"\n" +
+    "               ng-readonly=\"true\">\n" +
+    "      </div>\n" +
+    "    </div>\n" +
+    "\n" +
+    "    <!-- derived public key base58 -->\n" +
+    "    <div class=\"form-group\">\n" +
+    "      <label class=\"col-sm-3 control-label\">Derived public key base58:</label>\n" +
+    "      <div class=\"col-sm-9 input-group\">\n" +
+    "        <input class=\"form-control\"\n" +
+    "               value=\"{{vm.derivedXPub}}\"\n" +
     "               ng-readonly=\"true\">\n" +
     "      </div>\n" +
     "    </div>\n" +
