@@ -1,0 +1,118 @@
+<h1>Encoding/Decoding</h1>
+
+<h3>Hex</h3>
+<div class="well">
+  <form class="form-horizontal">
+
+    <div class="form-group">
+      <label class="col-sm-2 control-label" for="hex">Hex encoded string:</label>
+      <div class="col-sm-10 input-group">
+        <textarea id="hex"
+                  rows="10"
+                  ng-model="vm.hexString"
+                  ng-change="vm.parseHexString()"
+                  class="form-control"
+                  ng-class="{'well-error': vm.error}">
+          </textarea>
+      </div>
+      <div class="input-group" ng-if="vm.error">
+        <div class="input-group-addon well-error">{{vm.error}}</div>
+      </div>
+    </div>
+
+    <div class="form-group">
+      <label class="col-sm-2 control-label" for="hexDecoded">Plain UTF-8 string:</label>
+      <div class="col-sm-10 input-group">
+        <textarea id="hexDecoded"
+                  rows="10"
+                  ng-model="vm.hexDecodedString"
+                  ng-change="vm.encodeHexString()"
+                  class="form-control"
+                  ng-class="{'well-error': vm.error2}">
+          </textarea>
+      </div>
+      <div class="input-group" ng-if="vm.error2">
+        <div class="input-group-addon well-error">{{vm.error2}}</div>
+      </div>
+    </div>
+  </form>
+</div>
+
+<h3>Base64</h3>
+<div class="well">
+  <form class="form-horizontal">
+
+    <div class="form-group">
+      <label class="col-sm-2 control-label" for="base64">Base64 encoded string:</label>
+      <div class="col-sm-10 input-group">
+        <textarea id="base64"
+                  rows="10"
+                  ng-model="vm.base64String"
+                  ng-change="vm.parseBase64String()"
+                  class="form-control"
+                  ng-class="{'well-error': vm.error3}">
+          </textarea>
+      </div>
+      <div class="input-group" ng-if="vm.error3">
+        <div class="input-group-addon well-error">{{vm.error3}}</div>
+      </div>
+    </div>
+
+    <div class="form-group">
+      <label class="col-sm-2 control-label" for="base64Decoded">Plain UTF-8 string:</label>
+      <div class="col-sm-10 input-group">
+        <textarea id="base64Decoded"
+                  rows="10"
+                  ng-model="vm.base64DecodedString"
+                  ng-change="vm.encodeBase64String()"
+                  class="form-control"
+                  ng-class="{'well-error': vm.error4}">
+          </textarea>
+      </div>
+      <div class="input-group" ng-if="vm.error4">
+        <div class="input-group-addon well-error">{{vm.error4}}</div>
+      </div>
+    </div>
+  </form>
+</div>
+
+<h3>Bitcoin Outpoint</h3>
+<div class="well">
+  <form class="form-horizontal">
+
+    <div class="form-group">
+      <label class="col-sm-2 control-label" for="outpoint">
+        Outpoint string <code>&lt;txid&gt;:&lt;vout&gt;</code>:</label>
+      <div class="col-sm-10 input-group">
+        <textarea id="outpoint"
+                  rows="10"
+                  ng-model="vm.outpointString"
+                  ng-change="vm.parseOutpointString()"
+                  class="form-control"
+                  ng-class="{'well-error': vm.error5}">
+          </textarea>
+      </div>
+      <div class="input-group" ng-if="vm.error5">
+        <div class="input-group-addon well-error">{{vm.error5}}</div>
+      </div>
+    </div>
+
+    <div class="form-group">
+      <label class="col-sm-2 control-label" for="outpointEncoded">
+        Serialized Outpoint as hex:
+      </label>
+      <div class="col-sm-10 input-group">
+        <textarea id="outpointEncoded"
+                  rows="10"
+                  ng-model="vm.outpointEncodedString"
+                  ng-change="vm.decodeEncodedOutpoint()"
+                  class="form-control"
+                  ng-class="{'well-error': vm.error6}">
+          </textarea>
+      </div>
+      <div class="input-group" ng-if="vm.error6">
+        <div class="input-group-addon well-error">{{vm.error6}}</div>
+      </div>
+    </div>
+  </form>
+</div>

@@ -62,6 +62,9 @@ angular.module('app').run(['$templateCache', function($templateCache) {
     "              <a href=\"#!/shamir-secret-sharing\">Shamir's Secret Sharing\n" +
     "                Scheme</a>\n" +
     "            </li>\n" +
+    "            <li ng-class=\"{active: $root.isActive('/encoding-decoding')}\">\n" +
+    "              <a href=\"#!/encoding-decoding\">Encoding/Decoding</a>\n" +
+    "            </li>\n" +
     "          </ul>\n" +
     "        </li>\n" +
     "      </ul>\n" +
@@ -145,6 +148,7 @@ angular.module('app').run(['$templateCache', function($templateCache) {
     "  <script src=\"pages/hd-wallet/hd-wallet.js\"></script>\n" +
     "  <script src=\"pages/bitcoin-block/bitcoin-block.js\"></script>\n" +
     "  <script src=\"pages/shamir-secret-sharing/shamir-secret-sharing.js\"></script>\n" +
+    "  <script src=\"pages/encoding-decoding/encoding-decoding.js\"></script>\n" +
     "  <script src=\"pages/mu-sig/mu-sig.js\"></script>\n" +
     "  <script src=\"pages/schnorr/schnorr.js\"></script>\n" +
     "  <script src=\"pages/transaction-creator/transaction-creator.js\"></script>\n" +
@@ -2542,6 +2546,128 @@ angular.module('app').run(['$templateCache', function($templateCache) {
     "      <label class=\"col-sm-4 control-label\">P2TR address:</label>\n" +
     "      <div class=\"col-sm-8 no-left-padding\">\n" +
     "        <input class=\"form-control\" ng-readonly=\"true\" value=\"{{vm.trAddress}}\">\n" +
+    "      </div>\n" +
+    "    </div>\n" +
+    "  </form>\n" +
+    "</div>\n"
+  );
+
+
+  $templateCache.put('pages/encoding-decoding/encoding-decoding.html',
+    "<h1>Encoding/Decoding</h1>\n" +
+    "\n" +
+    "<h3>Hex</h3>\n" +
+    "<div class=\"well\">\n" +
+    "  <form class=\"form-horizontal\">\n" +
+    "\n" +
+    "    <div class=\"form-group\">\n" +
+    "      <label class=\"col-sm-2 control-label\" for=\"hex\">Hex encoded string:</label>\n" +
+    "      <div class=\"col-sm-10 input-group\">\n" +
+    "        <textarea id=\"hex\"\n" +
+    "                  rows=\"10\"\n" +
+    "                  ng-model=\"vm.hexString\"\n" +
+    "                  ng-change=\"vm.parseHexString()\"\n" +
+    "                  class=\"form-control\"\n" +
+    "                  ng-class=\"{'well-error': vm.error}\">\n" +
+    "          </textarea>\n" +
+    "      </div>\n" +
+    "      <div class=\"input-group\" ng-if=\"vm.error\">\n" +
+    "        <div class=\"input-group-addon well-error\">{{vm.error}}</div>\n" +
+    "      </div>\n" +
+    "    </div>\n" +
+    "\n" +
+    "    <div class=\"form-group\">\n" +
+    "      <label class=\"col-sm-2 control-label\" for=\"hexDecoded\">Plain UTF-8 string:</label>\n" +
+    "      <div class=\"col-sm-10 input-group\">\n" +
+    "        <textarea id=\"hexDecoded\"\n" +
+    "                  rows=\"10\"\n" +
+    "                  ng-model=\"vm.hexDecodedString\"\n" +
+    "                  ng-change=\"vm.encodeHexString()\"\n" +
+    "                  class=\"form-control\"\n" +
+    "                  ng-class=\"{'well-error': vm.error2}\">\n" +
+    "          </textarea>\n" +
+    "      </div>\n" +
+    "      <div class=\"input-group\" ng-if=\"vm.error2\">\n" +
+    "        <div class=\"input-group-addon well-error\">{{vm.error2}}</div>\n" +
+    "      </div>\n" +
+    "    </div>\n" +
+    "  </form>\n" +
+    "</div>\n" +
+    "\n" +
+    "<h3>Base64</h3>\n" +
+    "<div class=\"well\">\n" +
+    "  <form class=\"form-horizontal\">\n" +
+    "\n" +
+    "    <div class=\"form-group\">\n" +
+    "      <label class=\"col-sm-2 control-label\" for=\"base64\">Base64 encoded string:</label>\n" +
+    "      <div class=\"col-sm-10 input-group\">\n" +
+    "        <textarea id=\"base64\"\n" +
+    "                  rows=\"10\"\n" +
+    "                  ng-model=\"vm.base64String\"\n" +
+    "                  ng-change=\"vm.parseBase64String()\"\n" +
+    "                  class=\"form-control\"\n" +
+    "                  ng-class=\"{'well-error': vm.error3}\">\n" +
+    "          </textarea>\n" +
+    "      </div>\n" +
+    "      <div class=\"input-group\" ng-if=\"vm.error3\">\n" +
+    "        <div class=\"input-group-addon well-error\">{{vm.error3}}</div>\n" +
+    "      </div>\n" +
+    "    </div>\n" +
+    "\n" +
+    "    <div class=\"form-group\">\n" +
+    "      <label class=\"col-sm-2 control-label\" for=\"base64Decoded\">Plain UTF-8 string:</label>\n" +
+    "      <div class=\"col-sm-10 input-group\">\n" +
+    "        <textarea id=\"base64Decoded\"\n" +
+    "                  rows=\"10\"\n" +
+    "                  ng-model=\"vm.base64DecodedString\"\n" +
+    "                  ng-change=\"vm.encodeBase64String()\"\n" +
+    "                  class=\"form-control\"\n" +
+    "                  ng-class=\"{'well-error': vm.error4}\">\n" +
+    "          </textarea>\n" +
+    "      </div>\n" +
+    "      <div class=\"input-group\" ng-if=\"vm.error4\">\n" +
+    "        <div class=\"input-group-addon well-error\">{{vm.error4}}</div>\n" +
+    "      </div>\n" +
+    "    </div>\n" +
+    "  </form>\n" +
+    "</div>\n" +
+    "\n" +
+    "<h3>Bitcoin Outpoint</h3>\n" +
+    "<div class=\"well\">\n" +
+    "  <form class=\"form-horizontal\">\n" +
+    "\n" +
+    "    <div class=\"form-group\">\n" +
+    "      <label class=\"col-sm-2 control-label\" for=\"outpoint\">\n" +
+    "        Outpoint string <code>&lt;txid&gt;:&lt;vout&gt;</code>:</label>\n" +
+    "      <div class=\"col-sm-10 input-group\">\n" +
+    "        <textarea id=\"outpoint\"\n" +
+    "                  rows=\"10\"\n" +
+    "                  ng-model=\"vm.outpointString\"\n" +
+    "                  ng-change=\"vm.parseOutpointString()\"\n" +
+    "                  class=\"form-control\"\n" +
+    "                  ng-class=\"{'well-error': vm.error5}\">\n" +
+    "          </textarea>\n" +
+    "      </div>\n" +
+    "      <div class=\"input-group\" ng-if=\"vm.error5\">\n" +
+    "        <div class=\"input-group-addon well-error\">{{vm.error5}}</div>\n" +
+    "      </div>\n" +
+    "    </div>\n" +
+    "\n" +
+    "    <div class=\"form-group\">\n" +
+    "      <label class=\"col-sm-2 control-label\" for=\"outpointEncoded\">\n" +
+    "        Serialized Outpoint as hex:\n" +
+    "      </label>\n" +
+    "      <div class=\"col-sm-10 input-group\">\n" +
+    "        <textarea id=\"outpointEncoded\"\n" +
+    "                  rows=\"10\"\n" +
+    "                  ng-model=\"vm.outpointEncodedString\"\n" +
+    "                  ng-change=\"vm.decodeEncodedOutpoint()\"\n" +
+    "                  class=\"form-control\"\n" +
+    "                  ng-class=\"{'well-error': vm.error6}\">\n" +
+    "          </textarea>\n" +
+    "      </div>\n" +
+    "      <div class=\"input-group\" ng-if=\"vm.error6\">\n" +
+    "        <div class=\"input-group-addon well-error\">{{vm.error6}}</div>\n" +
     "      </div>\n" +
     "    </div>\n" +
     "  </form>\n" +
