@@ -1354,6 +1354,16 @@ angular.module('app').run(['$templateCache', function($templateCache) {
   );
 
 
+  $templateCache.put('node_modules/tslib/tslib.es6.html',
+    "<script src=\"tslib.es6.js\"></script>"
+  );
+
+
+  $templateCache.put('node_modules/tslib/tslib.html',
+    "<script src=\"tslib.js\"></script>"
+  );
+
+
   $templateCache.put('node_modules/uglify-js/tools/domprops.html',
     "<!doctype html>\n" +
     "<html>\n" +
@@ -1817,7 +1827,6 @@ angular.module('app').run(['$templateCache', function($templateCache) {
   $templateCache.put('node_modules/vm-browserify/example/run/index.html',
     "<html>\n" +
     "  <head>\n" +
-    "    <script src=\"http://ajax.googleapis.com/ajax/libs/jquery/1.7.1/jquery.min.js\"></script>\n" +
     "    <script src=\"/bundle.js\"></script>\n" +
     "  </head>\n" +
     "  <body>\n" +

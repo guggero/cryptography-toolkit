@@ -15,6 +15,8 @@ module.exports = {
   opcodes: require('bitcoin-ops'),
   script: require('bitcoinjs-lib/src/script'),
   payments: require('bitcoinjs-lib/src/payments'),
+  descriptors: require('@bitcoinerlab/descriptors'),
+  descriptorsSecp: require('@bitcoinerlab/secp256k1'),
   ecurve: ecurve,
   secp256k1: secp256k1,
   tinySecp256k1: require('tiny-secp256k1'),

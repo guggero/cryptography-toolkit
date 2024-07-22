@@ -9,6 +9,7 @@ angular
 
 function WalletImportPageController(lodash, bitcoin, allNetworks, Buffer) {
   const vm = this;
+  const {Output} = bitcoin.descriptors.DescriptorsFactory(bitcoin.descriptorsSecp);
 
   const PBKDF2_SALT = 'Digital Bitbox',
     PBKDF2_HMACLEN = 64,
@@ -72,6 +73,9 @@ function WalletImportPageController(lodash, bitcoin, allNetworks, Buffer) {
     {label: 'Wallet Dump format (importwallet)', id: 'dump'},
     {label: 'bitcoin-cli importprivkey', id: 'importprivkey'},
     {label: 'bitcoin-cli importpubkey', id: 'importpubkey'},
+    {label: 'bitcoin-cli importdescriptors (wpkh)', id: 'importdescriptorswpkh'},
+    // {label: 'bitcoin-cli importdescriptors (tr)', id: 'importdescriptorstr'},
+    {label: 'Electrum', id: 'electrum'},
   ];
   const MODES = [
     {label: 'Import from BIP39 Mnemonic', id: 'mnemonic'},
@@ -226,6 +230,77 @@ function WalletImportPageController(lodash, bitcoin, allNetworks, Buffer) {
       }
     }
     str += 'bitcoin-cli rescanblockchain 500000\n';
+    return str;
+  };
+
+  vm.getResultAsImportdescriptorswpkh = function (rootNode, basePath, network) {
+    const baseKey = rootNode.derivePath(basePath);
+    let str = `# Paste the following lines into a command line window.
+# You might want to adjust the block number to rescan from at the bottom of the
+# file if the wallet was originally created before 2017-12-18 18:35:25.
+`;
+    for (let change = vm.changeStart; change <= vm.changeEnd; change++) {
+      const changePath = `${change}${vm.path.indexOf('_chg_\'') >= 0 ? '\'' : ''}`;
+      const changeKey = baseKey.derivePath(changePath);
+      for (let index = vm.indexStart; index <= vm.indexEnd; index++) {
+        const indexPath = `${index}${vm.path.indexOf('_idx_\'') >= 0 ? '\'' : ''}`;
+        const key = changeKey.derivePath(indexPath);
+        const desc = `wpkh(${key.toWIF()})`;
+        const output = new Output({
+          descriptor: desc,
+          network: network,
+        });
+        const checksum = bitcoin.descriptors.checksum(desc);
+        const addr = output.getAddress();
+        str += `bitcoin-cli importdescriptors '[{"desc":"wpkh(${key.toWIF()})#${checksum}","timestamp":"now"}]' # ${addr}\n`;
+      }
+    }
+    str += 'bitcoin-cli rescanblockchain 500000\n';
+    return str;
+  };
+
+  // TODO(guggero): Enable once @bitcoinerlab/descriptors supports P2TR descriptors.
+  vm.getResultAsImportdescriptorstr = function (rootNode, basePath, network) {
+    const baseKey = rootNode.derivePath(basePath);
+    let str = `# Paste the following lines into a command line window.
+# You might want to adjust the block number to rescan from at the bottom of the
+# file if the wallet was originally created before 2017-12-18 18:35:25.
+`;
+    for (let change = vm.changeStart; change <= vm.changeEnd; change++) {
+      const changePath = `${change}${vm.path.indexOf('_chg_\'') >= 0 ? '\'' : ''}`;
+      const changeKey = baseKey.derivePath(changePath);
+      for (let index = vm.indexStart; index <= vm.indexEnd; index++) {
+        const indexPath = `${index}${vm.path.indexOf('_idx_\'') >= 0 ? '\'' : ''}`;
+        const key = changeKey.derivePath(indexPath);
+        const desc = `tr(${key.toWIF()})`;
+        const output = new Output({
+          descriptor: desc,
+          network: network,
+        });
+        const checksum = bitcoin.descriptors.checksum(desc);
+        const addr = output.getAddress();
+        str += `bitcoin-cli importdescriptors '[{"desc":"tr(${key.toWIF()})#${checksum}","timestamp":"now"}]' # ${addr}\n`;
+      }
+    }
+    str += 'bitcoin-cli rescanblockchain 500000\n';
+    return str;
+  };
+
+  vm.getResultAsElectrum = function (rootNode, basePath) {
+    const baseKey = rootNode.derivePath(basePath);
+    let str = ``;
+    for (let change = vm.changeStart; change <= vm.changeEnd; change++) {
+      const changePath = `${change}${vm.path.indexOf('_chg_\'') >= 0 ? '\'' : ''}`;
+      const changeKey = baseKey.derivePath(changePath);
+      for (let index = vm.indexStart; index <= vm.indexEnd; index++) {
+        const indexPath = `${index}${vm.path.indexOf('_idx_\'') >= 0 ? '\'' : ''}`;
+        const key = changeKey.derivePath(indexPath);
+
+        str += `p2wpkh:${key.toWIF()}\n`;
+        str += `p2pkh:${key.toWIF()}\n`;
+        str += `p2wpkh-p2sh:${key.toWIF()}\n`;
+      }
+    }
     return str;
   };
 
