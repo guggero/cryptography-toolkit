@@ -3007,6 +3007,16 @@ angular.module('app').run(['$templateCache', function($templateCache) {
     "      </div>\n" +
     "    </div>\n" +
     "\n" +
+    "    <!-- derived public key -->\n" +
+    "    <div class=\"form-group\">\n" +
+    "      <label class=\"col-sm-3 control-label\">Public key:</label>\n" +
+    "      <div class=\"col-sm-9 input-group\">\n" +
+    "        <input class=\"form-control\"\n" +
+    "               value=\"{{vm.customDerivedKey.publicKey.toString('hex')}}\"\n" +
+    "               ng-readonly=\"true\">\n" +
+    "      </div>\n" +
+    "    </div>\n" +
+    "\n" +
     "    <!-- priv key WIF -->\n" +
     "    <div class=\"form-group\">\n" +
     "      <label class=\"col-sm-3 control-label\">Private key (WIF, compressed):</label>\n" +
