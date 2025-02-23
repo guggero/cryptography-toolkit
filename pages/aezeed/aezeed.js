@@ -34,6 +34,7 @@ function AezeedPageController($timeout, lodash, bitcoin, bitcoinNetworks, Buffer
   vm.network2 = BITCOIN;
   vm.asPassword = true;
   vm.version = AEZEED_VERSION;
+  vm.internalVersion = 1;
   vm.birthday = 0;
 
   vm.$onInit = function () {
@@ -81,14 +82,15 @@ function AezeedPageController($timeout, lodash, bitcoin, bitcoinNetworks, Buffer
 
   vm.getSeedBytes = function () {
     const seedBytes = Buffer.alloc(PLAINTEXT_LENGTH);
-    seedBytes.writeUInt8(vm.version);
+    seedBytes.writeUInt8(vm.internalVersion);
     seedBytes.writeUInt16BE(vm.birthday, 1);
     Buffer.from(vm.entropy, 'hex').copy(seedBytes, 3);
     return seedBytes;
   };
 
-  vm.getAD = function (salt) {
-    const ad = Buffer.alloc(AD_LENGTH, AEZEED_VERSION);
+  vm.getAD = function (salt, version) {
+    const ad = Buffer.alloc(AD_LENGTH, 0);
+    ad[0] = version;
     salt.copy(ad, 1);
     return ad;
   };
@@ -161,13 +163,15 @@ function AezeedPageController($timeout, lodash, bitcoin, bitcoinNetworks, Buffer
       return;
     }
 
+    const ad = vm.getAD(salt, AEZEED_VERSION);
+
     vm.decoded = {
       salt: salt.toString('hex'),
       entropy: 'please wait...'
     };
     bitcoin.scrypt(password, salt, SCRYPT_N, SCRYPT_R, SCRYPT_P, SCRYPT_KEY_LENGTH).then(key => {
       if (key) {
-        const plainSeedBytes = bitcoin.aez.decrypt(key, null, [vm.getAD(salt)], AEZ_TAU, cipherSeed);
+        const plainSeedBytes = bitcoin.aez.decrypt(key, null, [ad], AEZ_TAU, cipherSeed);
         if (plainSeedBytes == null) {
           $timeout(() => {
             vm.decoded = {};
@@ -175,7 +179,8 @@ function AezeedPageController($timeout, lodash, bitcoin, bitcoinNetworks, Buffer
           });
         } else {
           $timeout(() => {
-            vm.decoded.version = plainSeedBytes.readUInt8(0);
+            vm.decoded.version = AEZEED_VERSION;
+            vm.decoded.internalVersion = plainSeedBytes.readUInt8(0);
             vm.decoded.birthday = plainSeedBytes.readUInt16BE(1);
             vm.decoded.entropy = plainSeedBytes.slice(3).toString('hex');
             vm.fromEntropy();
