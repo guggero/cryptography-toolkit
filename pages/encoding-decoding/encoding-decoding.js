@@ -17,6 +17,8 @@ function EncodingDecodingPageController() {
   vm.base64DecodedString = '';
   vm.outpointString = '8f900c6414c5c27231080f46168105e9fec20f9fb2f11b25ee0312d89bc022c0:8';
   vm.outpointEncodedString = '';
+  vm.scidUint64 = '774909407114231809';
+  vm.scidHumanReadable = '';
   vm.error = null;
   vm.error2 = null;
 
@@ -24,6 +26,7 @@ function EncodingDecodingPageController() {
     vm.parseHexString();
     vm.parseBase64String();
     vm.parseOutpointString();
+    vm.parseScidUint64();
   };
 
   vm.parseHexString = function () {
@@ -108,6 +111,45 @@ function EncodingDecodingPageController() {
       vm.outpointString = `${txidBuffer.toString('hex')}:${vout}`;
     } catch (e) {
       vm.error6 = e.message;
+    }
+  }
+
+  vm.parseScidUint64 = function () {
+    try {
+      vm.error7 = null;
+
+      const chanID = BigInt(vm.scidUint64);
+      let blockHeight = chanID >> BigInt(40);
+      let txIndex = (chanID >> BigInt(16)) & BigInt(0xFFFFFF);
+      let txPosition = chanID & BigInt(0xFFFF);
+
+      vm.scidHumanReadable = `${blockHeight.toString(10)}:${txIndex.toString(10)}:${txPosition.toString(10)}`;
+    } catch (e) {
+      vm.error7 = e.message;
+    }
+  }
+
+  vm.decodeScidHumanReadable = function () {
+    try {
+      vm.error8 = null;
+
+      const parts = vm.scidHumanReadable.split(':');
+      if (parts.length !== 3) {
+        throw new Error('Invalid SCID format, must be <blockHeight>:<txIndex>:<txPosition>');
+      }
+
+      const blockHeight = BigInt(parts[0]);
+      const txIndex = BigInt(parts[1]);
+      const txPosition = BigInt(parts[2]);
+
+      if (blockHeight < 0 || txIndex < 0 || txPosition < 0) {
+        throw new Error('Block height, transaction index, and position must be non-negative integers');
+      }
+
+      const chanID = (blockHeight << BigInt(40)) | (txIndex << BigInt(16)) | txPosition;
+      vm.scidUint64 = chanID.toString(10);
+    } catch (e) {
+      vm.error8 = e.message;
     }
   }
 }

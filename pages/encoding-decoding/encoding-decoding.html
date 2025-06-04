@@ -84,13 +84,11 @@
       <label class="col-sm-2 control-label" for="outpoint">
         Outpoint string <code>&lt;txid&gt;:&lt;vout&gt;</code>:</label>
       <div class="col-sm-10 input-group">
-        <textarea id="outpoint"
-                  rows="10"
+        <input id="outpoint"
                   ng-model="vm.outpointString"
                   ng-change="vm.parseOutpointString()"
                   class="form-control"
-                  ng-class="{'well-error': vm.error5}">
-          </textarea>
+                  ng-class="{'well-error': vm.error5}" />
       </div>
       <div class="input-group" ng-if="vm.error5">
         <div class="input-group-addon well-error">{{vm.error5}}</div>
@@ -102,16 +100,51 @@
         Serialized Outpoint as hex:
       </label>
       <div class="col-sm-10 input-group">
-        <textarea id="outpointEncoded"
-                  rows="10"
+        <input id="outpointEncoded"
                   ng-model="vm.outpointEncodedString"
                   ng-change="vm.decodeEncodedOutpoint()"
                   class="form-control"
-                  ng-class="{'well-error': vm.error6}">
-          </textarea>
+                  ng-class="{'well-error': vm.error6}" />
       </div>
       <div class="input-group" ng-if="vm.error6">
         <div class="input-group-addon well-error">{{vm.error6}}</div>
+      </div>
+    </div>
+  </form>
+</div>
+
+<h3>Lightning Short Channel ID (SCID)</h3>
+<div class="well">
+  <form class="form-horizontal">
+
+    <div class="form-group">
+      <label class="col-sm-2 control-label" for="uint64">
+        Long format (uint64):</label>
+      <div class="col-sm-10 input-group">
+        <input id="uint64"
+                  ng-model="vm.scidUint64"
+                  ng-change="vm.parseScidUint64()"
+                  class="form-control"
+                  ng-class="{'well-error': vm.error6}" />
+      </div>
+      <div class="input-group" ng-if="vm.error6">
+        <div class="input-group-addon well-error">{{vm.error6}}</div>
+      </div>
+    </div>
+
+    <div class="form-group">
+      <label class="col-sm-2 control-label" for="humanReadable">
+        Human-readable (<code>X:X:X</code>):
+      </label>
+      <div class="col-sm-10 input-group">
+        <input id="humanReadable"
+                  ng-model="vm.scidHumanReadable"
+                  ng-change="vm.decodeScidHumanReadable()"
+                  class="form-control"
+                  ng-class="{'well-error': vm.error7}" />
+      </div>
+      <div class="input-group" ng-if="vm.error7">
+        <div class="input-group-addon well-error">{{vm.error7}}</div>
       </div>
     </div>
   </form>

@@ -2659,13 +2659,11 @@ angular.module('app').run(['$templateCache', function($templateCache) {
     "      <label class=\"col-sm-2 control-label\" for=\"outpoint\">\n" +
     "        Outpoint string <code>&lt;txid&gt;:&lt;vout&gt;</code>:</label>\n" +
     "      <div class=\"col-sm-10 input-group\">\n" +
-    "        <textarea id=\"outpoint\"\n" +
-    "                  rows=\"10\"\n" +
+    "        <input id=\"outpoint\"\n" +
     "                  ng-model=\"vm.outpointString\"\n" +
     "                  ng-change=\"vm.parseOutpointString()\"\n" +
     "                  class=\"form-control\"\n" +
-    "                  ng-class=\"{'well-error': vm.error5}\">\n" +
-    "          </textarea>\n" +
+    "                  ng-class=\"{'well-error': vm.error5}\" />\n" +
     "      </div>\n" +
     "      <div class=\"input-group\" ng-if=\"vm.error5\">\n" +
     "        <div class=\"input-group-addon well-error\">{{vm.error5}}</div>\n" +
@@ -2677,16 +2675,51 @@ angular.module('app').run(['$templateCache', function($templateCache) {
     "        Serialized Outpoint as hex:\n" +
     "      </label>\n" +
     "      <div class=\"col-sm-10 input-group\">\n" +
-    "        <textarea id=\"outpointEncoded\"\n" +
-    "                  rows=\"10\"\n" +
+    "        <input id=\"outpointEncoded\"\n" +
     "                  ng-model=\"vm.outpointEncodedString\"\n" +
     "                  ng-change=\"vm.decodeEncodedOutpoint()\"\n" +
     "                  class=\"form-control\"\n" +
-    "                  ng-class=\"{'well-error': vm.error6}\">\n" +
-    "          </textarea>\n" +
+    "                  ng-class=\"{'well-error': vm.error6}\" />\n" +
     "      </div>\n" +
     "      <div class=\"input-group\" ng-if=\"vm.error6\">\n" +
     "        <div class=\"input-group-addon well-error\">{{vm.error6}}</div>\n" +
+    "      </div>\n" +
+    "    </div>\n" +
+    "  </form>\n" +
+    "</div>\n" +
+    "\n" +
+    "<h3>Lightning Short Channel ID (SCID)</h3>\n" +
+    "<div class=\"well\">\n" +
+    "  <form class=\"form-horizontal\">\n" +
+    "\n" +
+    "    <div class=\"form-group\">\n" +
+    "      <label class=\"col-sm-2 control-label\" for=\"uint64\">\n" +
+    "        Long format (uint64):</label>\n" +
+    "      <div class=\"col-sm-10 input-group\">\n" +
+    "        <input id=\"uint64\"\n" +
+    "                  ng-model=\"vm.scidUint64\"\n" +
+    "                  ng-change=\"vm.parseScidUint64()\"\n" +
+    "                  class=\"form-control\"\n" +
+    "                  ng-class=\"{'well-error': vm.error6}\" />\n" +
+    "      </div>\n" +
+    "      <div class=\"input-group\" ng-if=\"vm.error6\">\n" +
+    "        <div class=\"input-group-addon well-error\">{{vm.error6}}</div>\n" +
+    "      </div>\n" +
+    "    </div>\n" +
+    "\n" +
+    "    <div class=\"form-group\">\n" +
+    "      <label class=\"col-sm-2 control-label\" for=\"humanReadable\">\n" +
+    "        Human-readable (<code>X:X:X</code>):\n" +
+    "      </label>\n" +
+    "      <div class=\"col-sm-10 input-group\">\n" +
+    "        <input id=\"humanReadable\"\n" +
+    "                  ng-model=\"vm.scidHumanReadable\"\n" +
+    "                  ng-change=\"vm.decodeScidHumanReadable()\"\n" +
+    "                  class=\"form-control\"\n" +
+    "                  ng-class=\"{'well-error': vm.error7}\" />\n" +
+    "      </div>\n" +
+    "      <div class=\"input-group\" ng-if=\"vm.error7\">\n" +
+    "        <div class=\"input-group-addon well-error\">{{vm.error7}}</div>\n" +
     "      </div>\n" +
     "    </div>\n" +
     "  </form>\n" +
