@@ -35,8 +35,14 @@ angular.module('app').run(['$templateCache', function($templateCache) {
     "            <li ng-class=\"{active: $root.isActive('/transaction-creator')}\">\n" +
     "              <a href=\"#!/transaction-creator\">Transaction Creator</a>\n" +
     "            </li>\n" +
+    "            <li ng-class=\"{active: $root.isActive('/psbt-editor')}\">\n" +
+    "              <a href=\"#!/psbt-editor\">PSBT Editor</a>\n" +
+    "            </li>\n" +
     "            <li ng-class=\"{active: $root.isActive('/wallet-import')}\">\n" +
     "              <a href=\"#!/wallet-import\">Wallet Import helper</a>\n" +
+    "            </li>\n" +
+    "            <li ng-class=\"{active: $root.isActive('/bip322')}\">\n" +
+    "              <a href=\"#!/bip322\">BIP-322: Generic Signed Message Format</a>\n" +
     "            </li>\n" +
     "          </ul>\n" +
     "        </li>\n" +
@@ -155,6 +161,8 @@ angular.module('app').run(['$templateCache', function($templateCache) {
     "  <script src=\"pages/aezeed/aezeed.js\"></script>\n" +
     "  <script src=\"pages/macaroon/macaroon.js\"></script>\n" +
     "  <script src=\"pages/wallet-import/wallet-import.js\"></script>\n" +
+    "  <script src=\"pages/bip322/bip322.js\"></script>\n" +
+    "  <script src=\"pages/psbt-editor/psbt-editor.js\"></script>\n" +
     "\n" +
     "  <title>Cryptography Toolkit</title>\n" +
     "</head>\n" +
@@ -2066,6 +2074,220 @@ angular.module('app').run(['$templateCache', function($templateCache) {
   );
 
 
+  $templateCache.put('pages/bip322/bip322.html',
+    "<h1>BIP-322: Generic Signed Message Format</h1>\n" +
+    "\n" +
+    "<div class=\"panel panel-default\">\n" +
+    "  <div class=\"panel-heading\">\n" +
+    "    <h4 class=\"panel-title\">\n" +
+    "      <a ng-click=\"vm.showExplanation = !vm.showExplanation\">Explanation</a>\n" +
+    "    </h4>\n" +
+    "  </div>\n" +
+    "  <div class=\"panel-collapse collapse\" ng-class=\"{in: vm.showExplanation}\">\n" +
+    "    <div class=\"panel-body\">\n" +
+    "      <a href=\"https://github.com/bitcoin/bips/blob/master/bip-0322.mediawiki\">BIP-322</a>\n" +
+    "      defines a generic signed message format for Bitcoin that supports all script types\n" +
+    "      (P2WPKH, P2TR, P2SH-P2WPKH, P2PKH, multisig, etc.).<br/><br/>\n" +
+    "\n" +
+    "      Unlike the legacy <code>signmessage</code> RPC which only works with P2PKH addresses,\n" +
+    "      BIP-322 works by constructing a virtual \"to-spend\" transaction and signing it, proving\n" +
+    "      ownership of the address.<br/><br/>\n" +
+    "\n" +
+    "      The <strong>simple</strong> format (for native segwit: P2WPKH, P2TR) encodes just the\n" +
+    "      witness stack. The <strong>full</strong> format (for P2SH-P2WPKH, P2PKH) encodes the\n" +
+    "      complete signed virtual transaction.\n" +
+    "\n" +
+    "      <h3>Sources:</h3>\n" +
+    "      <ul>\n" +
+    "        <li><a href=\"https://github.com/bitcoin/bips/blob/master/bip-0322.mediawiki\">BIP-322 Specification</a></li>\n" +
+    "        <li><a href=\"https://github.com/guggero/btcutil-js\">btcutil-js Library</a></li>\n" +
+    "      </ul>\n" +
+    "    </div>\n" +
+    "  </div>\n" +
+    "</div>\n" +
+    "\n" +
+    "<div class=\"alert alert-info\" ng-if=\"vm.loading\">\n" +
+    "  <strong>Loading...</strong> Initializing WebAssembly module...\n" +
+    "</div>\n" +
+    "\n" +
+    "<div ng-if=\"!vm.loading\">\n" +
+    "\n" +
+    "  <div class=\"alert alert-warning\">\n" +
+    "    <strong>Warning</strong>: Any generated keys are for demonstration only.\n" +
+    "    Your browser's random number generator might be too predictable to trust!\n" +
+    "  </div>\n" +
+    "\n" +
+    "  <!-- ================================================================= -->\n" +
+    "  <!-- SIGN -->\n" +
+    "  <!-- ================================================================= -->\n" +
+    "\n" +
+    "  <h4>BIP-322: Sign message</h4>\n" +
+    "  <div class=\"well\">\n" +
+    "    <form class=\"form-horizontal\">\n" +
+    "      <div class=\"form-group\">\n" +
+    "        <label class=\"col-sm-4 control-label\">Network:</label>\n" +
+    "        <div class=\"col-sm-8 input-group\">\n" +
+    "          <select class=\"form-control\"\n" +
+    "                  ng-model=\"vm.signNetwork\"\n" +
+    "                  ng-change=\"vm.updateSign()\"\n" +
+    "                  ng-options=\"n.label for n in vm.networks\">\n" +
+    "          </select>\n" +
+    "        </div>\n" +
+    "      </div>\n" +
+    "\n" +
+    "      <div class=\"form-group\">\n" +
+    "        <label class=\"col-sm-4 control-label\">Address format:</label>\n" +
+    "        <div class=\"col-sm-8 input-group\">\n" +
+    "          <select class=\"form-control\"\n" +
+    "                  ng-model=\"vm.signAddrType\"\n" +
+    "                  ng-change=\"vm.updateSign()\"\n" +
+    "                  ng-options=\"t.label for t in vm.addrTypes\">\n" +
+    "          </select>\n" +
+    "        </div>\n" +
+    "      </div>\n" +
+    "\n" +
+    "      <div class=\"form-group\">\n" +
+    "        <label class=\"col-sm-4 control-label\">Private key (WIF):</label>\n" +
+    "        <div class=\"col-sm-8 input-group\">\n" +
+    "          <input class=\"form-control\"\n" +
+    "                 ng-model=\"vm.signWif\"\n" +
+    "                 ng-change=\"vm.importWif()\"\n" +
+    "                 ng-class=\"{'well-error': vm.signError}\"\n" +
+    "                 placeholder=\"KwDiB... or 5HuE...\">\n" +
+    "          <span class=\"input-group-btn\">\n" +
+    "            <button class=\"btn btn-primary\" ng-click=\"vm.generateNewKey()\">\n" +
+    "              Generate new\n" +
+    "            </button>\n" +
+    "          </span>\n" +
+    "        </div>\n" +
+    "      </div>\n" +
+    "\n" +
+    "      <div class=\"form-group\">\n" +
+    "        <label class=\"col-sm-4 control-label\">Address:</label>\n" +
+    "        <div class=\"col-sm-8 input-group\">\n" +
+    "          <input class=\"form-control\" ng-readonly=\"true\"\n" +
+    "                 value=\"{{vm.signAddress}}\">\n" +
+    "        </div>\n" +
+    "      </div>\n" +
+    "\n" +
+    "      <div class=\"form-group\">\n" +
+    "        <label class=\"col-sm-4 control-label\">Message:</label>\n" +
+    "        <div class=\"col-sm-8 input-group\">\n" +
+    "          <input class=\"form-control\"\n" +
+    "                 ng-model=\"vm.signMessage\"\n" +
+    "                 ng-change=\"vm.updateSign()\"\n" +
+    "                 placeholder=\"The message to sign\">\n" +
+    "        </div>\n" +
+    "      </div>\n" +
+    "\n" +
+    "      <div class=\"form-group\">\n" +
+    "        <label class=\"col-sm-4 control-label\">Signature (base64):</label>\n" +
+    "        <div class=\"col-sm-8 input-group\">\n" +
+    "          <textarea class=\"form-control\" rows=\"3\"\n" +
+    "                    ng-readonly=\"true\">{{vm.signSignature}}</textarea>\n" +
+    "        </div>\n" +
+    "      </div>\n" +
+    "\n" +
+    "      <div class=\"form-group\" ng-if=\"vm.signDecoded\">\n" +
+    "        <label class=\"col-sm-4 control-label\">Decoded ({{vm.signDecoded.format}} format):</label>\n" +
+    "        <div class=\"col-sm-8\">\n" +
+    "          <div ng-if=\"vm.signDecoded.format === 'simple'\">\n" +
+    "            <textarea class=\"form-control\" rows=\"6\"\n" +
+    "                      ng-readonly=\"true\">{{vm.signDecoded.witness | json}}</textarea>\n" +
+    "          </div>\n" +
+    "          <div ng-if=\"vm.signDecoded.format === 'full'\">\n" +
+    "            <textarea class=\"form-control\" rows=\"6\"\n" +
+    "                      ng-readonly=\"true\">{{vm.signDecoded.tx | json}}</textarea>\n" +
+    "          </div>\n" +
+    "        </div>\n" +
+    "      </div>\n" +
+    "\n" +
+    "      <div class=\"form-group\" ng-if=\"vm.signError\">\n" +
+    "        <div class=\"col-sm-8 col-sm-offset-4\">\n" +
+    "          <span class=\"well-error\">{{vm.signError}}</span>\n" +
+    "        </div>\n" +
+    "      </div>\n" +
+    "    </form>\n" +
+    "  </div>\n" +
+    "\n" +
+    "  <!-- ================================================================= -->\n" +
+    "  <!-- VERIFY -->\n" +
+    "  <!-- ================================================================= -->\n" +
+    "\n" +
+    "  <h4>BIP-322: Verify signature</h4>\n" +
+    "  <div class=\"well\"\n" +
+    "       ng-class=\"{\n" +
+    "         'well-success': vm.verifyValid === true,\n" +
+    "         'well-error': vm.verifyValid === false\n" +
+    "       }\">\n" +
+    "    <form class=\"form-horizontal\">\n" +
+    "      <div class=\"form-group\">\n" +
+    "        <label class=\"col-sm-4 control-label\">Network:</label>\n" +
+    "        <div class=\"col-sm-8 input-group\">\n" +
+    "          <select class=\"form-control\"\n" +
+    "                  ng-model=\"vm.verifyNetwork\"\n" +
+    "                  ng-change=\"vm.updateVerify()\"\n" +
+    "                  ng-options=\"n.label for n in vm.networks\">\n" +
+    "          </select>\n" +
+    "        </div>\n" +
+    "      </div>\n" +
+    "\n" +
+    "      <div class=\"form-group\">\n" +
+    "        <label class=\"col-sm-4 control-label\">Address:</label>\n" +
+    "        <div class=\"col-sm-8 input-group\">\n" +
+    "          <input class=\"form-control\"\n" +
+    "                 ng-model=\"vm.verifyAddress\"\n" +
+    "                 ng-change=\"vm.updateVerify()\"\n" +
+    "                 placeholder=\"bc1q... or 1... or 3...\">\n" +
+    "        </div>\n" +
+    "      </div>\n" +
+    "\n" +
+    "      <div class=\"form-group\">\n" +
+    "        <label class=\"col-sm-4 control-label\">Message:</label>\n" +
+    "        <div class=\"col-sm-8 input-group\">\n" +
+    "          <input class=\"form-control\"\n" +
+    "                 ng-model=\"vm.verifyMessage\"\n" +
+    "                 ng-change=\"vm.updateVerify()\"\n" +
+    "                 placeholder=\"The message that was signed\">\n" +
+    "        </div>\n" +
+    "      </div>\n" +
+    "\n" +
+    "      <div class=\"form-group\">\n" +
+    "        <label class=\"col-sm-4 control-label\">Signature (base64):</label>\n" +
+    "        <div class=\"col-sm-8 input-group\">\n" +
+    "          <textarea class=\"form-control\" rows=\"3\"\n" +
+    "                    ng-model=\"vm.verifySignature\"\n" +
+    "                    ng-change=\"vm.updateVerify()\"\n" +
+    "                    placeholder=\"Base64-encoded BIP-322 signature\"></textarea>\n" +
+    "        </div>\n" +
+    "      </div>\n" +
+    "\n" +
+    "      <div class=\"form-group\" ng-if=\"vm.verifyDecoded\">\n" +
+    "        <label class=\"col-sm-4 control-label\">Decoded ({{vm.verifyDecoded.format}} format):</label>\n" +
+    "        <div class=\"col-sm-8\">\n" +
+    "          <div ng-if=\"vm.verifyDecoded.format === 'simple'\">\n" +
+    "            <textarea class=\"form-control\" rows=\"6\"\n" +
+    "                      ng-readonly=\"true\">{{vm.verifyDecoded.witness | json}}</textarea>\n" +
+    "          </div>\n" +
+    "          <div ng-if=\"vm.verifyDecoded.format === 'full'\">\n" +
+    "            <textarea class=\"form-control\" rows=\"6\"\n" +
+    "                      ng-readonly=\"true\">{{vm.verifyDecoded.tx | json}}</textarea>\n" +
+    "          </div>\n" +
+    "        </div>\n" +
+    "      </div>\n" +
+    "\n" +
+    "      <div class=\"form-group\" ng-if=\"vm.verifyError\">\n" +
+    "        <div class=\"col-sm-8 col-sm-offset-4\">\n" +
+    "          <span class=\"well-error\">{{vm.verifyError}}</span>\n" +
+    "        </div>\n" +
+    "      </div>\n" +
+    "    </form>\n" +
+    "  </div>\n" +
+    "\n" +
+    "</div>\n"
+  );
+
+
   $templateCache.put('pages/bitcoin-block/bitcoin-block.html',
     "<h1>Bitcoin Block Parser</h1>\n" +
     "\n" +
@@ -3452,6 +3674,562 @@ angular.module('app').run(['$templateCache', function($templateCache) {
     "      </div>\n" +
     "    </div>\n" +
     "  </form>\n" +
+    "</div>\n"
+  );
+
+
+  $templateCache.put('pages/psbt-editor/psbt-editor.html',
+    "<h1>PSBT Editor</h1>\n" +
+    "\n" +
+    "<div class=\"panel panel-default\">\n" +
+    "  <div class=\"panel-heading\">\n" +
+    "    <h4 class=\"panel-title\">\n" +
+    "      <a ng-click=\"vm.showExplanation = !vm.showExplanation\">Explanation</a>\n" +
+    "    </h4>\n" +
+    "  </div>\n" +
+    "  <div class=\"panel-collapse collapse\" ng-class=\"{in: vm.showExplanation}\">\n" +
+    "    <div class=\"panel-body\">\n" +
+    "      Live editor for\n" +
+    "      <a href=\"https://github.com/bitcoin/bips/blob/master/bip-0174.mediawiki\">BIP-174</a>\n" +
+    "      Partially Signed Bitcoin Transactions. Paste a base64-encoded PSBT in\n" +
+    "      the top textarea, or build one from scratch. Every change is round-tripped\n" +
+    "      through <code>btcutil-js</code>'s WASM <code>psbt.encode/decode</code> on\n" +
+    "      every keystroke, so the JSON view and base64 always reflect the editor\n" +
+    "      below.\n" +
+    "\n" +
+    "      <h3>Sources:</h3>\n" +
+    "      <ul>\n" +
+    "        <li><a href=\"https://github.com/bitcoin/bips/blob/master/bip-0174.mediawiki\">BIP-174 specification</a></li>\n" +
+    "        <li><a href=\"https://github.com/guggero/btcutil-js\">btcutil-js library</a></li>\n" +
+    "      </ul>\n" +
+    "    </div>\n" +
+    "  </div>\n" +
+    "</div>\n" +
+    "\n" +
+    "<div class=\"alert alert-info\" ng-if=\"vm.loading\">\n" +
+    "  <strong>Loading...</strong> Initializing WebAssembly module...\n" +
+    "</div>\n" +
+    "\n" +
+    "<div ng-if=\"!vm.loading\">\n" +
+    "\n" +
+    "  <!-- ================================================================= -->\n" +
+    "  <!-- ① base64 input                                                    -->\n" +
+    "  <!-- ================================================================= -->\n" +
+    "\n" +
+    "  <h4>PSBT (base64)</h4>\n" +
+    "  <div class=\"well\">\n" +
+    "    <textarea class=\"form-control\" rows=\"6\" style=\"font-family: monospace;\"\n" +
+    "              ng-model=\"vm.base64\"\n" +
+    "              ng-change=\"vm.fromBase64()\"\n" +
+    "              ng-class=\"{'well-error': vm.decodeError}\"\n" +
+    "              placeholder=\"cHNidP8B... — paste a base64-encoded PSBT here\"></textarea>\n" +
+    "\n" +
+    "    <div class=\"alert alert-danger\" ng-if=\"vm.decodeError\" style=\"margin-top:10px;\">\n" +
+    "      <strong>Decode error:</strong> {{vm.decodeError}}\n" +
+    "    </div>\n" +
+    "\n" +
+    "    <div style=\"margin-top:10px;\">\n" +
+    "      <button class=\"btn btn-default btn-sm\" ng-click=\"vm.loadSample()\">\n" +
+    "        <i class=\"fas fa-file\"></i> Sample\n" +
+    "      </button>\n" +
+    "      <button class=\"btn btn-default btn-sm\" ng-click=\"vm.newEmpty()\">\n" +
+    "        <i class=\"fas fa-plus\"></i> New empty\n" +
+    "      </button>\n" +
+    "      <button class=\"btn btn-default btn-sm\" ng-click=\"vm.copyBase64()\"\n" +
+    "              ng-disabled=\"!vm.base64\">\n" +
+    "        <i class=\"fas fa-copy\"></i> Copy base64\n" +
+    "      </button>\n" +
+    "    </div>\n" +
+    "  </div>\n" +
+    "\n" +
+    "  <!-- ================================================================= -->\n" +
+    "  <!-- ② decoded JSON view                                               -->\n" +
+    "  <!-- ================================================================= -->\n" +
+    "\n" +
+    "  <h4>Decoded (JSON)</h4>\n" +
+    "  <div class=\"well\">\n" +
+    "    <textarea class=\"form-control\" rows=\"20\" readonly\n" +
+    "              style=\"font-family: monospace; font-size: 12px;\">{{vm.json}}</textarea>\n" +
+    "  </div>\n" +
+    "\n" +
+    "  <!-- ================================================================= -->\n" +
+    "  <!-- ③ editor                                                          -->\n" +
+    "  <!-- ================================================================= -->\n" +
+    "\n" +
+    "  <h4>Editor</h4>\n" +
+    "\n" +
+    "  <div class=\"alert alert-danger\" ng-if=\"vm.encodeError\">\n" +
+    "    <strong>Encode error:</strong> {{vm.encodeError}}\n" +
+    "    <br><small>The base64/JSON above show the last successful encoding.</small>\n" +
+    "  </div>\n" +
+    "\n" +
+    "  <div ng-if=\"vm.psbt\">\n" +
+    "\n" +
+    "    <!-- Global / unsignedTx-level fields -->\n" +
+    "    <div class=\"panel panel-default\">\n" +
+    "      <div class=\"panel-heading\"><strong>Global</strong></div>\n" +
+    "      <div class=\"panel-body\">\n" +
+    "        <form class=\"form-horizontal\">\n" +
+    "          <div class=\"form-group\">\n" +
+    "            <label class=\"col-sm-2 control-label\">Tx version:</label>\n" +
+    "            <div class=\"col-sm-2\">\n" +
+    "              <input type=\"number\" class=\"form-control\"\n" +
+    "                     ng-model=\"vm.psbt.unsignedTx.version\">\n" +
+    "            </div>\n" +
+    "            <label class=\"col-sm-2 control-label\">Locktime:</label>\n" +
+    "            <div class=\"col-sm-2\">\n" +
+    "              <input type=\"number\" class=\"form-control\"\n" +
+    "                     ng-model=\"vm.psbt.unsignedTx.locktime\">\n" +
+    "            </div>\n" +
+    "          </div>\n" +
+    "        </form>\n" +
+    "\n" +
+    "        <!-- Global arrays: xpubs + unknowns -->\n" +
+    "        <div ng-repeat=\"field in vm.globalArrays\">\n" +
+    "          <div ng-if=\"vm.fieldPresent(vm.psbt, field)\" style=\"margin-top:15px;\">\n" +
+    "            <strong>{{field.label}}</strong>\n" +
+    "            <table class=\"table table-condensed table-bordered\" style=\"margin-top:5px;\">\n" +
+    "              <thead>\n" +
+    "                <tr>\n" +
+    "                  <th ng-repeat=\"col in field.columns\">{{col.name}}</th>\n" +
+    "                  <th style=\"width:40px;\"></th>\n" +
+    "                </tr>\n" +
+    "              </thead>\n" +
+    "              <tbody>\n" +
+    "                <tr ng-repeat=\"row in vm.psbt[field.name] track by $index\">\n" +
+    "                  <td ng-repeat=\"col in field.columns\">\n" +
+    "                    <input type=\"number\" class=\"form-control input-sm\"\n" +
+    "                           ng-if=\"col.kind === 'int'\"\n" +
+    "                           ng-model=\"row[col.name]\">\n" +
+    "                    <input class=\"form-control input-sm\"\n" +
+    "                           ng-if=\"col.kind !== 'int'\"\n" +
+    "                           style=\"font-family:monospace;\"\n" +
+    "                           ng-class=\"{'well-error': col.kind === 'hex' && vm.hexInvalid(row[col.name])}\"\n" +
+    "                           ng-model=\"row[col.name]\">\n" +
+    "                  </td>\n" +
+    "                  <td>\n" +
+    "                    <button class=\"btn btn-danger btn-xs\"\n" +
+    "                            ng-click=\"vm.removeArrayEntry(vm.psbt[field.name], $index)\">\n" +
+    "                      <i class=\"fas fa-times\"></i>\n" +
+    "                    </button>\n" +
+    "                  </td>\n" +
+    "                </tr>\n" +
+    "              </tbody>\n" +
+    "            </table>\n" +
+    "            <button class=\"btn btn-default btn-xs\"\n" +
+    "                    ng-click=\"vm.addArrayEntry(vm.psbt[field.name], field)\">\n" +
+    "              <i class=\"fas fa-plus\"></i> Add entry\n" +
+    "            </button>\n" +
+    "          </div>\n" +
+    "        </div>\n" +
+    "\n" +
+    "        <div class=\"dropdown\" style=\"margin-top:15px;\"\n" +
+    "             ng-if=\"vm.absentFields(vm.psbt, vm.globalArrays).length > 0\">\n" +
+    "          <button class=\"btn btn-default btn-sm dropdown-toggle\"\n" +
+    "                  data-toggle=\"dropdown\">\n" +
+    "            <i class=\"fas fa-plus\"></i> Add global field <span class=\"caret\"></span>\n" +
+    "          </button>\n" +
+    "          <ul class=\"dropdown-menu\">\n" +
+    "            <li ng-repeat=\"f in vm.absentFields(vm.psbt, vm.globalArrays)\">\n" +
+    "              <a ng-click=\"vm.addField(vm.psbt, f)\">{{f.label}}</a>\n" +
+    "            </li>\n" +
+    "          </ul>\n" +
+    "        </div>\n" +
+    "      </div>\n" +
+    "    </div>\n" +
+    "\n" +
+    "    <!-- ============================================================= -->\n" +
+    "    <!-- Inputs                                                        -->\n" +
+    "    <!-- ============================================================= -->\n" +
+    "\n" +
+    "    <h4 style=\"margin-top:30px;\">Inputs ({{vm.psbt.inputs.length}})</h4>\n" +
+    "\n" +
+    "    <div class=\"alert alert-info\" ng-if=\"vm.psbt.inputs.length === 0\">\n" +
+    "      No inputs yet. Click <strong>＋ Add input</strong> below to add one.\n" +
+    "    </div>\n" +
+    "\n" +
+    "    <div class=\"panel panel-primary\"\n" +
+    "         ng-repeat=\"inp in vm.psbt.inputs track by $index\">\n" +
+    "      <div class=\"panel-heading\" style=\"display:flex; align-items:center;\">\n" +
+    "        <a ng-click=\"vm.toggleInput($index)\"\n" +
+    "           style=\"cursor:pointer; color:white; flex:1; min-width:0;\">\n" +
+    "          <i class=\"fas\"\n" +
+    "             ng-class=\"vm.ui.inputCollapsed[$index] ? 'fa-chevron-right' : 'fa-chevron-down'\"></i>\n" +
+    "          <strong>Input #{{$index}}</strong>\n" +
+    "          <small style=\"margin-left:10px; font-family:monospace;\">\n" +
+    "            {{vm.psbt.unsignedTx.inputs[$index].txid.substring(0, 20)}}…:{{vm.psbt.unsignedTx.inputs[$index].vout}}\n" +
+    "          </small>\n" +
+    "        </a>\n" +
+    "        <span ng-if=\"!vm.ui.confirmingDelete['in-' + $index]\">\n" +
+    "          <button class=\"btn btn-danger btn-xs\"\n" +
+    "                  ng-click=\"vm.askDelete('in-' + $index)\"\n" +
+    "                  title=\"Delete input #{{$index}}\">\n" +
+    "            <i class=\"fas fa-trash\"></i>\n" +
+    "          </button>\n" +
+    "        </span>\n" +
+    "        <span ng-if=\"vm.ui.confirmingDelete['in-' + $index]\">\n" +
+    "          <span style=\"color:white; margin-right:5px;\">Delete?</span>\n" +
+    "          <button class=\"btn btn-danger btn-xs\"\n" +
+    "                  ng-click=\"vm.removeInput($index)\">Yes</button>\n" +
+    "          <button class=\"btn btn-default btn-xs\"\n" +
+    "                  ng-click=\"vm.cancelDelete('in-' + $index)\">No</button>\n" +
+    "        </span>\n" +
+    "      </div>\n" +
+    "\n" +
+    "      <div class=\"panel-body\" ng-if=\"!vm.ui.inputCollapsed[$index]\">\n" +
+    "        <form class=\"form-horizontal\">\n" +
+    "\n" +
+    "          <!-- Outpoint / sequence — canonical source is unsignedTx.inputs[i]. -->\n" +
+    "          <div class=\"form-group\">\n" +
+    "            <label class=\"col-sm-2 control-label\">Previous txid:</label>\n" +
+    "            <div class=\"col-sm-7\">\n" +
+    "              <input class=\"form-control\" style=\"font-family:monospace;\"\n" +
+    "                     ng-model=\"vm.psbt.unsignedTx.inputs[$index].txid\">\n" +
+    "            </div>\n" +
+    "            <label class=\"col-sm-1 control-label\">Vout:</label>\n" +
+    "            <div class=\"col-sm-2\">\n" +
+    "              <input type=\"number\" class=\"form-control\"\n" +
+    "                     ng-model=\"vm.psbt.unsignedTx.inputs[$index].vout\">\n" +
+    "            </div>\n" +
+    "          </div>\n" +
+    "          <div class=\"form-group\">\n" +
+    "            <label class=\"col-sm-2 control-label\">Sequence:</label>\n" +
+    "            <div class=\"col-sm-3\">\n" +
+    "              <input type=\"number\" class=\"form-control\"\n" +
+    "                     ng-model=\"vm.psbt.unsignedTx.inputs[$index].sequence\">\n" +
+    "            </div>\n" +
+    "          </div>\n" +
+    "\n" +
+    "          <!-- Optional hex fields. Single-line <input> by default; only\n" +
+    "               fields explicitly marked `multiline:true` (nonWitnessUtxo,\n" +
+    "               finalScriptWitness) get a textarea. -->\n" +
+    "          <div ng-repeat=\"field in vm.inputFields\"\n" +
+    "               ng-if=\"vm.fieldPresent(inp, field) && field.kind === 'hex'\">\n" +
+    "            <div class=\"form-group\">\n" +
+    "              <label class=\"col-sm-2 control-label\">{{field.label}}:</label>\n" +
+    "              <div class=\"col-sm-9\">\n" +
+    "                <input ng-if=\"!field.multiline\"\n" +
+    "                       class=\"form-control\"\n" +
+    "                       style=\"font-family:monospace; font-size:12px;\"\n" +
+    "                       ng-class=\"{'well-error': vm.hexInvalid(inp[field.name])}\"\n" +
+    "                       ng-model=\"inp[field.name]\">\n" +
+    "                <textarea ng-if=\"field.multiline\"\n" +
+    "                          class=\"form-control\" rows=\"3\"\n" +
+    "                          style=\"font-family:monospace; font-size:12px;\"\n" +
+    "                          ng-class=\"{'well-error': vm.hexInvalid(inp[field.name])}\"\n" +
+    "                          ng-model=\"inp[field.name]\"></textarea>\n" +
+    "              </div>\n" +
+    "              <div class=\"col-sm-1\">\n" +
+    "                <button class=\"btn btn-default btn-xs\"\n" +
+    "                        ng-click=\"vm.removeField(inp, field)\" title=\"Remove\">\n" +
+    "                  <i class=\"fas fa-times\"></i>\n" +
+    "                </button>\n" +
+    "              </div>\n" +
+    "            </div>\n" +
+    "          </div>\n" +
+    "\n" +
+    "          <!-- Optional integer fields. -->\n" +
+    "          <div ng-repeat=\"field in vm.inputFields\"\n" +
+    "               ng-if=\"vm.fieldPresent(inp, field) && field.kind === 'int'\">\n" +
+    "            <div class=\"form-group\">\n" +
+    "              <label class=\"col-sm-2 control-label\">{{field.label}}:</label>\n" +
+    "              <div class=\"col-sm-3\">\n" +
+    "                <input type=\"number\" class=\"form-control\"\n" +
+    "                       ng-model=\"inp[field.name]\">\n" +
+    "              </div>\n" +
+    "              <div class=\"col-sm-1\">\n" +
+    "                <button class=\"btn btn-default btn-xs\"\n" +
+    "                        ng-click=\"vm.removeField(inp, field)\" title=\"Remove\">\n" +
+    "                  <i class=\"fas fa-times\"></i>\n" +
+    "                </button>\n" +
+    "              </div>\n" +
+    "            </div>\n" +
+    "          </div>\n" +
+    "\n" +
+    "          <!-- Sighash type — dropdown of named values. -->\n" +
+    "          <div ng-repeat=\"field in vm.inputFields\"\n" +
+    "               ng-if=\"vm.fieldPresent(inp, field) && field.kind === 'sighash'\">\n" +
+    "            <div class=\"form-group\">\n" +
+    "              <label class=\"col-sm-2 control-label\">{{field.label}}:</label>\n" +
+    "              <div class=\"col-sm-9\">\n" +
+    "                <select class=\"form-control\"\n" +
+    "                        ng-model=\"inp[field.name]\"\n" +
+    "                        ng-options=\"opt.value as opt.label for opt in vm.sighashValues\">\n" +
+    "                </select>\n" +
+    "              </div>\n" +
+    "              <div class=\"col-sm-1\">\n" +
+    "                <button class=\"btn btn-default btn-xs\"\n" +
+    "                        ng-click=\"vm.removeField(inp, field)\" title=\"Remove\">\n" +
+    "                  <i class=\"fas fa-times\"></i>\n" +
+    "                </button>\n" +
+    "              </div>\n" +
+    "            </div>\n" +
+    "          </div>\n" +
+    "\n" +
+    "          <!-- Witness UTXO (single nested {value, script} field) -->\n" +
+    "          <div ng-repeat=\"field in vm.inputFields\"\n" +
+    "               ng-if=\"field.kind === 'witnessUtxo' && vm.fieldPresent(inp, field)\">\n" +
+    "            <div class=\"form-group\">\n" +
+    "              <label class=\"col-sm-2 control-label\">Witness UTXO:</label>\n" +
+    "              <div class=\"col-sm-2\">\n" +
+    "                <input type=\"number\" class=\"form-control\"\n" +
+    "                       placeholder=\"value (sat)\"\n" +
+    "                       ng-model=\"inp.witnessUtxo.value\">\n" +
+    "              </div>\n" +
+    "              <div class=\"col-sm-7\">\n" +
+    "                <input class=\"form-control\"\n" +
+    "                       style=\"font-family:monospace; font-size:12px;\"\n" +
+    "                       placeholder=\"pkScript (hex)\"\n" +
+    "                       ng-class=\"{'well-error': vm.hexInvalid(inp.witnessUtxo.script)}\"\n" +
+    "                       ng-model=\"inp.witnessUtxo.script\">\n" +
+    "              </div>\n" +
+    "              <div class=\"col-sm-1\">\n" +
+    "                <button class=\"btn btn-default btn-xs\"\n" +
+    "                        ng-click=\"vm.removeField(inp, field)\" title=\"Remove\">\n" +
+    "                  <i class=\"fas fa-times\"></i>\n" +
+    "                </button>\n" +
+    "              </div>\n" +
+    "            </div>\n" +
+    "          </div>\n" +
+    "\n" +
+    "          <!-- Array fields -->\n" +
+    "          <div ng-repeat=\"field in vm.inputFields\"\n" +
+    "               ng-if=\"field.kind === 'array' && vm.fieldPresent(inp, field)\">\n" +
+    "            <div class=\"form-group\">\n" +
+    "              <label class=\"col-sm-2 control-label\">{{field.label}}:</label>\n" +
+    "              <div class=\"col-sm-9\">\n" +
+    "                <table class=\"table table-condensed table-bordered\">\n" +
+    "                  <thead>\n" +
+    "                    <tr>\n" +
+    "                      <th ng-repeat=\"col in field.columns\">{{col.name}}</th>\n" +
+    "                      <th style=\"width:40px;\"></th>\n" +
+    "                    </tr>\n" +
+    "                  </thead>\n" +
+    "                  <tbody>\n" +
+    "                    <tr ng-repeat=\"row in inp[field.name] track by $index\">\n" +
+    "                      <td ng-repeat=\"col in field.columns\">\n" +
+    "                        <input type=\"number\" class=\"form-control input-sm\"\n" +
+    "                               ng-if=\"col.kind === 'int'\"\n" +
+    "                               ng-model=\"row[col.name]\">\n" +
+    "                        <input class=\"form-control input-sm\"\n" +
+    "                               ng-if=\"col.kind !== 'int'\"\n" +
+    "                               style=\"font-family:monospace;\"\n" +
+    "                               ng-class=\"{'well-error': col.kind === 'hex' && vm.hexInvalid(row[col.name])}\"\n" +
+    "                               ng-model=\"row[col.name]\">\n" +
+    "                      </td>\n" +
+    "                      <td>\n" +
+    "                        <button class=\"btn btn-danger btn-xs\"\n" +
+    "                                ng-click=\"vm.removeArrayEntry(inp[field.name], $index)\">\n" +
+    "                          <i class=\"fas fa-times\"></i>\n" +
+    "                        </button>\n" +
+    "                      </td>\n" +
+    "                    </tr>\n" +
+    "                  </tbody>\n" +
+    "                </table>\n" +
+    "                <button class=\"btn btn-default btn-xs\"\n" +
+    "                        ng-click=\"vm.addArrayEntry(inp[field.name], field)\">\n" +
+    "                  <i class=\"fas fa-plus\"></i> Add entry\n" +
+    "                </button>\n" +
+    "              </div>\n" +
+    "              <div class=\"col-sm-1\">\n" +
+    "                <button class=\"btn btn-default btn-xs\"\n" +
+    "                        ng-click=\"vm.removeField(inp, field)\" title=\"Clear all\">\n" +
+    "                  <i class=\"fas fa-times\"></i>\n" +
+    "                </button>\n" +
+    "              </div>\n" +
+    "            </div>\n" +
+    "          </div>\n" +
+    "\n" +
+    "          <!-- + Add field dropdown -->\n" +
+    "          <div class=\"form-group\" ng-if=\"vm.absentFields(inp, vm.inputFields).length > 0\">\n" +
+    "            <div class=\"col-sm-offset-2 col-sm-9\">\n" +
+    "              <div class=\"dropdown\">\n" +
+    "                <button class=\"btn btn-default btn-sm dropdown-toggle\"\n" +
+    "                        data-toggle=\"dropdown\">\n" +
+    "                  <i class=\"fas fa-plus\"></i> Add field <span class=\"caret\"></span>\n" +
+    "                </button>\n" +
+    "                <ul class=\"dropdown-menu\">\n" +
+    "                  <li ng-repeat=\"f in vm.absentFields(inp, vm.inputFields)\">\n" +
+    "                    <a ng-click=\"vm.addField(inp, f)\">{{f.label}}</a>\n" +
+    "                  </li>\n" +
+    "                </ul>\n" +
+    "              </div>\n" +
+    "            </div>\n" +
+    "          </div>\n" +
+    "\n" +
+    "        </form>\n" +
+    "      </div>\n" +
+    "    </div>\n" +
+    "\n" +
+    "    <div style=\"margin-top:10px; margin-bottom:30px;\">\n" +
+    "      <button class=\"btn btn-success btn-block\" ng-click=\"vm.addInput()\">\n" +
+    "        <i class=\"fas fa-plus\"></i> Add input\n" +
+    "      </button>\n" +
+    "    </div>\n" +
+    "\n" +
+    "    <!-- ============================================================= -->\n" +
+    "    <!-- Outputs                                                       -->\n" +
+    "    <!-- ============================================================= -->\n" +
+    "\n" +
+    "    <h4 style=\"margin-top:30px;\">Outputs ({{vm.psbt.outputs.length}})</h4>\n" +
+    "\n" +
+    "    <div class=\"alert alert-info\" ng-if=\"vm.psbt.outputs.length === 0\">\n" +
+    "      No outputs yet. Click <strong>＋ Add output</strong> below to add one.\n" +
+    "    </div>\n" +
+    "\n" +
+    "    <div class=\"panel panel-info\"\n" +
+    "         ng-repeat=\"out in vm.psbt.outputs track by $index\">\n" +
+    "      <div class=\"panel-heading\" style=\"display:flex; align-items:center;\">\n" +
+    "        <a ng-click=\"vm.toggleOutput($index)\"\n" +
+    "           style=\"cursor:pointer; color:white; flex:1; min-width:0;\">\n" +
+    "          <i class=\"fas\"\n" +
+    "             ng-class=\"vm.ui.outputCollapsed[$index] ? 'fa-chevron-right' : 'fa-chevron-down'\"></i>\n" +
+    "          <strong>Output #{{$index}}</strong>\n" +
+    "          <small style=\"margin-left:10px;\">\n" +
+    "            {{vm.psbt.unsignedTx.outputs[$index].value}} sat →\n" +
+    "            <span style=\"font-family:monospace;\">{{vm.psbt.unsignedTx.outputs[$index].scriptPubKey.substring(0, 30)}}…</span>\n" +
+    "          </small>\n" +
+    "        </a>\n" +
+    "        <span ng-if=\"!vm.ui.confirmingDelete['out-' + $index]\">\n" +
+    "          <button class=\"btn btn-danger btn-xs\"\n" +
+    "                  ng-click=\"vm.askDelete('out-' + $index)\"\n" +
+    "                  title=\"Delete output #{{$index}}\">\n" +
+    "            <i class=\"fas fa-trash\"></i>\n" +
+    "          </button>\n" +
+    "        </span>\n" +
+    "        <span ng-if=\"vm.ui.confirmingDelete['out-' + $index]\">\n" +
+    "          <span style=\"color:white; margin-right:5px;\">Delete?</span>\n" +
+    "          <button class=\"btn btn-danger btn-xs\"\n" +
+    "                  ng-click=\"vm.removeOutput($index)\">Yes</button>\n" +
+    "          <button class=\"btn btn-default btn-xs\"\n" +
+    "                  ng-click=\"vm.cancelDelete('out-' + $index)\">No</button>\n" +
+    "        </span>\n" +
+    "      </div>\n" +
+    "\n" +
+    "      <div class=\"panel-body\" ng-if=\"!vm.ui.outputCollapsed[$index]\">\n" +
+    "        <form class=\"form-horizontal\">\n" +
+    "\n" +
+    "          <!-- Value / scriptPubKey — canonical source is unsignedTx.outputs[i]. -->\n" +
+    "          <div class=\"form-group\">\n" +
+    "            <label class=\"col-sm-2 control-label\">Value (sat):</label>\n" +
+    "            <div class=\"col-sm-3\">\n" +
+    "              <input type=\"number\" class=\"form-control\"\n" +
+    "                     ng-model=\"vm.psbt.unsignedTx.outputs[$index].value\">\n" +
+    "            </div>\n" +
+    "          </div>\n" +
+    "          <div class=\"form-group\">\n" +
+    "            <label class=\"col-sm-2 control-label\">scriptPubKey:</label>\n" +
+    "            <div class=\"col-sm-9\">\n" +
+    "              <input class=\"form-control\"\n" +
+    "                     style=\"font-family:monospace; font-size:12px;\"\n" +
+    "                     ng-class=\"{'well-error': vm.hexInvalid(vm.psbt.unsignedTx.outputs[$index].scriptPubKey)}\"\n" +
+    "                     ng-model=\"vm.psbt.unsignedTx.outputs[$index].scriptPubKey\">\n" +
+    "            </div>\n" +
+    "          </div>\n" +
+    "\n" +
+    "          <!-- Optional hex fields. Single-line by default; only fields\n" +
+    "               marked `multiline:true` use a textarea (none on outputs). -->\n" +
+    "          <div ng-repeat=\"field in vm.outputFields\"\n" +
+    "               ng-if=\"vm.fieldPresent(out, field) && field.kind === 'hex'\">\n" +
+    "            <div class=\"form-group\">\n" +
+    "              <label class=\"col-sm-2 control-label\">{{field.label}}:</label>\n" +
+    "              <div class=\"col-sm-9\">\n" +
+    "                <input ng-if=\"!field.multiline\"\n" +
+    "                       class=\"form-control\"\n" +
+    "                       style=\"font-family:monospace; font-size:12px;\"\n" +
+    "                       ng-class=\"{'well-error': vm.hexInvalid(out[field.name])}\"\n" +
+    "                       ng-model=\"out[field.name]\">\n" +
+    "                <textarea ng-if=\"field.multiline\"\n" +
+    "                          class=\"form-control\" rows=\"3\"\n" +
+    "                          style=\"font-family:monospace; font-size:12px;\"\n" +
+    "                          ng-class=\"{'well-error': vm.hexInvalid(out[field.name])}\"\n" +
+    "                          ng-model=\"out[field.name]\"></textarea>\n" +
+    "              </div>\n" +
+    "              <div class=\"col-sm-1\">\n" +
+    "                <button class=\"btn btn-default btn-xs\"\n" +
+    "                        ng-click=\"vm.removeField(out, field)\" title=\"Remove\">\n" +
+    "                  <i class=\"fas fa-times\"></i>\n" +
+    "                </button>\n" +
+    "              </div>\n" +
+    "            </div>\n" +
+    "          </div>\n" +
+    "\n" +
+    "          <!-- Array fields -->\n" +
+    "          <div ng-repeat=\"field in vm.outputFields\"\n" +
+    "               ng-if=\"field.kind === 'array' && vm.fieldPresent(out, field)\">\n" +
+    "            <div class=\"form-group\">\n" +
+    "              <label class=\"col-sm-2 control-label\">{{field.label}}:</label>\n" +
+    "              <div class=\"col-sm-9\">\n" +
+    "                <table class=\"table table-condensed table-bordered\">\n" +
+    "                  <thead>\n" +
+    "                    <tr>\n" +
+    "                      <th ng-repeat=\"col in field.columns\">{{col.name}}</th>\n" +
+    "                      <th style=\"width:40px;\"></th>\n" +
+    "                    </tr>\n" +
+    "                  </thead>\n" +
+    "                  <tbody>\n" +
+    "                    <tr ng-repeat=\"row in out[field.name] track by $index\">\n" +
+    "                      <td ng-repeat=\"col in field.columns\">\n" +
+    "                        <input type=\"number\" class=\"form-control input-sm\"\n" +
+    "                               ng-if=\"col.kind === 'int'\"\n" +
+    "                               ng-model=\"row[col.name]\">\n" +
+    "                        <input class=\"form-control input-sm\"\n" +
+    "                               ng-if=\"col.kind !== 'int'\"\n" +
+    "                               style=\"font-family:monospace;\"\n" +
+    "                               ng-class=\"{'well-error': col.kind === 'hex' && vm.hexInvalid(row[col.name])}\"\n" +
+    "                               ng-model=\"row[col.name]\">\n" +
+    "                      </td>\n" +
+    "                      <td>\n" +
+    "                        <button class=\"btn btn-danger btn-xs\"\n" +
+    "                                ng-click=\"vm.removeArrayEntry(out[field.name], $index)\">\n" +
+    "                          <i class=\"fas fa-times\"></i>\n" +
+    "                        </button>\n" +
+    "                      </td>\n" +
+    "                    </tr>\n" +
+    "                  </tbody>\n" +
+    "                </table>\n" +
+    "                <button class=\"btn btn-default btn-xs\"\n" +
+    "                        ng-click=\"vm.addArrayEntry(out[field.name], field)\">\n" +
+    "                  <i class=\"fas fa-plus\"></i> Add entry\n" +
+    "                </button>\n" +
+    "              </div>\n" +
+    "              <div class=\"col-sm-1\">\n" +
+    "                <button class=\"btn btn-default btn-xs\"\n" +
+    "                        ng-click=\"vm.removeField(out, field)\" title=\"Clear all\">\n" +
+    "                  <i class=\"fas fa-times\"></i>\n" +
+    "                </button>\n" +
+    "              </div>\n" +
+    "            </div>\n" +
+    "          </div>\n" +
+    "\n" +
+    "          <!-- + Add field dropdown -->\n" +
+    "          <div class=\"form-group\" ng-if=\"vm.absentFields(out, vm.outputFields).length > 0\">\n" +
+    "            <div class=\"col-sm-offset-2 col-sm-9\">\n" +
+    "              <div class=\"dropdown\">\n" +
+    "                <button class=\"btn btn-default btn-sm dropdown-toggle\"\n" +
+    "                        data-toggle=\"dropdown\">\n" +
+    "                  <i class=\"fas fa-plus\"></i> Add field <span class=\"caret\"></span>\n" +
+    "                </button>\n" +
+    "                <ul class=\"dropdown-menu\">\n" +
+    "                  <li ng-repeat=\"f in vm.absentFields(out, vm.outputFields)\">\n" +
+    "                    <a ng-click=\"vm.addField(out, f)\">{{f.label}}</a>\n" +
+    "                  </li>\n" +
+    "                </ul>\n" +
+    "              </div>\n" +
+    "            </div>\n" +
+    "          </div>\n" +
+    "\n" +
+    "        </form>\n" +
+    "      </div>\n" +
+    "    </div>\n" +
+    "\n" +
+    "    <div style=\"margin-top:10px; margin-bottom:30px;\">\n" +
+    "      <button class=\"btn btn-success btn-block\" ng-click=\"vm.addOutput()\">\n" +
+    "        <i class=\"fas fa-plus\"></i> Add output\n" +
+    "      </button>\n" +
+    "    </div>\n" +
+    "\n" +
+    "  </div><!-- /vm.psbt -->\n" +
     "</div>\n"
   );
 

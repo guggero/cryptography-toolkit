@@ -297,3 +297,21 @@ div.as-block.input-group select.form-control {
   display: inline-block;
   float: left;
 }
+
+/* BIP-322 decoded signature display */
+.hex-value {
+    margin-bottom: 4px;
+}
+.hex-value code {
+    word-break: break-all;
+    font-size: 12px;
+}
+pre.sig-decoded {
+    max-height: 300px;
+    overflow-y: auto;
+    font-size: 12px;
+    background: rgba(0, 0, 0, 0.03);
+    border: 1px solid #ddd;
+    padding: 10px;
+    border-radius: 4px;
+}

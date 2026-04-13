@@ -1,0 +1,552 @@
+<h1>PSBT Editor</h1>
+
+<div class="panel panel-default">
+  <div class="panel-heading">
+    <h4 class="panel-title">
+      <a ng-click="vm.showExplanation = !vm.showExplanation">Explanation</a>
+    </h4>
+  </div>
+  <div class="panel-collapse collapse" ng-class="{in: vm.showExplanation}">
+    <div class="panel-body">
+      Live editor for
+      <a href="https://github.com/bitcoin/bips/blob/master/bip-0174.mediawiki">BIP-174</a>
+      Partially Signed Bitcoin Transactions. Paste a base64-encoded PSBT in
+      the top textarea, or build one from scratch. Every change is round-tripped
+      through <code>btcutil-js</code>'s WASM <code>psbt.encode/decode</code> on
+      every keystroke, so the JSON view and base64 always reflect the editor
+      below.
+
+      <h3>Sources:</h3>
+      <ul>
+        <li><a href="https://github.com/bitcoin/bips/blob/master/bip-0174.mediawiki">BIP-174 specification</a></li>
+        <li><a href="https://github.com/guggero/btcutil-js">btcutil-js library</a></li>
+      </ul>
+    </div>
+  </div>
+</div>
+
+<div class="alert alert-info" ng-if="vm.loading">
+  <strong>Loading...</strong> Initializing WebAssembly module...
+</div>
+
+<div ng-if="!vm.loading">
+
+  <!-- ================================================================= -->
+  <!-- ① base64 input                                                    -->
+  <!-- ================================================================= -->
+
+  <h4>PSBT (base64)</h4>
+  <div class="well">
+    <textarea class="form-control" rows="6" style="font-family: monospace;"
+              ng-model="vm.base64"
+              ng-change="vm.fromBase64()"
+              ng-class="{'well-error': vm.decodeError}"
+              placeholder="cHNidP8B... — paste a base64-encoded PSBT here"></textarea>
+
+    <div class="alert alert-danger" ng-if="vm.decodeError" style="margin-top:10px;">
+      <strong>Decode error:</strong> {{vm.decodeError}}
+    </div>
+
+    <div style="margin-top:10px;">
+      <button class="btn btn-default btn-sm" ng-click="vm.loadSample()">
+        <i class="fas fa-file"></i> Sample
+      </button>
+      <button class="btn btn-default btn-sm" ng-click="vm.newEmpty()">
+        <i class="fas fa-plus"></i> New empty
+      </button>
+      <button class="btn btn-default btn-sm" ng-click="vm.copyBase64()"
+              ng-disabled="!vm.base64">
+        <i class="fas fa-copy"></i> Copy base64
+      </button>
+    </div>
+  </div>
+
+  <!-- ================================================================= -->
+  <!-- ② decoded JSON view                                               -->
+  <!-- ================================================================= -->
+
+  <h4>Decoded (JSON)</h4>
+  <div class="well">
+    <textarea class="form-control" rows="20" readonly
+              style="font-family: monospace; font-size: 12px;">{{vm.json}}</textarea>
+  </div>
+
+  <!-- ================================================================= -->
+  <!-- ③ editor                                                          -->
+  <!-- ================================================================= -->
+
+  <h4>Editor</h4>
+
+  <div class="alert alert-danger" ng-if="vm.encodeError">
+    <strong>Encode error:</strong> {{vm.encodeError}}
+    <br><small>The base64/JSON above show the last successful encoding.</small>
+  </div>
+
+  <div ng-if="vm.psbt">
+
+    <!-- Global / unsignedTx-level fields -->
+    <div class="panel panel-default">
+      <div class="panel-heading"><strong>Global</strong></div>
+      <div class="panel-body">
+        <form class="form-horizontal">
+          <div class="form-group">
+            <label class="col-sm-2 control-label">Tx version:</label>
+            <div class="col-sm-2">
+              <input type="number" class="form-control"
+                     ng-model="vm.psbt.unsignedTx.version">
+            </div>
+            <label class="col-sm-2 control-label">Locktime:</label>
+            <div class="col-sm-2">
+              <input type="number" class="form-control"
+                     ng-model="vm.psbt.unsignedTx.locktime">
+            </div>
+          </div>
+        </form>
+
+        <!-- Global arrays: xpubs + unknowns -->
+        <div ng-repeat="field in vm.globalArrays">
+          <div ng-if="vm.fieldPresent(vm.psbt, field)" style="margin-top:15px;">
+            <strong>{{field.label}}</strong>
+            <table class="table table-condensed table-bordered" style="margin-top:5px;">
+              <thead>
+                <tr>
+                  <th ng-repeat="col in field.columns">{{col.name}}</th>
+                  <th style="width:40px;"></th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr ng-repeat="row in vm.psbt[field.name] track by $index">
+                  <td ng-repeat="col in field.columns">
+                    <input type="number" class="form-control input-sm"
+                           ng-if="col.kind === 'int'"
+                           ng-model="row[col.name]">
+                    <input class="form-control input-sm"
+                           ng-if="col.kind !== 'int'"
+                           style="font-family:monospace;"
+                           ng-class="{'well-error': col.kind === 'hex' && vm.hexInvalid(row[col.name])}"
+                           ng-model="row[col.name]">
+                  </td>
+                  <td>
+                    <button class="btn btn-danger btn-xs"
+                            ng-click="vm.removeArrayEntry(vm.psbt[field.name], $index)">
+                      <i class="fas fa-times"></i>
+                    </button>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+            <button class="btn btn-default btn-xs"
+                    ng-click="vm.addArrayEntry(vm.psbt[field.name], field)">
+              <i class="fas fa-plus"></i> Add entry
+            </button>
+          </div>
+        </div>
+
+        <div class="dropdown" style="margin-top:15px;"
+             ng-if="vm.absentFields(vm.psbt, vm.globalArrays).length > 0">
+          <button class="btn btn-default btn-sm dropdown-toggle"
+                  data-toggle="dropdown">
+            <i class="fas fa-plus"></i> Add global field <span class="caret"></span>
+          </button>
+          <ul class="dropdown-menu">
+            <li ng-repeat="f in vm.absentFields(vm.psbt, vm.globalArrays)">
+              <a ng-click="vm.addField(vm.psbt, f)">{{f.label}}</a>
+            </li>
+          </ul>
+        </div>
+      </div>
+    </div>
+
+    <!-- ============================================================= -->
+    <!-- Inputs                                                        -->
+    <!-- ============================================================= -->
+
+    <h4 style="margin-top:30px;">Inputs ({{vm.psbt.inputs.length}})</h4>
+
+    <div class="alert alert-info" ng-if="vm.psbt.inputs.length === 0">
+      No inputs yet. Click <strong>＋ Add input</strong> below to add one.
+    </div>
+
+    <div class="panel panel-primary"
+         ng-repeat="inp in vm.psbt.inputs track by $index">
+      <div class="panel-heading" style="display:flex; align-items:center;">
+        <a ng-click="vm.toggleInput($index)"
+           style="cursor:pointer; color:white; flex:1; min-width:0;">
+          <i class="fas"
+             ng-class="vm.ui.inputCollapsed[$index] ? 'fa-chevron-right' : 'fa-chevron-down'"></i>
+          <strong>Input #{{$index}}</strong>
+          <small style="margin-left:10px; font-family:monospace;">
+            {{vm.psbt.unsignedTx.inputs[$index].txid.substring(0, 20)}}…:{{vm.psbt.unsignedTx.inputs[$index].vout}}
+          </small>
+        </a>
+        <span ng-if="!vm.ui.confirmingDelete['in-' + $index]">
+          <button class="btn btn-danger btn-xs"
+                  ng-click="vm.askDelete('in-' + $index)"
+                  title="Delete input #{{$index}}">
+            <i class="fas fa-trash"></i>
+          </button>
+        </span>
+        <span ng-if="vm.ui.confirmingDelete['in-' + $index]">
+          <span style="color:white; margin-right:5px;">Delete?</span>
+          <button class="btn btn-danger btn-xs"
+                  ng-click="vm.removeInput($index)">Yes</button>
+          <button class="btn btn-default btn-xs"
+                  ng-click="vm.cancelDelete('in-' + $index)">No</button>
+        </span>
+      </div>
+
+      <div class="panel-body" ng-if="!vm.ui.inputCollapsed[$index]">
+        <form class="form-horizontal">
+
+          <!-- Outpoint / sequence — canonical source is unsignedTx.inputs[i]. -->
+          <div class="form-group">
+            <label class="col-sm-2 control-label">Previous txid:</label>
+            <div class="col-sm-7">
+              <input class="form-control" style="font-family:monospace;"
+                     ng-model="vm.psbt.unsignedTx.inputs[$index].txid">
+            </div>
+            <label class="col-sm-1 control-label">Vout:</label>
+            <div class="col-sm-2">
+              <input type="number" class="form-control"
+                     ng-model="vm.psbt.unsignedTx.inputs[$index].vout">
+            </div>
+          </div>
+          <div class="form-group">
+            <label class="col-sm-2 control-label">Sequence:</label>
+            <div class="col-sm-3">
+              <input type="number" class="form-control"
+                     ng-model="vm.psbt.unsignedTx.inputs[$index].sequence">
+            </div>
+          </div>
+
+          <!-- Optional hex fields. Single-line <input> by default; only
+               fields explicitly marked `multiline:true` (nonWitnessUtxo,
+               finalScriptWitness) get a textarea. -->
+          <div ng-repeat="field in vm.inputFields"
+               ng-if="vm.fieldPresent(inp, field) && field.kind === 'hex'">
+            <div class="form-group">
+              <label class="col-sm-2 control-label">{{field.label}}:</label>
+              <div class="col-sm-9">
+                <input ng-if="!field.multiline"
+                       class="form-control"
+                       style="font-family:monospace; font-size:12px;"
+                       ng-class="{'well-error': vm.hexInvalid(inp[field.name])}"
+                       ng-model="inp[field.name]">
+                <textarea ng-if="field.multiline"
+                          class="form-control" rows="3"
+                          style="font-family:monospace; font-size:12px;"
+                          ng-class="{'well-error': vm.hexInvalid(inp[field.name])}"
+                          ng-model="inp[field.name]"></textarea>
+              </div>
+              <div class="col-sm-1">
+                <button class="btn btn-default btn-xs"
+                        ng-click="vm.removeField(inp, field)" title="Remove">
+                  <i class="fas fa-times"></i>
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Optional integer fields. -->
+          <div ng-repeat="field in vm.inputFields"
+               ng-if="vm.fieldPresent(inp, field) && field.kind === 'int'">
+            <div class="form-group">
+              <label class="col-sm-2 control-label">{{field.label}}:</label>
+              <div class="col-sm-3">
+                <input type="number" class="form-control"
+                       ng-model="inp[field.name]">
+              </div>
+              <div class="col-sm-1">
+                <button class="btn btn-default btn-xs"
+                        ng-click="vm.removeField(inp, field)" title="Remove">
+                  <i class="fas fa-times"></i>
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Sighash type — dropdown of named values. -->
+          <div ng-repeat="field in vm.inputFields"
+               ng-if="vm.fieldPresent(inp, field) && field.kind === 'sighash'">
+            <div class="form-group">
+              <label class="col-sm-2 control-label">{{field.label}}:</label>
+              <div class="col-sm-9">
+                <select class="form-control"
+                        ng-model="inp[field.name]"
+                        ng-options="opt.value as opt.label for opt in vm.sighashValues">
+                </select>
+              </div>
+              <div class="col-sm-1">
+                <button class="btn btn-default btn-xs"
+                        ng-click="vm.removeField(inp, field)" title="Remove">
+                  <i class="fas fa-times"></i>
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Witness UTXO (single nested {value, script} field) -->
+          <div ng-repeat="field in vm.inputFields"
+               ng-if="field.kind === 'witnessUtxo' && vm.fieldPresent(inp, field)">
+            <div class="form-group">
+              <label class="col-sm-2 control-label">Witness UTXO:</label>
+              <div class="col-sm-2">
+                <input type="number" class="form-control"
+                       placeholder="value (sat)"
+                       ng-model="inp.witnessUtxo.value">
+              </div>
+              <div class="col-sm-7">
+                <input class="form-control"
+                       style="font-family:monospace; font-size:12px;"
+                       placeholder="pkScript (hex)"
+                       ng-class="{'well-error': vm.hexInvalid(inp.witnessUtxo.script)}"
+                       ng-model="inp.witnessUtxo.script">
+              </div>
+              <div class="col-sm-1">
+                <button class="btn btn-default btn-xs"
+                        ng-click="vm.removeField(inp, field)" title="Remove">
+                  <i class="fas fa-times"></i>
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Array fields -->
+          <div ng-repeat="field in vm.inputFields"
+               ng-if="field.kind === 'array' && vm.fieldPresent(inp, field)">
+            <div class="form-group">
+              <label class="col-sm-2 control-label">{{field.label}}:</label>
+              <div class="col-sm-9">
+                <table class="table table-condensed table-bordered">
+                  <thead>
+                    <tr>
+                      <th ng-repeat="col in field.columns">{{col.name}}</th>
+                      <th style="width:40px;"></th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr ng-repeat="row in inp[field.name] track by $index">
+                      <td ng-repeat="col in field.columns">
+                        <input type="number" class="form-control input-sm"
+                               ng-if="col.kind === 'int'"
+                               ng-model="row[col.name]">
+                        <input class="form-control input-sm"
+                               ng-if="col.kind !== 'int'"
+                               style="font-family:monospace;"
+                               ng-class="{'well-error': col.kind === 'hex' && vm.hexInvalid(row[col.name])}"
+                               ng-model="row[col.name]">
+                      </td>
+                      <td>
+                        <button class="btn btn-danger btn-xs"
+                                ng-click="vm.removeArrayEntry(inp[field.name], $index)">
+                          <i class="fas fa-times"></i>
+                        </button>
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
+                <button class="btn btn-default btn-xs"
+                        ng-click="vm.addArrayEntry(inp[field.name], field)">
+                  <i class="fas fa-plus"></i> Add entry
+                </button>
+              </div>
+              <div class="col-sm-1">
+                <button class="btn btn-default btn-xs"
+                        ng-click="vm.removeField(inp, field)" title="Clear all">
+                  <i class="fas fa-times"></i>
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <!-- + Add field dropdown -->
+          <div class="form-group" ng-if="vm.absentFields(inp, vm.inputFields).length > 0">
+            <div class="col-sm-offset-2 col-sm-9">
+              <div class="dropdown">
+                <button class="btn btn-default btn-sm dropdown-toggle"
+                        data-toggle="dropdown">
+                  <i class="fas fa-plus"></i> Add field <span class="caret"></span>
+                </button>
+                <ul class="dropdown-menu">
+                  <li ng-repeat="f in vm.absentFields(inp, vm.inputFields)">
+                    <a ng-click="vm.addField(inp, f)">{{f.label}}</a>
+                  </li>
+                </ul>
+              </div>
+            </div>
+          </div>
+
+        </form>
+      </div>
+    </div>
+
+    <div style="margin-top:10px; margin-bottom:30px;">
+      <button class="btn btn-success btn-block" ng-click="vm.addInput()">
+        <i class="fas fa-plus"></i> Add input
+      </button>
+    </div>
+
+    <!-- ============================================================= -->
+    <!-- Outputs                                                       -->
+    <!-- ============================================================= -->
+
+    <h4 style="margin-top:30px;">Outputs ({{vm.psbt.outputs.length}})</h4>
+
+    <div class="alert alert-info" ng-if="vm.psbt.outputs.length === 0">
+      No outputs yet. Click <strong>＋ Add output</strong> below to add one.
+    </div>
+
+    <div class="panel panel-info"
+         ng-repeat="out in vm.psbt.outputs track by $index">
+      <div class="panel-heading" style="display:flex; align-items:center;">
+        <a ng-click="vm.toggleOutput($index)"
+           style="cursor:pointer; color:white; flex:1; min-width:0;">
+          <i class="fas"
+             ng-class="vm.ui.outputCollapsed[$index] ? 'fa-chevron-right' : 'fa-chevron-down'"></i>
+          <strong>Output #{{$index}}</strong>
+          <small style="margin-left:10px;">
+            {{vm.psbt.unsignedTx.outputs[$index].value}} sat →
+            <span style="font-family:monospace;">{{vm.psbt.unsignedTx.outputs[$index].scriptPubKey.substring(0, 30)}}…</span>
+          </small>
+        </a>
+        <span ng-if="!vm.ui.confirmingDelete['out-' + $index]">
+          <button class="btn btn-danger btn-xs"
+                  ng-click="vm.askDelete('out-' + $index)"
+                  title="Delete output #{{$index}}">
+            <i class="fas fa-trash"></i>
+          </button>
+        </span>
+        <span ng-if="vm.ui.confirmingDelete['out-' + $index]">
+          <span style="color:white; margin-right:5px;">Delete?</span>
+          <button class="btn btn-danger btn-xs"
+                  ng-click="vm.removeOutput($index)">Yes</button>
+          <button class="btn btn-default btn-xs"
+                  ng-click="vm.cancelDelete('out-' + $index)">No</button>
+        </span>
+      </div>
+
+      <div class="panel-body" ng-if="!vm.ui.outputCollapsed[$index]">
+        <form class="form-horizontal">
+
+          <!-- Value / scriptPubKey — canonical source is unsignedTx.outputs[i]. -->
+          <div class="form-group">
+            <label class="col-sm-2 control-label">Value (sat):</label>
+            <div class="col-sm-3">
+              <input type="number" class="form-control"
+                     ng-model="vm.psbt.unsignedTx.outputs[$index].value">
+            </div>
+          </div>
+          <div class="form-group">
+            <label class="col-sm-2 control-label">scriptPubKey:</label>
+            <div class="col-sm-9">
+              <input class="form-control"
+                     style="font-family:monospace; font-size:12px;"
+                     ng-class="{'well-error': vm.hexInvalid(vm.psbt.unsignedTx.outputs[$index].scriptPubKey)}"
+                     ng-model="vm.psbt.unsignedTx.outputs[$index].scriptPubKey">
+            </div>
+          </div>
+
+          <!-- Optional hex fields. Single-line by default; only fields
+               marked `multiline:true` use a textarea (none on outputs). -->
+          <div ng-repeat="field in vm.outputFields"
+               ng-if="vm.fieldPresent(out, field) && field.kind === 'hex'">
+            <div class="form-group">
+              <label class="col-sm-2 control-label">{{field.label}}:</label>
+              <div class="col-sm-9">
+                <input ng-if="!field.multiline"
+                       class="form-control"
+                       style="font-family:monospace; font-size:12px;"
+                       ng-class="{'well-error': vm.hexInvalid(out[field.name])}"
+                       ng-model="out[field.name]">
+                <textarea ng-if="field.multiline"
+                          class="form-control" rows="3"
+                          style="font-family:monospace; font-size:12px;"
+                          ng-class="{'well-error': vm.hexInvalid(out[field.name])}"
+                          ng-model="out[field.name]"></textarea>
+              </div>
+              <div class="col-sm-1">
+                <button class="btn btn-default btn-xs"
+                        ng-click="vm.removeField(out, field)" title="Remove">
+                  <i class="fas fa-times"></i>
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Array fields -->
+          <div ng-repeat="field in vm.outputFields"
+               ng-if="field.kind === 'array' && vm.fieldPresent(out, field)">
+            <div class="form-group">
+              <label class="col-sm-2 control-label">{{field.label}}:</label>
+              <div class="col-sm-9">
+                <table class="table table-condensed table-bordered">
+                  <thead>
+                    <tr>
+                      <th ng-repeat="col in field.columns">{{col.name}}</th>
+                      <th style="width:40px;"></th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr ng-repeat="row in out[field.name] track by $index">
+                      <td ng-repeat="col in field.columns">
+                        <input type="number" class="form-control input-sm"
+                               ng-if="col.kind === 'int'"
+                               ng-model="row[col.name]">
+                        <input class="form-control input-sm"
+                               ng-if="col.kind !== 'int'"
+                               style="font-family:monospace;"
+                               ng-class="{'well-error': col.kind === 'hex' && vm.hexInvalid(row[col.name])}"
+                               ng-model="row[col.name]">
+                      </td>
+                      <td>
+                        <button class="btn btn-danger btn-xs"
+                                ng-click="vm.removeArrayEntry(out[field.name], $index)">
+                          <i class="fas fa-times"></i>
+                        </button>
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
+                <button class="btn btn-default btn-xs"
+                        ng-click="vm.addArrayEntry(out[field.name], field)">
+                  <i class="fas fa-plus"></i> Add entry
+                </button>
+              </div>
+              <div class="col-sm-1">
+                <button class="btn btn-default btn-xs"
+                        ng-click="vm.removeField(out, field)" title="Clear all">
+                  <i class="fas fa-times"></i>
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <!-- + Add field dropdown -->
+          <div class="form-group" ng-if="vm.absentFields(out, vm.outputFields).length > 0">
+            <div class="col-sm-offset-2 col-sm-9">
+              <div class="dropdown">
+                <button class="btn btn-default btn-sm dropdown-toggle"
+                        data-toggle="dropdown">
+                  <i class="fas fa-plus"></i> Add field <span class="caret"></span>
+                </button>
+                <ul class="dropdown-menu">
+                  <li ng-repeat="f in vm.absentFields(out, vm.outputFields)">
+                    <a ng-click="vm.addField(out, f)">{{f.label}}</a>
+                  </li>
+                </ul>
+              </div>
+            </div>
+          </div>
+
+        </form>
+      </div>
+    </div>
+
+    <div style="margin-top:10px; margin-bottom:30px;">
+      <button class="btn btn-success btn-block" ng-click="vm.addOutput()">
+        <i class="fas fa-plus"></i> Add output
+      </button>
+    </div>
+
+  </div><!-- /vm.psbt -->
+</div>

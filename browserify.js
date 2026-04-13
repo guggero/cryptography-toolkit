@@ -46,4 +46,6 @@ module.exports = {
 
   protobuf: require('google-protobuf'),
   macaroonIdProtobuf: require('./pages/macaroon/id-protobuf'),
+
+  btcutil: require('btcutil-js'),
 };

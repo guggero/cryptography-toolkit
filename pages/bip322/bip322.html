@@ -1,0 +1,210 @@
+<h1>BIP-322: Generic Signed Message Format</h1>
+
+<div class="panel panel-default">
+  <div class="panel-heading">
+    <h4 class="panel-title">
+      <a ng-click="vm.showExplanation = !vm.showExplanation">Explanation</a>
+    </h4>
+  </div>
+  <div class="panel-collapse collapse" ng-class="{in: vm.showExplanation}">
+    <div class="panel-body">
+      <a href="https://github.com/bitcoin/bips/blob/master/bip-0322.mediawiki">BIP-322</a>
+      defines a generic signed message format for Bitcoin that supports all script types
+      (P2WPKH, P2TR, P2SH-P2WPKH, P2PKH, multisig, etc.).<br/><br/>
+
+      Unlike the legacy <code>signmessage</code> RPC which only works with P2PKH addresses,
+      BIP-322 works by constructing a virtual "to-spend" transaction and signing it, proving
+      ownership of the address.<br/><br/>
+
+      The <strong>simple</strong> format (for native segwit: P2WPKH, P2TR) encodes just the
+      witness stack. The <strong>full</strong> format (for P2SH-P2WPKH, P2PKH) encodes the
+      complete signed virtual transaction.
+
+      <h3>Sources:</h3>
+      <ul>
+        <li><a href="https://github.com/bitcoin/bips/blob/master/bip-0322.mediawiki">BIP-322 Specification</a></li>
+        <li><a href="https://github.com/guggero/btcutil-js">btcutil-js Library</a></li>
+      </ul>
+    </div>
+  </div>
+</div>
+
+<div class="alert alert-info" ng-if="vm.loading">
+  <strong>Loading...</strong> Initializing WebAssembly module...
+</div>
+
+<div ng-if="!vm.loading">
+
+  <div class="alert alert-warning">
+    <strong>Warning</strong>: Any generated keys are for demonstration only.
+    Your browser's random number generator might be too predictable to trust!
+  </div>
+
+  <!-- ================================================================= -->
+  <!-- SIGN -->
+  <!-- ================================================================= -->
+
+  <h4>BIP-322: Sign message</h4>
+  <div class="well">
+    <form class="form-horizontal">
+      <div class="form-group">
+        <label class="col-sm-4 control-label">Network:</label>
+        <div class="col-sm-8 input-group">
+          <select class="form-control"
+                  ng-model="vm.signNetwork"
+                  ng-change="vm.updateSign()"
+                  ng-options="n.label for n in vm.networks">
+          </select>
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label class="col-sm-4 control-label">Address format:</label>
+        <div class="col-sm-8 input-group">
+          <select class="form-control"
+                  ng-model="vm.signAddrType"
+                  ng-change="vm.updateSign()"
+                  ng-options="t.label for t in vm.addrTypes">
+          </select>
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label class="col-sm-4 control-label">Private key (WIF):</label>
+        <div class="col-sm-8 input-group">
+          <input class="form-control"
+                 ng-model="vm.signWif"
+                 ng-change="vm.importWif()"
+                 ng-class="{'well-error': vm.signError}"
+                 placeholder="KwDiB... or 5HuE...">
+          <span class="input-group-btn">
+            <button class="btn btn-primary" ng-click="vm.generateNewKey()">
+              Generate new
+            </button>
+          </span>
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label class="col-sm-4 control-label">Address:</label>
+        <div class="col-sm-8 input-group">
+          <input class="form-control" ng-readonly="true"
+                 value="{{vm.signAddress}}">
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label class="col-sm-4 control-label">Message:</label>
+        <div class="col-sm-8 input-group">
+          <input class="form-control"
+                 ng-model="vm.signMessage"
+                 ng-change="vm.updateSign()"
+                 placeholder="The message to sign">
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label class="col-sm-4 control-label">Signature (base64):</label>
+        <div class="col-sm-8 input-group">
+          <textarea class="form-control" rows="3"
+                    ng-readonly="true">{{vm.signSignature}}</textarea>
+        </div>
+      </div>
+
+      <div class="form-group" ng-if="vm.signDecoded">
+        <label class="col-sm-4 control-label">Decoded ({{vm.signDecoded.format}} format):</label>
+        <div class="col-sm-8">
+          <div ng-if="vm.signDecoded.format === 'simple'">
+            <textarea class="form-control" rows="6"
+                      ng-readonly="true">{{vm.signDecoded.witness | json}}</textarea>
+          </div>
+          <div ng-if="vm.signDecoded.format === 'full'">
+            <textarea class="form-control" rows="6"
+                      ng-readonly="true">{{vm.signDecoded.tx | json}}</textarea>
+          </div>
+        </div>
+      </div>
+
+      <div class="form-group" ng-if="vm.signError">
+        <div class="col-sm-8 col-sm-offset-4">
+          <span class="well-error">{{vm.signError}}</span>
+        </div>
+      </div>
+    </form>
+  </div>
+
+  <!-- ================================================================= -->
+  <!-- VERIFY -->
+  <!-- ================================================================= -->
+
+  <h4>BIP-322: Verify signature</h4>
+  <div class="well"
+       ng-class="{
+         'well-success': vm.verifyValid === true,
+         'well-error': vm.verifyValid === false
+       }">
+    <form class="form-horizontal">
+      <div class="form-group">
+        <label class="col-sm-4 control-label">Network:</label>
+        <div class="col-sm-8 input-group">
+          <select class="form-control"
+                  ng-model="vm.verifyNetwork"
+                  ng-change="vm.updateVerify()"
+                  ng-options="n.label for n in vm.networks">
+          </select>
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label class="col-sm-4 control-label">Address:</label>
+        <div class="col-sm-8 input-group">
+          <input class="form-control"
+                 ng-model="vm.verifyAddress"
+                 ng-change="vm.updateVerify()"
+                 placeholder="bc1q... or 1... or 3...">
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label class="col-sm-4 control-label">Message:</label>
+        <div class="col-sm-8 input-group">
+          <input class="form-control"
+                 ng-model="vm.verifyMessage"
+                 ng-change="vm.updateVerify()"
+                 placeholder="The message that was signed">
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label class="col-sm-4 control-label">Signature (base64):</label>
+        <div class="col-sm-8 input-group">
+          <textarea class="form-control" rows="3"
+                    ng-model="vm.verifySignature"
+                    ng-change="vm.updateVerify()"
+                    placeholder="Base64-encoded BIP-322 signature"></textarea>
+        </div>
+      </div>
+
+      <div class="form-group" ng-if="vm.verifyDecoded">
+        <label class="col-sm-4 control-label">Decoded ({{vm.verifyDecoded.format}} format):</label>
+        <div class="col-sm-8">
+          <div ng-if="vm.verifyDecoded.format === 'simple'">
+            <textarea class="form-control" rows="6"
+                      ng-readonly="true">{{vm.verifyDecoded.witness | json}}</textarea>
+          </div>
+          <div ng-if="vm.verifyDecoded.format === 'full'">
+            <textarea class="form-control" rows="6"
+                      ng-readonly="true">{{vm.verifyDecoded.tx | json}}</textarea>
+          </div>
+        </div>
+      </div>
+
+      <div class="form-group" ng-if="vm.verifyError">
+        <div class="col-sm-8 col-sm-offset-4">
+          <span class="well-error">{{vm.verifyError}}</span>
+        </div>
+      </div>
+    </form>
+  </div>
+
+</div>

@@ -41,6 +41,8 @@ function routeConfig($locationProvider, $routeProvider) {
     .when('/aezeed', {template: '<aezeed-page></aezeed-page>', containerClass: 'container'})
     .when('/macaroon', {template: '<macaroon-page></macaroon-page>', containerClass: 'container'})
     .when('/wallet-import', {template: '<wallet-import-page></wallet-import-page>', containerClass: 'container'})
+    .when('/bip322', {template: '<bip322-page></bip322-page>', containerClass: 'container'})
+    .when('/psbt-editor', {template: '<psbt-editor-page></psbt-editor-page>', containerClass: 'container'})
     .otherwise({redirectTo: '/'})
 }
 

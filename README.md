@@ -22,6 +22,9 @@ paste sensitive information into. So consider yourself warned.
 * [aezeed Cipher Seed Scheme page](https://guggero.github.io/cryptography-toolkit/#!/aezeed)
 * [Macaroons page](https://guggero.github.io/cryptography-toolkit/#!/macaroon)
 * [Wallet Import helper page](https://guggero.github.io/cryptography-toolkit/#!/wallet-import)
+* [BIP322: Generic Signed Message Format page](https://guggero.github.io/cryptography-toolkit/#!/bip322)
+* [PSBT Editor page](https://guggero.github.io/cryptography-toolkit/#!/psbt-editor)
+* [Encoding/Decoding page](https://guggero.github.io/cryptography-toolkit/#!/encoding-decoding)
 
 ## Send Thanks
 
