@@ -3344,16 +3344,19 @@ angular.module('app').run(['$templateCache', function($templateCache) {
     "\n" +
     "<h2>Tools</h2>\n" +
     "<ul>\n" +
-    "  <li><a href=\"#!/ecc\">Elliptic Curve Cryptography / Key Pair page</a></li>\n" +
-    "  <li><a href=\"#!/hd-wallet\">Hierarchical Deterministic Wallet page</a></li>\n" +
-    "  <li><a href=\"#!/bitcoin-block\">Bitcoin Block Parser page</a></li>\n" +
-    "  <li><a href=\"#!/shamir-secret-sharing\">Shamir's Secret Sharing Scheme page</a></li>\n" +
-    "  <li><a href=\"#!/schnorr\">BIP Schnorr Signatures page</a></li>\n" +
-    "  <li><a href=\"#!/mu-sig\">MuSig: Key Aggregation for Schnorr Signatures page</a></li>\n" +
-    "  <li><a href=\"#!/transaction-creator\">Transaction Creator page</a></li>\n" +
-    "  <li><a href=\"#!/aezeed\">aezeed Cipher Seed Scheme page</a></li>\n" +
-    "  <li><a href=\"#!/macaroon\">Macaroons page</a></li>\n" +
-    "  <li><a href=\"#!/wallet-import\">Wallet Import helper page</a></li>\n" +
+    "  <li><a href=\"#!/ecc\">Elliptic Curve Cryptography / Key Pair</a></li>\n" +
+    "  <li><a href=\"#!/hd-wallet\">Hierarchical Deterministic Wallet</a></li>\n" +
+    "  <li><a href=\"#!/bitcoin-block\">Bitcoin Block Parser</a></li>\n" +
+    "  <li><a href=\"#!/shamir-secret-sharing\">Shamir's Secret Sharing Scheme</a></li>\n" +
+    "  <li><a href=\"#!/schnorr\">BIP Schnorr Signatures</a></li>\n" +
+    "  <li><a href=\"#!/mu-sig\">MuSig: Key Aggregation for Schnorr Signatures</a></li>\n" +
+    "  <li><a href=\"#!/transaction-creator\">Transaction Creator</a></li>\n" +
+    "  <li><a href=\"#!/aezeed\">aezeed Cipher Seed Scheme</a></li>\n" +
+    "  <li><a href=\"#!/macaroon\">Macaroons</a></li>\n" +
+    "  <li><a href=\"#!/wallet-import\">Wallet Import helper</a></li>\n" +
+    "  <li><a href=\"#!/bip322\">BIP322: Generic Signed Message Format</a></li>\n" +
+    "  <li><a href=\"#!/psbt-editor\">PSBT Editor</a></li>\n" +
+    "  <li><a href=\"#!/encoding-decoding\">Encoding/Decoding</a></li>\n" +
     "</ul>\n" +
     "\n" +
     "<p class=\"pull-right\">\n" +

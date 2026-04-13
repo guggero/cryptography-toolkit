@@ -12,19 +12,19 @@ paste sensitive information into. So consider yourself warned.
 [Live version](https://guggero.github.io/cryptography-toolkit/)
 
 ## Tools
-* [Elliptic Curve Cryptography / Key Pair page](https://guggero.github.io/cryptography-toolkit/#!/ecc)
-* [Hierarchical Deterministic Wallet page](https://guggero.github.io/cryptography-toolkit/#!/hd-wallet)
-* [Bitcoin Block Parser page](https://guggero.github.io/cryptography-toolkit/#!/bitcoin-block)
-* [Shamir's Secret Sharing Scheme page](https://guggero.github.io/cryptography-toolkit/#!/shamir-secret-sharing)
-* [BIP Schnorr Signatures page](https://guggero.github.io/cryptography-toolkit/#!/schnorr)
-* [MuSig: Key Aggregation for Schnorr Signatures page](https://guggero.github.io/cryptography-toolkit/#!/mu-sig)
-* [Transaction Creator page](https://guggero.github.io/cryptography-toolkit/#!/transaction-creator)
-* [aezeed Cipher Seed Scheme page](https://guggero.github.io/cryptography-toolkit/#!/aezeed)
-* [Macaroons page](https://guggero.github.io/cryptography-toolkit/#!/macaroon)
-* [Wallet Import helper page](https://guggero.github.io/cryptography-toolkit/#!/wallet-import)
-* [BIP322: Generic Signed Message Format page](https://guggero.github.io/cryptography-toolkit/#!/bip322)
-* [PSBT Editor page](https://guggero.github.io/cryptography-toolkit/#!/psbt-editor)
-* [Encoding/Decoding page](https://guggero.github.io/cryptography-toolkit/#!/encoding-decoding)
+* [Elliptic Curve Cryptography / Key Pair](https://guggero.github.io/cryptography-toolkit/#!/ecc)
+* [Hierarchical Deterministic Wallet](https://guggero.github.io/cryptography-toolkit/#!/hd-wallet)
+* [Bitcoin Block Parser](https://guggero.github.io/cryptography-toolkit/#!/bitcoin-block)
+* [Shamir's Secret Sharing Scheme](https://guggero.github.io/cryptography-toolkit/#!/shamir-secret-sharing)
+* [BIP Schnorr Signatures](https://guggero.github.io/cryptography-toolkit/#!/schnorr)
+* [MuSig: Key Aggregation for Schnorr Signatures](https://guggero.github.io/cryptography-toolkit/#!/mu-sig)
+* [Transaction Creator](https://guggero.github.io/cryptography-toolkit/#!/transaction-creator)
+* [aezeed Cipher Seed Scheme](https://guggero.github.io/cryptography-toolkit/#!/aezeed)
+* [Macaroons](https://guggero.github.io/cryptography-toolkit/#!/macaroon)
+* [Wallet Import helper](https://guggero.github.io/cryptography-toolkit/#!/wallet-import)
+* [BIP322: Generic Signed Message Format](https://guggero.github.io/cryptography-toolkit/#!/bip322)
+* [PSBT Editor](https://guggero.github.io/cryptography-toolkit/#!/psbt-editor)
+* [Encoding/Decoding](https://guggero.github.io/cryptography-toolkit/#!/encoding-decoding)
 
 ## Send Thanks
 
