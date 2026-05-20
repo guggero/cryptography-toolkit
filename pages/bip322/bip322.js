@@ -104,15 +104,21 @@ function Bip322PageController($scope) {
   }
 
   // Try to decode a BIP-322 signature into human-readable form.
+  // The base64 signature carries a 3-character format tag ("smp" for simple,
+  // "ful" for full) before the base64-encoded payload.
   // Returns {format, witness?, tx?} or null on failure.
   function decodeSignature(lib, b64sig) {
-    if (!b64sig) return null;
+    if (!b64sig || b64sig.length < 4) return null;
+    var tag = b64sig.slice(0, 3);
+    var inner;
     try {
-      var raw = base64Decode(b64sig);
-
-      // Try simple format first: parse as witness stack.
+      inner = base64Decode(b64sig.slice(3));
+    } catch (_) {
+      return null;
+    }
+    if (tag === 'smp') {
       try {
-        var witness = lib.bip322.parseTxWitness(raw);
+        var witness = lib.bip322.parseTxWitness(inner);
         if (witness && witness.length > 0) {
           return {
             format: 'simple',
@@ -120,19 +126,15 @@ function Bip322PageController($scope) {
           };
         }
       } catch (_) {}
-
-      // Try full format: parse as a full transaction.
+    } else if (tag === 'ful') {
       try {
-        var decoded = lib.tx.decode(raw);
+        var decoded = lib.tx.decode(inner);
         if (decoded && decoded.txid) {
           return {format: 'full', tx: normalize(decoded)};
         }
       } catch (_) {}
-
-      return null;
-    } catch (_) {
-      return null;
     }
+    return null;
   }
 
   // --- key generation ---
@@ -180,9 +182,22 @@ function Bip322PageController($scope) {
 
       // Sign — simple format for native segwit (P2WPKH/P2TR), full format
       // for non-segwit and nested segwit (P2PKH/P2SH-P2WPKH).
-      vm.signSignature = (addrType === 'p2wpkh' || addrType === 'p2tr')
-        ? signSimple(ctx)
-        : signFull(ctx);
+      switch (addrType) {
+        case "p2wpkh":
+          vm.signSignature = lib.bip322.signP2WPKH(ctx.message, ctx.privKey);
+          break;
+        case "p2tr":
+          vm.signSignature = lib.bip322.signP2TR(ctx.message, ctx.privKey);
+          break;
+        case "p2sh-p2wpkh":
+          vm.signSignature = lib.bip322.signNestedP2WPKH(ctx.message, ctx.privKey);
+          break;
+        case "p2pkh":
+          vm.signSignature = lib.bip322.signP2PKH(ctx.message, ctx.privKey);
+          break;
+        default:
+          throw Error("Invalid address type!");
+      }
 
       // Decode the produced signature.
       vm.signDecoded = decodeSignature(lib, vm.signSignature);
@@ -217,7 +232,7 @@ function Bip322PageController($scope) {
         vm.verifySignature,
         vm.verifyNetwork.value
       );
-      vm.verifyValid = result.valid;
+      vm.verifyValid = result.valid === true;
       if (result.error) {
         vm.verifyError = result.error;
       }
@@ -282,75 +297,5 @@ function Bip322PageController($scope) {
       default:
         throw new Error('Unsupported addrType: ' + ctx.addrType);
     }
-  }
-
-  // --- BIP-322 simple format signing (P2WPKH, P2TR) ---
-  function signSimple(ctx) {
-    var lib = ctx.lib;
-    var psbtB64 = lib.bip322.buildToSignPacketSimple(
-      ctx.message, ctx.pkScript
-    );
-    // The PSBT already carries the unsigned to-sign tx — encode it back to
-    // raw bytes and feed those to the txscript sighash helpers.
-    var psbt = lib.psbt.decode(psbtB64);
-    var rawTx = lib.tx.encode(psbt.unsignedTx);
-
-    var witness;
-    if (ctx.addrType === 'p2wpkh') {
-      // witnessSignature returns the full BIP-143 P2WPKH witness stack
-      // (signature + compressed pubkey) in one call.
-      witness = lib.txscript.witnessSignature(
-        rawTx, 0, 0, p2pkhScript(lib, ctx.network, ctx.pkHash),
-        1, ctx.privKey, true
-      );
-    } else { // p2tr
-      // rawTxInTaprootSignature applies the BIP-341 key tweak internally
-      // (txscript.RawTxInTaprootSignature → TweakTaprootPrivKey), so we
-      // pass the *raw* private key, not a pre-tweaked one. Pre-tweaking
-      // would tweak the key twice and produce an invalid signature.
-      var sig = lib.txscript.rawTxInTaprootSignature(
-        rawTx, 0, '', 0, ctx.privKey,
-        [{script: ctx.pkScript, amount: 0}]
-      );
-      witness = [sig];
-    }
-
-    return base64Encode(lib.bip322.serializeTxWitness(witness));
-  }
-
-  // --- BIP-322 full format signing (P2SH-P2WPKH, P2PKH) ---
-  function signFull(ctx) {
-    var lib = ctx.lib;
-    var psbtB64 = lib.bip322.buildToSignPacketFull(
-      ctx.message, ctx.pkScript, 2, 0, 0
-    );
-    var unsignedTx = lib.psbt.decode(psbtB64).unsignedTx;
-    var rawTx = lib.tx.encode(unsignedTx);
-
-    if (ctx.addrType === 'p2sh-p2wpkh') {
-      // P2SH-P2WPKH: witness is a P2WPKH witness stack; scriptSig is a
-      // single push of the inner P2WPKH script (the redeem script).
-      var redeemScript = p2wpkhScript(lib, ctx.network, ctx.pkHash);
-      var witness = lib.txscript.witnessSignature(
-        rawTx, 0, 0, p2pkhScript(lib, ctx.network, ctx.pkHash),
-        1, ctx.privKey, true
-      );
-      unsignedTx.inputs[0].scriptSig = pushData(redeemScript);
-      unsignedTx.inputs[0].witness = witness;
-      return base64Encode(lib.tx.encode(unsignedTx));
-    }
-
-    if (ctx.addrType === 'p2pkh') {
-      // P2PKH: scriptSig = push(sig) || push(pubKey); no witness.
-      var sigBytes = lib.txscript.rawTxInSignature(
-        rawTx, 0, ctx.pkScript, 1, ctx.privKey
-      );
-      unsignedTx.inputs[0].scriptSig = concatBytes(
-        pushData(sigBytes), pushData(ctx.pubKey)
-      );
-      return base64Encode(lib.tx.encode(unsignedTx));
-    }
-
-    throw new Error('Unsupported full-format type: ' + ctx.addrType);
   }
 }
