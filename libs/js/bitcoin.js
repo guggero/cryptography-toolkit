@@ -58387,10 +58387,12 @@ var bip322 = {
    *  @param address   - The Bitcoin address to verify against.
    *  @param signature - The base64-encoded BIP-322 signature.
    *  @param network   - Bitcoin network (default: "mainnet").
-   *  @returns An object with `valid` (boolean) and optionally `error` (string). */
+   *  @returns An object with `valid` (boolean) and optionally
+   *          `timeConstraints`.
+   *  @throws An Error if the signature is invalid. */
   async verifyMessage(message, address2, signature, network = "mainnet") {
     await init();
-    return unwrap(
+    const json = unwrap(
       g().bip322.verifyMessage(
         message,
         address2,
@@ -58398,6 +58400,11 @@ var bip322 = {
         network
       )
     );
+    const result = JSON.parse(json);
+    return {
+      valid: result.valid || false,
+      timeConstraints: result.timeConstraints
+    };
   },
   /** Build the BIP-322 "to_sign" PSBT for the simple format.
    *  Calls Go: bip322.BuildToSignPacketSimple() from btcutil/bip322.
