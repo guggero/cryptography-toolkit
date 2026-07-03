@@ -88,11 +88,12 @@ var INPUT_FIELDS = [
   {name: 'redeemScript', label: 'Redeem script', kind: 'hex'},
   {name: 'witnessScript', label: 'Witness script', kind: 'hex'},
   {name: 'witnessUtxo', label: 'Witness UTXO', kind: 'witnessUtxo'},
-  // Non-witness UTXO is a full serialised previous transaction — can be
-  // hundreds of bytes — so it gets the multi-line treatment.
+  // Non-witness UTXO is a full serialised previous transaction. It's parsed
+  // into structured tx JSON for both the decoded view and the editor (see
+  // the 'tx' cases below), then re-serialised to raw bytes on every edit.
   {
-    name: 'nonWitnessUtxo', label: 'Non-witness UTXO (raw tx hex)',
-    kind: 'hex', multiline: true
+    name: 'nonWitnessUtxo', label: 'Non-witness UTXO (previous tx)',
+    kind: 'tx',
   },
   {name: 'finalScriptSig', label: 'Final scriptSig', kind: 'hex'},
   // Final script witness is the wire-encoded witness stack — also long.
@@ -188,7 +189,15 @@ var OUTPUT_FIELDS = [
   },
 ];
 
-var GLOBAL_ARRAYS = [
+var GLOBAL_FIELDS = [
+  // BIP-322 generic signed message (global key type 0x09). It's a plain
+  // string, not a byte field. An empty string is a valid message, so its
+  // presence (not its content) is what distinguishes it from absent (nil) —
+  // see the 'message' cases in fieldPresent/addField/removeField below.
+  {
+    name: 'genericSignedMessage',
+    label: 'Generic signed message (BIP-322)', kind: 'message',
+  },
   {
     name: 'xpubs', label: 'Global XPubs', kind: 'array',
     columns: [{name: 'extendedKey', kind: 'string'},
@@ -212,10 +221,17 @@ function fieldPresent(entry, field) {
   if (entry && entry._shown && entry._shown[field.name]) return true;
   switch (field.kind) {
     case 'hex':
+    // 'tx' is stored in the model as the same raw hex as 'hex' — it just
+    // gets a JSON view/editor on top — so presence is detected the same way.
+    case 'tx':
       return !!(entry[field.name] && entry[field.name].length > 0);
     case 'int':
     case 'sighash':
       return entry[field.name] != null && entry[field.name] !== 0;
+    case 'message':
+      // An empty string is a valid message, so presence is "not nil"
+      // (!= null), not "has content". Removing the field deletes it.
+      return entry[field.name] != null;
     case 'witnessUtxo':
       return !!entry.witnessUtxo;
     case 'array':
@@ -239,8 +255,10 @@ function PsbtEditorController($scope) {
   vm.decodeError = null;
   vm.encodeError = null;
   // Derived fields kept outside vm.psbt so updating them doesn't re-trigger
-  // the deep watcher.
-  vm.derived = {fee: -1, isComplete: false, txid: '', wtxid: ''};
+  // the deep watcher. The "Extracted TX" field is shown whenever
+  // `isComplete` is true; `extractedTx` then holds either the final tx hex
+  // or, if extraction fails, an "extraction failed: …" message.
+  vm.derived = {fee: -1, isComplete: false, txid: '', wtxid: '', extractedTx: ''};
 
   // UI-only state — never sent to encode.
   vm.ui = {
@@ -251,7 +269,7 @@ function PsbtEditorController($scope) {
 
   vm.inputFields = INPUT_FIELDS;
   vm.outputFields = OUTPUT_FIELDS;
-  vm.globalArrays = GLOBAL_ARRAYS;
+  vm.globalFields = GLOBAL_FIELDS;
   vm.sighashValues = SIGHASH_VALUES;
 
   vm.SAMPLE = SAMPLE_PSBT_BASE64;
@@ -291,12 +309,22 @@ function PsbtEditorController($scope) {
     if (!vm.lib) return;
     vm.decodeError = null;
     vm.encodeError = null;
-    if (!vm.base64 || vm.base64.trim() === '') {
+    var input = vm.base64 ? vm.base64.trim() : '';
+    if (input === '') {
       vm._setPsbt(vm._emptyPsbt());
       return;
     }
     try {
-      var raw = vm.lib.psbt.decode(vm.base64.trim());
+      // Undocumented convenience: also accept hex-encoded PSBTs. A hex PSBT
+      // is pure hex, whereas a base64 PSBT always carries non-hex characters
+      // (it begins with "cHNidP8…"), so valid hex unambiguously means the
+      // user pasted raw bytes. We rewrite the text field with the canonical
+      // base64 so everything downstream stays base64-only.
+      if (hexValid(input)) {
+        vm.base64 = vm.lib.psbt.toBase64(input);
+        input = vm.base64;
+      }
+      var raw = vm.lib.psbt.decode(input);
       vm._setPsbt(normalize(raw));
     } catch (e) {
       vm.decodeError = e.message || String(e);
@@ -317,11 +345,26 @@ function PsbtEditorController($scope) {
       // Re-decode so the JSON view + derived fields reflect what the
       // PSBT actually means now (fresh fee, txid, isComplete, …).
       var fresh = vm.lib.psbt.decode(vm.base64);
-      vm.json = JSON.stringify(normalize(fresh), null, 2);
+      var display = normalize(fresh);
+      vm._expandNonWitnessUtxo(display);
+      vm.json = JSON.stringify(display, null, 2);
       vm.derived.fee = fresh.fee;
       vm.derived.isComplete = fresh.isComplete;
       vm.derived.txid = fresh.unsignedTx.txid;
       vm.derived.wtxid = fresh.unsignedTx.wtxid;
+
+      // Once the PSBT is complete, pull out the final network tx. The field
+      // is shown purely on `isComplete`, so extraction runs in its own
+      // try/catch: a failure is reported inside the field and never aborts
+      // the rest of the rebuild (JSON, fee, txid, … stay intact).
+      vm.derived.extractedTx = '';
+      if (fresh.isComplete) {
+        try {
+          vm.derived.extractedTx = bytesToHex(vm.lib.psbt.extract(vm.base64));
+        } catch (e) {
+          vm.derived.extractedTx = 'extraction failed: ' + (e.message || e);
+        }
+      }
     } catch (e) {
       vm.encodeError = e.message || String(e);
       // Fall back so the user can still see the JSON of what they were
@@ -333,12 +376,65 @@ function PsbtEditorController($scope) {
   // Hide UI-only fields from the JSON fallback view.
   function jsonReplacer(key, value) {
     if (key === '_shown') return undefined;
+    if (key === '_nonWitnessUtxoJson') return undefined;
+    if (key === '_nonWitnessUtxoError') return undefined;
     return value;
   }
+
+  // For the read-only decoded view: replace each input's raw nonWitnessUtxo
+  // hex with the parsed transaction, so it reads as structured JSON just like
+  // unsignedTx. Operates on a normalized display copy — never the model. A
+  // tx that won't decode is left as-is rather than breaking the whole view.
+  vm._expandNonWitnessUtxo = function (display) {
+    if (!display || !Array.isArray(display.inputs)) return;
+    display.inputs.forEach(function (inp) {
+      if (!inp || !inp.nonWitnessUtxo) return;
+      try {
+        inp.nonWitnessUtxo = normalize(vm.lib.tx.decode(inp.nonWitnessUtxo));
+      } catch (_) {
+      }
+    });
+  };
+
+  // Populate the per-input JSON editor mirror (`_nonWitnessUtxoJson`) from the
+  // model's raw hex. Called whenever a fresh model is loaded. The mirror is
+  // what the textarea binds to; the raw hex stays the source of truth for
+  // encoding (see vm.nonWitnessUtxoChanged).
+  vm._syncNonWitnessUtxoText = function (model) {
+    if (!model || !Array.isArray(model.inputs)) return;
+    model.inputs.forEach(function (inp) {
+      if (!inp || !inp.nonWitnessUtxo) return;
+      try {
+        inp._nonWitnessUtxoJson = JSON.stringify(
+          normalize(vm.lib.tx.decode(inp.nonWitnessUtxo)), null, 2);
+        inp._nonWitnessUtxoError = null;
+      } catch (e) {
+        // Fall back to the raw hex so the value is still editable, and flag
+        // why it wouldn't parse as a transaction.
+        inp._nonWitnessUtxoJson = inp.nonWitnessUtxo;
+        inp._nonWitnessUtxoError = e.message || String(e);
+      }
+    });
+  };
+
+  // Editor → model: parse the JSON the user typed back into raw tx bytes and
+  // store the hex on the model (the encode source of truth). On failure we
+  // keep the last valid hex — so the base64/JSON views hold steady — and just
+  // surface the error next to the field.
+  vm.nonWitnessUtxoChanged = function (inp) {
+    try {
+      inp.nonWitnessUtxo = bytesToHex(
+        vm.lib.tx.encode(JSON.parse(inp._nonWitnessUtxoJson)));
+      inp._nonWitnessUtxoError = null;
+    } catch (e) {
+      inp._nonWitnessUtxoError = e.message || String(e);
+    }
+  };
 
   // Replace vm.psbt without triggering an immediate re-encode.
   vm._setPsbt = function (model) {
     vm._suspendRebuild = true;
+    vm._syncNonWitnessUtxoText(model);
     vm.psbt = model;
     $scope.$applyAsync(function () {
       vm._suspendRebuild = false;
@@ -451,6 +547,20 @@ function PsbtEditorController($scope) {
       case 'sighash':
         entry[field.name] = field.factory ? field.factory() : 0;
         break;
+      case 'message':
+        // Default to an empty (but present, != nil) message.
+        if (entry[field.name] == null) entry[field.name] = '';
+        break;
+      case 'tx':
+        // Seed with a minimal empty transaction the user can fill in; keep
+        // the raw hex and JSON mirror in sync from the start.
+        if (!entry[field.name]) {
+          var emptyTx = {version: 2, locktime: 0, inputs: [], outputs: []};
+          entry[field.name] = bytesToHex(vm.lib.tx.encode(emptyTx));
+          entry._nonWitnessUtxoJson = JSON.stringify(emptyTx, null, 2);
+          entry._nonWitnessUtxoError = null;
+        }
+        break;
       case 'witnessUtxo':
         if (entry.witnessUtxo == null) {
           entry.witnessUtxo = {value: 0, script: ''};
@@ -469,7 +579,13 @@ function PsbtEditorController($scope) {
       case 'hex':
       case 'int':
       case 'sighash':
+      case 'message':
         delete entry[field.name];
+        break;
+      case 'tx':
+        delete entry[field.name];
+        delete entry._nonWitnessUtxoJson;
+        delete entry._nonWitnessUtxoError;
         break;
       case 'witnessUtxo':
         delete entry.witnessUtxo;

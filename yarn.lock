@@ -1174,10 +1174,10 @@ bs58check@^3.0.1:
     "@noble/hashes" "^1.2.0"
     bs58 "^5.0.0"
 
-btcutil-js@^0.2.6:
-  version "0.2.6"
-  resolved "https://registry.npmjs.org/btcutil-js/-/btcutil-js-0.2.6.tgz"
-  integrity sha512-4lZWRU47SDrckyaHCtvoK+/hwCn+E16FBZ3NjZUWNWfurzqPPzA4pyaCrgEW4fTtDR1921lVW7JFIpyMrK5FQw==
+btcutil-js@^0.2.8:
+  version "0.2.8"
+  resolved "https://registry.npmjs.org/btcutil-js/-/btcutil-js-0.2.8.tgz"
+  integrity sha512-i22+ovbc04PSZ3TZHA4eAjEZElJAFqUORybQ+JYxo10EfG5F8MLYvK/8RioljOBXrhTwv+PF9cR3xxQi6IMHDQ==
 
 buffer-from@^1.0.0:
   version "1.1.1"

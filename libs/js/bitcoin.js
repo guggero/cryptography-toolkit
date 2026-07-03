@@ -57664,12 +57664,17 @@ if (_prevGo === void 0) {
 var Go = _Go;
 
 // src/codec.ts
+var HexBytes = class extends Uint8Array {
+  toJSON() {
+    return bytesToHex(this);
+  }
+};
 function hexToBytes(hex) {
-  if (hex.length === 0) return new Uint8Array(0);
+  if (hex.length === 0) return new HexBytes(0);
   if (hex.length % 2 !== 0) {
     throw new Error(`hexToBytes: odd-length hex string`);
   }
-  const out = new Uint8Array(hex.length >> 1);
+  const out = new HexBytes(hex.length >> 1);
   for (let i = 0; i < out.length; i++) {
     const hi = parseInt(hex.charAt(i * 2), 16);
     const lo = parseInt(hex.charAt(i * 2 + 1), 16);
@@ -57694,7 +57699,7 @@ function toHexAny(b) {
   return bytesToHex(b);
 }
 function fromHexOrEmpty(s) {
-  if (!s) return new Uint8Array(0);
+  if (!s) return new HexBytes(0);
   return hexToBytes(s);
 }
 function txFromJson(j) {
@@ -57753,6 +57758,7 @@ function psbtFromJson(j) {
   return {
     unsignedTx: txFromJson(j.unsignedTx),
     xpubs: (j.xpubs ?? []).map(xpubFromJson),
+    genericSignedMessage: j.genericSignedMessage ?? void 0,
     unknowns: (j.unknowns ?? []).map(unknownFromJson),
     inputs: (j.inputs ?? []).map(psbtInputFromJson),
     outputs: (j.outputs ?? []).map(psbtOutputFromJson),
@@ -57767,6 +57773,9 @@ function psbtToJson(p) {
     outputs: p.outputs.map(psbtOutputToJson)
   };
   if (p.xpubs && p.xpubs.length > 0) out.xpubs = p.xpubs.map(xpubToJson);
+  if (p.genericSignedMessage != null) {
+    out.genericSignedMessage = p.genericSignedMessage;
+  }
   if (p.unknowns && p.unknowns.length > 0) {
     out.unknowns = p.unknowns.map(unknownToJson);
   }

@@ -71,6 +71,17 @@
               style="font-family: monospace; font-size: 12px;">{{vm.json}}</textarea>
   </div>
 
+  <!-- Appears automatically once the PSBT is complete. Holds the extracted
+       final tx hex, or an "extraction failed: …" message if extraction of a
+       complete PSBT fails. -->
+  <div ng-if="vm.derived.isComplete">
+    <h4>Extracted TX (hex)</h4>
+    <div class="well">
+      <textarea class="form-control" rows="6" readonly
+                style="font-family: monospace; font-size: 12px;">{{vm.derived.extractedTx}}</textarea>
+    </div>
+  </div>
+
   <!-- ================================================================= -->
   <!-- ③ editor                                                          -->
   <!-- ================================================================= -->
@@ -103,9 +114,32 @@
           </div>
         </form>
 
+        <!-- Global generic signed message (BIP-322, global key type 0x09).
+             An empty string is a valid message that is distinct from the
+             field being absent (nil), so the ✕ button removes it entirely
+             rather than just clearing the text. -->
+        <form class="form-horizontal"
+              ng-repeat="field in vm.globalFields"
+              ng-if="field.kind === 'message' && vm.fieldPresent(vm.psbt, field)">
+          <div class="form-group" style="margin-top:15px;">
+            <label class="col-sm-2 control-label">{{field.label}}:</label>
+            <div class="col-sm-9">
+              <textarea class="form-control" rows="2"
+                        ng-model="vm.psbt[field.name]"
+                        placeholder="(empty message is valid — ✕ removes the field)"></textarea>
+            </div>
+            <div class="col-sm-1">
+              <button class="btn btn-default btn-xs"
+                      ng-click="vm.removeField(vm.psbt, field)" title="Remove field">
+                <i class="fas fa-times"></i>
+              </button>
+            </div>
+          </div>
+        </form>
+
         <!-- Global arrays: xpubs + unknowns -->
-        <div ng-repeat="field in vm.globalArrays">
-          <div ng-if="vm.fieldPresent(vm.psbt, field)" style="margin-top:15px;">
+        <div ng-repeat="field in vm.globalFields">
+          <div ng-if="field.kind === 'array' && vm.fieldPresent(vm.psbt, field)" style="margin-top:15px;">
             <strong>{{field.label}}</strong>
             <table class="table table-condensed table-bordered" style="margin-top:5px;">
               <thead>
@@ -143,13 +177,13 @@
         </div>
 
         <div class="dropdown" style="margin-top:15px;"
-             ng-if="vm.absentFields(vm.psbt, vm.globalArrays).length > 0">
+             ng-if="vm.absentFields(vm.psbt, vm.globalFields).length > 0">
           <button class="btn btn-default btn-sm dropdown-toggle"
                   data-toggle="dropdown">
             <i class="fas fa-plus"></i> Add global field <span class="caret"></span>
           </button>
           <ul class="dropdown-menu">
-            <li ng-repeat="f in vm.absentFields(vm.psbt, vm.globalArrays)">
+            <li ng-repeat="f in vm.absentFields(vm.psbt, vm.globalFields)">
               <a ng-click="vm.addField(vm.psbt, f)">{{f.label}}</a>
             </li>
           </ul>
@@ -220,8 +254,8 @@
           </div>
 
           <!-- Optional hex fields. Single-line <input> by default; only
-               fields explicitly marked `multiline:true` (nonWitnessUtxo,
-               finalScriptWitness) get a textarea. -->
+               fields explicitly marked `multiline:true` (finalScriptWitness)
+               get a textarea. -->
           <div ng-repeat="field in vm.inputFields"
                ng-if="vm.fieldPresent(inp, field) && field.kind === 'hex'">
             <div class="form-group">
@@ -237,6 +271,35 @@
                           style="font-family:monospace; font-size:12px;"
                           ng-class="{'well-error': vm.hexInvalid(inp[field.name])}"
                           ng-model="inp[field.name]"></textarea>
+              </div>
+              <div class="col-sm-1">
+                <button class="btn btn-default btn-xs"
+                        ng-click="vm.removeField(inp, field)" title="Remove">
+                  <i class="fas fa-times"></i>
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Non-witness UTXO — a full previous transaction, shown and
+               edited as JSON. Edits are parsed straight back into raw bytes
+               (vm.nonWitnessUtxoChanged); a parse error is shown below the
+               field and leaves the last valid value in place. -->
+          <div ng-repeat="field in vm.inputFields"
+               ng-if="vm.fieldPresent(inp, field) && field.kind === 'tx'">
+            <div class="form-group">
+              <label class="col-sm-2 control-label">{{field.label}}:</label>
+              <div class="col-sm-9">
+                <textarea class="form-control" rows="14"
+                          style="font-family:monospace; font-size:12px;"
+                          ng-class="{'well-error': inp._nonWitnessUtxoError}"
+                          ng-model="inp._nonWitnessUtxoJson"
+                          ng-change="vm.nonWitnessUtxoChanged(inp)"></textarea>
+                <p class="text-danger" ng-if="inp._nonWitnessUtxoError"
+                   style="margin-top:5px;">
+                  <i class="fas fa-exclamation-triangle"></i>
+                  Invalid transaction JSON: {{inp._nonWitnessUtxoError}}
+                </p>
               </div>
               <div class="col-sm-1">
                 <button class="btn btn-default btn-xs"
