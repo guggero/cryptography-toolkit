@@ -38,6 +38,9 @@ angular.module('app').run(['$templateCache', function($templateCache) {
     "            <li ng-class=\"{active: $root.isActive('/psbt-editor')}\">\n" +
     "              <a href=\"#!/psbt-editor\">PSBT Editor</a>\n" +
     "            </li>\n" +
+    "            <li ng-class=\"{active: $root.isActive('/descriptors')}\">\n" +
+    "              <a href=\"#!/descriptors\">Output Descriptors</a>\n" +
+    "            </li>\n" +
     "            <li ng-class=\"{active: $root.isActive('/wallet-import')}\">\n" +
     "              <a href=\"#!/wallet-import\">Wallet Import helper</a>\n" +
     "            </li>\n" +
@@ -163,6 +166,7 @@ angular.module('app').run(['$templateCache', function($templateCache) {
     "  <script src=\"pages/wallet-import/wallet-import.js\"></script>\n" +
     "  <script src=\"pages/bip322/bip322.js\"></script>\n" +
     "  <script src=\"pages/psbt-editor/psbt-editor.js\"></script>\n" +
+    "  <script src=\"pages/descriptors/descriptors.js\"></script>\n" +
     "\n" +
     "  <title>Cryptography Toolkit</title>\n" +
     "</head>\n" +
@@ -2514,6 +2518,193 @@ angular.module('app').run(['$templateCache', function($templateCache) {
   );
 
 
+  $templateCache.put('pages/descriptors/descriptors.html',
+    "<h1>Output Descriptors</h1>\n" +
+    "\n" +
+    "<div class=\"panel panel-default\">\n" +
+    "  <div class=\"panel-heading\">\n" +
+    "    <h4 class=\"panel-title\">\n" +
+    "      <a ng-click=\"vm.showExplanation = !vm.showExplanation\">Explanation</a>\n" +
+    "    </h4>\n" +
+    "  </div>\n" +
+    "  <div class=\"panel-collapse collapse\" ng-class=\"{in: vm.showExplanation}\">\n" +
+    "    <div class=\"panel-body\">\n" +
+    "      Paste a\n" +
+    "      <a href=\"https://github.com/bitcoin/bips/blob/master/bip-0380.mediawiki\">BIP-380</a>\n" +
+    "      output descriptor to inspect it and derive addresses. The descriptor is\n" +
+    "      parsed on every keystroke through <code>btcutil-js</code>'s WASM\n" +
+    "      <code>descriptors</code> module, so the checksum, stats and derived\n" +
+    "      addresses always reflect what you typed.<br/><br/>\n" +
+    "\n" +
+    "      Any existing <code>#checksum</code> suffix is stripped and recomputed, so\n" +
+    "      you can paste a descriptor with a missing or outdated checksum and read\n" +
+    "      the correct canonical form back out.\n" +
+    "\n" +
+    "      <h3>Sources:</h3>\n" +
+    "      <ul>\n" +
+    "        <li><a href=\"https://github.com/bitcoin/bips/blob/master/bip-0380.mediawiki\">BIP-380 specification</a></li>\n" +
+    "        <li><a href=\"https://github.com/guggero/btcutil-js\">btcutil-js library</a></li>\n" +
+    "      </ul>\n" +
+    "    </div>\n" +
+    "  </div>\n" +
+    "</div>\n" +
+    "\n" +
+    "<div class=\"alert alert-info\" ng-if=\"vm.loading\">\n" +
+    "  <strong>Loading...</strong> Initializing WebAssembly module...\n" +
+    "</div>\n" +
+    "\n" +
+    "<div ng-if=\"!vm.loading\">\n" +
+    "\n" +
+    "  <!-- ================================================================= -->\n" +
+    "  <!-- ① descriptor input                                                -->\n" +
+    "  <!-- ================================================================= -->\n" +
+    "\n" +
+    "  <h4>Descriptor</h4>\n" +
+    "  <div class=\"well\">\n" +
+    "    <textarea class=\"form-control\" rows=\"4\" style=\"font-family: monospace;\"\n" +
+    "              ng-model=\"vm.input\"\n" +
+    "              ng-change=\"vm.update()\"\n" +
+    "              ng-class=\"{'well-error': vm.error}\"\n" +
+    "              placeholder=\"wpkh([fingerprint/84h/0h/0h]xpub.../<0;1>/*) — paste an output descriptor here\"></textarea>\n" +
+    "\n" +
+    "    <div class=\"alert alert-danger\" ng-if=\"vm.error\" style=\"margin-top:10px;\">\n" +
+    "      <strong>Parse error:</strong> {{vm.error}}\n" +
+    "    </div>\n" +
+    "\n" +
+    "    <div style=\"margin-top:10px;\">\n" +
+    "      <button class=\"btn btn-default btn-sm\" ng-click=\"vm.loadSample()\">\n" +
+    "        <i class=\"fas fa-file\"></i> Sample\n" +
+    "      </button>\n" +
+    "      <button class=\"btn btn-default btn-sm\" ng-click=\"vm.copyCanonical()\"\n" +
+    "              ng-disabled=\"!vm.canonical\">\n" +
+    "        <i class=\"fas fa-copy\"></i> Copy canonical\n" +
+    "      </button>\n" +
+    "    </div>\n" +
+    "\n" +
+    "    <div class=\"form-group\" ng-if=\"vm.canonical\" style=\"margin-top:15px; margin-bottom:0;\">\n" +
+    "      <label>Canonical (with checksum):</label>\n" +
+    "      <textarea class=\"form-control\" rows=\"4\" readonly\n" +
+    "                style=\"font-family: monospace; font-size: 12px;\">{{vm.canonical}}</textarea>\n" +
+    "    </div>\n" +
+    "  </div>\n" +
+    "\n" +
+    "  <!-- ================================================================= -->\n" +
+    "  <!-- ② static stats                                                    -->\n" +
+    "  <!-- ================================================================= -->\n" +
+    "\n" +
+    "  <div ng-if=\"vm.stats\">\n" +
+    "    <h4>Stats</h4>\n" +
+    "    <div class=\"well\">\n" +
+    "      <table class=\"table table-condensed\">\n" +
+    "        <tbody>\n" +
+    "          <tr>\n" +
+    "            <th style=\"width:200px;\">Output type</th>\n" +
+    "            <td>{{vm.stats.descType}}</td>\n" +
+    "          </tr>\n" +
+    "          <tr>\n" +
+    "            <th>Checksum</th>\n" +
+    "            <td style=\"font-family:monospace;\">{{vm.checksum || '—'}}</td>\n" +
+    "          </tr>\n" +
+    "          <tr>\n" +
+    "            <th>Ranged (wildcard)</th>\n" +
+    "            <td>{{vm.stats.ranged ? 'yes' : 'no'}}</td>\n" +
+    "          </tr>\n" +
+    "          <tr>\n" +
+    "            <th>Multipath length</th>\n" +
+    "            <td>{{vm.stats.multipathLen}}</td>\n" +
+    "          </tr>\n" +
+    "          <tr>\n" +
+    "            <th>Max weight to satisfy</th>\n" +
+    "            <td>\n" +
+    "              <span ng-if=\"vm.stats.maxWeight !== null\">{{vm.stats.maxWeight}} WU</span>\n" +
+    "              <span ng-if=\"vm.stats.maxWeight === null\">n/a (unsatisfiable)</span>\n" +
+    "            </td>\n" +
+    "          </tr>\n" +
+    "          <tr>\n" +
+    "            <th>Keys ({{vm.stats.keys.length}})</th>\n" +
+    "            <td>\n" +
+    "              <div ng-repeat=\"key in vm.stats.keys\"\n" +
+    "                   style=\"font-family:monospace; font-size:12px; word-break:break-all;\">\n" +
+    "                {{key}}\n" +
+    "              </div>\n" +
+    "            </td>\n" +
+    "          </tr>\n" +
+    "        </tbody>\n" +
+    "      </table>\n" +
+    "    </div>\n" +
+    "  </div>\n" +
+    "\n" +
+    "  <!-- ================================================================= -->\n" +
+    "  <!-- ③ derive addresses                                                -->\n" +
+    "  <!-- ================================================================= -->\n" +
+    "\n" +
+    "  <div ng-if=\"vm.desc\">\n" +
+    "    <h4>Derive addresses</h4>\n" +
+    "    <div class=\"well\">\n" +
+    "      <form class=\"form-horizontal\">\n" +
+    "        <div class=\"form-group\">\n" +
+    "          <label class=\"col-sm-2 control-label\">Network:</label>\n" +
+    "          <div class=\"col-sm-4\">\n" +
+    "            <select class=\"form-control\"\n" +
+    "                    ng-model=\"vm.deriveNetwork\"\n" +
+    "                    ng-change=\"vm.deriveAddresses()\"\n" +
+    "                    ng-options=\"n.label for n in vm.networks\">\n" +
+    "            </select>\n" +
+    "          </div>\n" +
+    "\n" +
+    "          <label class=\"col-sm-2 control-label\" ng-if=\"vm.stats.multipathLen > 1\">\n" +
+    "            Multipath:\n" +
+    "          </label>\n" +
+    "          <div class=\"col-sm-4\" ng-if=\"vm.stats.multipathLen > 1\">\n" +
+    "            <select class=\"form-control\"\n" +
+    "                    ng-model=\"vm.multipathIndex\"\n" +
+    "                    ng-change=\"vm.deriveAddresses()\"\n" +
+    "                    ng-options=\"o.value as o.label for o in vm.multipathOptions\">\n" +
+    "            </select>\n" +
+    "          </div>\n" +
+    "        </div>\n" +
+    "\n" +
+    "        <div class=\"form-group\">\n" +
+    "          <label class=\"col-sm-2 control-label\">Start index:</label>\n" +
+    "          <div class=\"col-sm-4\">\n" +
+    "            <input type=\"number\" class=\"form-control\" min=\"0\"\n" +
+    "                   ng-model=\"vm.startIndex\"\n" +
+    "                   ng-change=\"vm.deriveAddresses()\">\n" +
+    "          </div>\n" +
+    "\n" +
+    "          <label class=\"col-sm-2 control-label\">Count:</label>\n" +
+    "          <div class=\"col-sm-4\">\n" +
+    "            <input type=\"number\" class=\"form-control\" min=\"1\" max=\"100\"\n" +
+    "                   ng-model=\"vm.count\"\n" +
+    "                   ng-change=\"vm.deriveAddresses()\">\n" +
+    "          </div>\n" +
+    "        </div>\n" +
+    "      </form>\n" +
+    "\n" +
+    "      <table class=\"table table-condensed table-bordered\" style=\"margin-top:5px;\">\n" +
+    "        <thead>\n" +
+    "          <tr>\n" +
+    "            <th style=\"width:120px;\">Index</th>\n" +
+    "            <th>Address</th>\n" +
+    "          </tr>\n" +
+    "        </thead>\n" +
+    "        <tbody>\n" +
+    "          <tr ng-repeat=\"row in vm.addresses track by $index\">\n" +
+    "            <td style=\"font-family:monospace;\">{{row.derivationIndex}}</td>\n" +
+    "            <td style=\"font-family:monospace; font-size:12px; word-break:break-all;\">\n" +
+    "              <span ng-if=\"!row.error\">{{row.address}}</span>\n" +
+    "              <span ng-if=\"row.error\" class=\"well-error\">{{row.error}}</span>\n" +
+    "            </td>\n" +
+    "          </tr>\n" +
+    "        </tbody>\n" +
+    "      </table>\n" +
+    "    </div>\n" +
+    "  </div>\n" +
+    "\n" +
+    "</div>\n"
+  );
+
+
   $templateCache.put('pages/ecc/ecc.html',
     "<h1>Elliptic Curve Cryptography / Key Pair</h1>\n" +
     "\n" +
@@ -3356,6 +3547,7 @@ angular.module('app').run(['$templateCache', function($templateCache) {
     "  <li><a href=\"#!/wallet-import\">Wallet Import helper</a></li>\n" +
     "  <li><a href=\"#!/bip322\">BIP322: Generic Signed Message Format</a></li>\n" +
     "  <li><a href=\"#!/psbt-editor\">PSBT Editor</a></li>\n" +
+    "  <li><a href=\"#!/descriptors\">Output Descriptors</a></li>\n" +
     "  <li><a href=\"#!/encoding-decoding\">Encoding/Decoding</a></li>\n" +
     "</ul>\n" +
     "\n" +

@@ -57057,6 +57057,8 @@ var __toCommonJS = (mod) => __copyProps(__defProp({}, "__esModule", { value: tru
 // src/index.ts
 var index_exports = {};
 __export(index_exports, {
+  Descriptor: () => Descriptor,
+  Plan: () => Plan,
   address: () => address,
   amount: () => amount,
   base58: () => base58,
@@ -57066,6 +57068,7 @@ __export(index_exports, {
   btcec: () => btcec,
   chaincfg: () => chaincfg,
   chainhash: () => chainhash,
+  descriptors: () => descriptors,
   gcs: () => gcs,
   hash: () => hash,
   hdkeychain: () => hdkeychain,
@@ -58024,6 +58027,143 @@ function xpubToJson(x) {
   return out;
 }
 
+// src/descriptors.ts
+var descriptorFinalizers = new FinalizationRegistry((handle) => {
+  try {
+    g()?.descriptors?.free(handle);
+  } catch {
+  }
+});
+var planFinalizers = new FinalizationRegistry((handle) => {
+  try {
+    g()?.descriptors?.planFree(handle);
+  } catch {
+  }
+});
+var Descriptor = class {
+  /** @internal Construct via {@link descriptors.create}. */
+  constructor(info) {
+    this.freed = false;
+    this.handle = info.handle;
+    this.descriptor = info.descriptor;
+    this.cachedDescType = info.descType;
+    this.cachedKeys = info.keys;
+    this.cachedMultipathLen = info.multipathLen;
+    descriptorFinalizers.register(this, info.handle, this);
+  }
+  /** The full descriptor string, including checksum. */
+  toString() {
+    return this.descriptor;
+  }
+  /** The descriptor's output type classification (e.g. `"Wpkh"`, `"Tr"`). */
+  descType() {
+    return this.cachedDescType;
+  }
+  /** All keys in the descriptor, in the order they appear. */
+  keys() {
+    return [...this.cachedKeys];
+  }
+  /** The number of multipath elements (1 if the descriptor has none). */
+  multipathLen() {
+    return this.cachedMultipathLen;
+  }
+  /** Derive the address at the given multipath and derivation index for the
+   *  given network. */
+  addressAt(network, multipathIndex, derivationIndex) {
+    return unwrap(
+      g().descriptors.addressAt(
+        this.handle,
+        network,
+        multipathIndex,
+        derivationIndex
+      )
+    );
+  }
+  /** The script code (as used for signature hashing) at the given multipath and
+   *  derivation index. */
+  scriptCodeAt(multipathIndex, derivationIndex) {
+    return unwrap(
+      g().descriptors.scriptCodeAt(
+        this.handle,
+        multipathIndex,
+        derivationIndex
+      )
+    );
+  }
+  /** Convert the descriptor into its abstract semantic policy (BIP-style
+   *  "lift"), allowing analysis such as filtering and normalization. */
+  lift() {
+    return JSON.parse(unwrap(g().descriptors.lift(this.handle)));
+  }
+  /** An upper bound on the input weight, in weight units, needed to satisfy the
+   *  descriptor. Throws if the descriptor can never be satisfied. */
+  maxWeightToSatisfy() {
+    return unwrap(g().descriptors.maxWeightToSatisfy(this.handle));
+  }
+  /** Build a spending {@link Plan} at the given multipath and derivation index
+   *  from the provided assets. Throws if the assets are insufficient to produce
+   *  a non-malleable satisfaction. */
+  planAt(multipathIndex, derivationIndex, assets = {}) {
+    const info = unwrap(
+      g().descriptors.planAt(
+        this.handle,
+        multipathIndex,
+        derivationIndex,
+        assets
+      )
+    );
+    return new Plan(info);
+  }
+  /** Release the Go-side descriptor. Safe to call more than once; method calls
+   *  after `free()` are invalid. */
+  free() {
+    if (this.freed) {
+      return;
+    }
+    this.freed = true;
+    descriptorFinalizers.unregister(this);
+    unwrap(g().descriptors.free(this.handle));
+  }
+};
+var Plan = class {
+  /** @internal Construct via {@link Descriptor.planAt}. */
+  constructor(info) {
+    this.freed = false;
+    this.handle = info.handle;
+    this.satisfactionWeight = info.satisfactionWeight;
+    this.scriptSigSize = info.scriptSigSize;
+    this.witnessSize = info.witnessSize;
+    planFinalizers.register(this, info.handle, this);
+  }
+  /** Complete the plan, producing the final witness and scriptSig. Throws if
+   *  the satisfier cannot provide the required data. */
+  satisfy(satisfier) {
+    return unwrap(
+      g().descriptors.planSatisfy(this.handle, satisfier)
+    );
+  }
+  /** Release the Go-side plan. Safe to call more than once. */
+  free() {
+    if (this.freed) {
+      return;
+    }
+    this.freed = true;
+    planFinalizers.unregister(this);
+    unwrap(g().descriptors.planFree(this.handle));
+  }
+};
+function createDescriptor(descriptor) {
+  const info = unwrap(g().descriptors.new(descriptor));
+  return new Descriptor(info);
+}
+var descriptors = {
+  /** Parse a descriptor string into a long-lived {@link Descriptor}. */
+  async create(descriptor) {
+    await init();
+    return createDescriptor(descriptor);
+  }
+};
+
 // src/init.ts
 var initPromise = null;
 var syncApi = null;
@@ -58118,7 +58258,13 @@ function buildSyncApi() {
     txscript: wrapNamespace(raw.txscript),
     btcec: wrapNamespace(raw.btcec),
     chaincfg: wrapNamespace(raw.chaincfg),
-    chainhash: wrapNamespace(raw.chainhash)
+    chainhash: wrapNamespace(raw.chainhash),
+    // Descriptors aren't a stateless namespace: create() hands back a
+    // Descriptor object whose parse is cached on the Go side. The module is
+    // already loaded here, so create() is synchronous.
+    descriptors: {
+      create: (descriptor) => createDescriptor(descriptor)
+    }
   };
 }
 async function init(wasmSource) {
@@ -59268,6 +59414,8 @@ var chainhash = {
 };
 // Annotate the CommonJS export names for ESM import in node:
 0 && (module.exports = {
+  Descriptor,
+  Plan,
   address,
   amount,
   base58,
@@ -59277,6 +59425,7 @@ var chainhash = {
   btcec,
   chaincfg,
   chainhash,
+  descriptors,
   gcs,
   hash,
   hdkeychain,

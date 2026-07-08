@@ -47,7 +47,7 @@
     "unorm": "^1.4.1",
     "varuint-bitcoin": "^1.0.4",
     "wif": "^2.0.1",
-    "btcutil-js": "^0.2.8"
+    "btcutil-js": "^0.3.0"
   },
   "scripts": {
     "prebrowserify": "cp -f node_modules/btcutil-js/dist/btcutil.wasm libs/wasm/btcutil.wasm",

@@ -1,0 +1,183 @@
+<h1>Output Descriptors</h1>
+
+<div class="panel panel-default">
+  <div class="panel-heading">
+    <h4 class="panel-title">
+      <a ng-click="vm.showExplanation = !vm.showExplanation">Explanation</a>
+    </h4>
+  </div>
+  <div class="panel-collapse collapse" ng-class="{in: vm.showExplanation}">
+    <div class="panel-body">
+      Paste a
+      <a href="https://github.com/bitcoin/bips/blob/master/bip-0380.mediawiki">BIP-380</a>
+      output descriptor to inspect it and derive addresses. The descriptor is
+      parsed on every keystroke through <code>btcutil-js</code>'s WASM
+      <code>descriptors</code> module, so the checksum, stats and derived
+      addresses always reflect what you typed.<br/><br/>
+
+      Any existing <code>#checksum</code> suffix is stripped and recomputed, so
+      you can paste a descriptor with a missing or outdated checksum and read
+      the correct canonical form back out.
+
+      <h3>Sources:</h3>
+      <ul>
+        <li><a href="https://github.com/bitcoin/bips/blob/master/bip-0380.mediawiki">BIP-380 specification</a></li>
+        <li><a href="https://github.com/guggero/btcutil-js">btcutil-js library</a></li>
+      </ul>
+    </div>
+  </div>
+</div>
+
+<div class="alert alert-info" ng-if="vm.loading">
+  <strong>Loading...</strong> Initializing WebAssembly module...
+</div>
+
+<div ng-if="!vm.loading">
+
+  <!-- ================================================================= -->
+  <!-- ① descriptor input                                                -->
+  <!-- ================================================================= -->
+
+  <h4>Descriptor</h4>
+  <div class="well">
+    <textarea class="form-control" rows="4" style="font-family: monospace;"
+              ng-model="vm.input"
+              ng-change="vm.update()"
+              ng-class="{'well-error': vm.error}"
+              placeholder="wpkh([fingerprint/84h/0h/0h]xpub.../<0;1>/*) — paste an output descriptor here"></textarea>
+
+    <div class="alert alert-danger" ng-if="vm.error" style="margin-top:10px;">
+      <strong>Parse error:</strong> {{vm.error}}
+    </div>
+
+    <div style="margin-top:10px;">
+      <button class="btn btn-default btn-sm" ng-click="vm.loadSample()">
+        <i class="fas fa-file"></i> Sample
+      </button>
+      <button class="btn btn-default btn-sm" ng-click="vm.copyCanonical()"
+              ng-disabled="!vm.canonical">
+        <i class="fas fa-copy"></i> Copy canonical
+      </button>
+    </div>
+
+    <div class="form-group" ng-if="vm.canonical" style="margin-top:15px; margin-bottom:0;">
+      <label>Canonical (with checksum):</label>
+      <textarea class="form-control" rows="4" readonly
+                style="font-family: monospace; font-size: 12px;">{{vm.canonical}}</textarea>
+    </div>
+  </div>
+
+  <!-- ================================================================= -->
+  <!-- ② static stats                                                    -->
+  <!-- ================================================================= -->
+
+  <div ng-if="vm.stats">
+    <h4>Stats</h4>
+    <div class="well">
+      <table class="table table-condensed">
+        <tbody>
+          <tr>
+            <th style="width:200px;">Output type</th>
+            <td>{{vm.stats.descType}}</td>
+          </tr>
+          <tr>
+            <th>Checksum</th>
+            <td style="font-family:monospace;">{{vm.checksum || '—'}}</td>
+          </tr>
+          <tr>
+            <th>Ranged (wildcard)</th>
+            <td>{{vm.stats.ranged ? 'yes' : 'no'}}</td>
+          </tr>
+          <tr>
+            <th>Multipath length</th>
+            <td>{{vm.stats.multipathLen}}</td>
+          </tr>
+          <tr>
+            <th>Max weight to satisfy</th>
+            <td>
+              <span ng-if="vm.stats.maxWeight !== null">{{vm.stats.maxWeight}} WU</span>
+              <span ng-if="vm.stats.maxWeight === null">n/a (unsatisfiable)</span>
+            </td>
+          </tr>
+          <tr>
+            <th>Keys ({{vm.stats.keys.length}})</th>
+            <td>
+              <div ng-repeat="key in vm.stats.keys"
+                   style="font-family:monospace; font-size:12px; word-break:break-all;">
+                {{key}}
+              </div>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- ================================================================= -->
+  <!-- ③ derive addresses                                                -->
+  <!-- ================================================================= -->
+
+  <div ng-if="vm.desc">
+    <h4>Derive addresses</h4>
+    <div class="well">
+      <form class="form-horizontal">
+        <div class="form-group">
+          <label class="col-sm-2 control-label">Network:</label>
+          <div class="col-sm-4">
+            <select class="form-control"
+                    ng-model="vm.deriveNetwork"
+                    ng-change="vm.deriveAddresses()"
+                    ng-options="n.label for n in vm.networks">
+            </select>
+          </div>
+
+          <label class="col-sm-2 control-label" ng-if="vm.stats.multipathLen > 1">
+            Multipath:
+          </label>
+          <div class="col-sm-4" ng-if="vm.stats.multipathLen > 1">
+            <select class="form-control"
+                    ng-model="vm.multipathIndex"
+                    ng-change="vm.deriveAddresses()"
+                    ng-options="o.value as o.label for o in vm.multipathOptions">
+            </select>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label class="col-sm-2 control-label">Start index:</label>
+          <div class="col-sm-4">
+            <input type="number" class="form-control" min="0"
+                   ng-model="vm.startIndex"
+                   ng-change="vm.deriveAddresses()">
+          </div>
+
+          <label class="col-sm-2 control-label">Count:</label>
+          <div class="col-sm-4">
+            <input type="number" class="form-control" min="1" max="100"
+                   ng-model="vm.count"
+                   ng-change="vm.deriveAddresses()">
+          </div>
+        </div>
+      </form>
+
+      <table class="table table-condensed table-bordered" style="margin-top:5px;">
+        <thead>
+          <tr>
+            <th style="width:120px;">Index</th>
+            <th>Address</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr ng-repeat="row in vm.addresses track by $index">
+            <td style="font-family:monospace;">{{row.derivationIndex}}</td>
+            <td style="font-family:monospace; font-size:12px; word-break:break-all;">
+              <span ng-if="!row.error">{{row.address}}</span>
+              <span ng-if="row.error" class="well-error">{{row.error}}</span>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+</div>
