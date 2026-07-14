@@ -2,7 +2,7 @@
   "name": "cryptography-toolkit",
   "version": "1.3.0",
   "main": "browserify.js",
-  "repository": "git@github.com:guggero/cryptography-toolkit.git",
+  "repository": "https://github.com/guggero/cryptography-toolkit.git",
   "author": "Oliver Gugger <gugger@gmail.com>",
   "license": "MIT",
   "devDependencies": {
