@@ -1,0 +1,43 @@
+name: e2e
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Install dependencies
+        run: yarn install --frozen-lockfile
+
+      # The deployed app serves generated artifacts (libs/templates.js,
+      # libs/js/bitcoin.js, libs/wasm/btcutil.wasm). Regenerate them and fail
+      # if the committed versions are stale — the browser tests run against
+      # the prod bundle, so a stale commit would otherwise ship broken.
+      - name: Check generated artifacts are fresh
+        run: yarn check:fresh
+
+      - name: Install Playwright browsers
+        run: npx playwright install --with-deps chromium firefox
+
+      - name: Run e2e suite
+        run: yarn test:e2e
+
+      - name: Upload traces on failure
+        uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: playwright-report
+          path: |
+            playwright-report/
+            test-results/
+          retention-days: 14

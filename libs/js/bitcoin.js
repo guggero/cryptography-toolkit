@@ -8,7 +8,7 @@ module.exports = {
   Block: require('bitcoinjs-lib/src/block').Block,
   ECPair: require('bitcoinjs-lib/src/ecpair'),
   Transaction: require('bitcoinjs-lib/src/transaction').Transaction,
-  TransactionBuilder: require('bitcoinjs-lib/src/transaction_builder'),
+  TransactionBuilder: require('bitcoinjs-lib/src/transaction_builder').TransactionBuilder,
 
   address: require('bitcoinjs-lib/src/address'),
   crypto: crypto,

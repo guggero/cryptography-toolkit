@@ -549,6 +549,176 @@ angular.module('app').run(['$templateCache', function($templateCache) {
   );
 
 
+  $templateCache.put('node_modules/playwright-core/lib/vite/dashboard/index.html',
+    "<!--\n" +
+    "  Copyright (c) Microsoft Corporation.\n" +
+    "\n" +
+    "  Licensed under the Apache License, Version 2.0 (the \"License\");\n" +
+    "  you may not use this file except in compliance with the License.\n" +
+    "  You may obtain a copy of the License at\n" +
+    "\n" +
+    "      http://www.apache.org/licenses/LICENSE-2.0\n" +
+    "\n" +
+    "  Unless required by applicable law or agreed to in writing, software\n" +
+    "  distributed under the License is distributed on an \"AS IS\" BASIS,\n" +
+    "  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.\n" +
+    "  See the License for the specific language governing permissions and\n" +
+    "  limitations under the License.\n" +
+    "-->\n" +
+    "<!DOCTYPE html>\n" +
+    "<html lang=\"en\" translate=\"no\">\n" +
+    "  <head>\n" +
+    "    <meta charset=\"UTF-8\">\n" +
+    "    <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">\n" +
+    "    <link rel=\"icon\" href=\"/playwright-logo.svg\" type=\"image/svg+xml\">\n" +
+    "    <title>Playwright Dashboard</title>\n" +
+    "    <script type=\"module\" crossorigin src=\"/assets/index-C_5TMfeg.js\"></script>\n" +
+    "    <link rel=\"stylesheet\" crossorigin href=\"/assets/index-BY2S1tHT.css\">\n" +
+    "  </head>\n" +
+    "  <body>\n" +
+    "    <div id=\"root\"></div>\n" +
+    "  </body>\n" +
+    "</html>\n"
+  );
+
+
+  $templateCache.put('node_modules/playwright-core/lib/vite/htmlReport/index.html',
+    "\n" +
+    "\n" +
+    "<!DOCTYPE html>\n" +
+    "<html style='scrollbar-gutter: stable both-edges;'>\n" +
+    "  <head>\n" +
+    "    <meta charset='UTF-8'>\n" +
+    "    <meta name='color-scheme' content='dark light'>\n" +
+    "    <meta name='viewport' content='width=device-width, initial-scale=1.0'>\n" +
+    "    <title>Playwright Test Report</title>\n" +
+    "    <script type=\"module\" crossorigin src=\"./report.js\"></script>\n" +
+    "    <link rel=\"stylesheet\" crossorigin href=\"./report.css\">\n" +
+    "  </head>\n" +
+    "  <body>\n" +
+    "    <div id='root'></div>\n" +
+    "  </body>\n" +
+    "</html>\n"
+  );
+
+
+  $templateCache.put('node_modules/playwright-core/lib/vite/recorder/index.html',
+    "<!--\n" +
+    "  Copyright (c) Microsoft Corporation.\n" +
+    "\n" +
+    "  Licensed under the Apache License, Version 2.0 (the \"License\");\n" +
+    "  you may not use this file except in compliance with the License.\n" +
+    "  You may obtain a copy of the License at\n" +
+    "\n" +
+    "      http://www.apache.org/licenses/LICENSE-2.0\n" +
+    "\n" +
+    "  Unless required by applicable law or agreed to in writing, software\n" +
+    "  distributed under the License is distributed on an \"AS IS\" BASIS,\n" +
+    "  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.\n" +
+    "  See the License for the specific language governing permissions and\n" +
+    "  limitations under the License.\n" +
+    "-->\n" +
+    "<!DOCTYPE html>\n" +
+    "<html lang=\"en\" translate=\"no\">\n" +
+    "  <head>\n" +
+    "    <meta charset=\"UTF-8\">\n" +
+    "    <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">\n" +
+    "    <link rel=\"icon\" href=\"/playwright-logo.svg\" type=\"image/svg+xml\">\n" +
+    "    <title>Playwright Inspector</title>\n" +
+    "    <script type=\"module\" crossorigin src=\"/assets/index-Bq-mQf8S.js\"></script>\n" +
+    "    <link rel=\"stylesheet\" crossorigin href=\"/assets/index-4ZiSSCmn.css\">\n" +
+    "  </head>\n" +
+    "  <body>\n" +
+    "    <div id=\"root\"></div>\n" +
+    "  </body>\n" +
+    "</html>\n"
+  );
+
+
+  $templateCache.put('node_modules/playwright-core/lib/vite/traceViewer/index.html',
+    "\n" +
+    "<!DOCTYPE html>\n" +
+    "<html lang=\"en\" translate=\"no\">\n" +
+    "  <head>\n" +
+    "    <meta charset=\"UTF-8\">\n" +
+    "    <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">\n" +
+    "    <link rel=\"icon\" href=\"./playwright-logo.svg\" type=\"image/svg+xml\">\n" +
+    "    <link rel=\"manifest\" href=\"./manifest.webmanifest\">\n" +
+    "    <title>Playwright Trace Viewer</title>\n" +
+    "    <script type=\"module\" crossorigin src=\"./index.DMMX1gXU.js\"></script>\n" +
+    "    <link rel=\"modulepreload\" crossorigin href=\"./assets/urlMatch-BYQrIQwR.js\">\n" +
+    "    <link rel=\"modulepreload\" crossorigin href=\"./assets/defaultSettingsView-BNmKHKpQ.js\">\n" +
+    "    <link rel=\"stylesheet\" crossorigin href=\"./defaultSettingsView.CjdS-WJx.css\">\n" +
+    "    <link rel=\"stylesheet\" crossorigin href=\"./index.CzXZzn5A.css\">\n" +
+    "  </head>\n" +
+    "  <body>\n" +
+    "    <div id=\"root\"></div>\n" +
+    "    <dialog id=\"fallback-error\">\n" +
+    "      <p>The Playwright Trace Viewer must be loaded over the <code>http://</code> or <code>https://</code> protocols.</p>\n" +
+    "      <p>For more information, please see the <a href=\"https://aka.ms/playwright/trace-viewer-file-protocol\">docs</a>.</p>\n" +
+    "    </dialog>\n" +
+    "    <script>\n" +
+    "      if (!/^https?:/.test(window.location.protocol)) {\n" +
+    "        const fallbackErrorDialog = document.getElementById('fallback-error');\n" +
+    "        const isTraceViewerInsidePlaywrightReport = window.location.protocol === 'file:' && window.location.pathname.endsWith('/trace/index.html');\n" +
+    "        // Best-effort to show the report path in the dialog.\n" +
+    "        if (isTraceViewerInsidePlaywrightReport) {\n" +
+    "          const reportPath = (() => {\n" +
+    "            const base = decodeURIComponent(window.location.pathname).replace(/\\/trace\\/index\\.html$/, '');\n" +
+    "            if (navigator.platform === 'Win32')\n" +
+    "              return base.replace(/^\\//, '').replace(/\\//g, '\\\\\\\\');\n" +
+    "            return base;\n" +
+    "          })();\n" +
+    "          const reportLink = document.createElement('div');\n" +
+    "          const command = `npx playwright show-report \"${reportPath}\"`;\n" +
+    "          reportLink.innerHTML = `You can open the report via <code>${command}</code> from your Playwright project. <button type=\"button\">Copy Command</button>`;\n" +
+    "          fallbackErrorDialog.insertBefore(reportLink, fallbackErrorDialog.children[1]);\n" +
+    "          reportLink.querySelector('button').addEventListener('click', () => navigator.clipboard.writeText(command));\n" +
+    "        }\n" +
+    "        fallbackErrorDialog.show();\n" +
+    "      }\n" +
+    "    </script>\n" +
+    "  </body>\n" +
+    "</html>\n"
+  );
+
+
+  $templateCache.put('node_modules/playwright-core/lib/vite/traceViewer/snapshot.html',
+    "\n" +
+    "<!DOCTYPE html>\n" +
+    "<html lang=\"en\">\n" +
+    "  <script type=\"module\" crossorigin src=\"./snapshot.v8KI4P3m.js\"></script>\n" +
+    "  <link rel=\"modulepreload\" crossorigin href=\"./assets/urlMatch-BYQrIQwR.js\">\n" +
+    "\n" +
+    "  <body>\n" +
+    "    <iframe src=\"about:blank\" sandbox=\"allow-same-origin allow-scripts\" style=\"position:absolute;top:0;left:0;right:0;bottom:0;width:100%;height:100%;border:none;\"></iframe>\n" +
+    "  </body>\n" +
+    "</html>\n"
+  );
+
+
+  $templateCache.put('node_modules/playwright-core/lib/vite/traceViewer/uiMode.html',
+    "\n" +
+    "<!DOCTYPE html>\n" +
+    "<html lang=\"en\" translate=\"no\">\n" +
+    "  <head>\n" +
+    "    <meta charset=\"UTF-8\">\n" +
+    "    <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">\n" +
+    "    <link rel=\"icon\" href=\"./playwright-logo.svg\" type=\"image/svg+xml\">\n" +
+    "    <title>Playwright Test</title>\n" +
+    "    <script type=\"module\" crossorigin src=\"./uiMode.Ut8wwJNp.js\"></script>\n" +
+    "    <link rel=\"modulepreload\" crossorigin href=\"./assets/urlMatch-BYQrIQwR.js\">\n" +
+    "    <link rel=\"modulepreload\" crossorigin href=\"./assets/defaultSettingsView-BNmKHKpQ.js\">\n" +
+    "    <link rel=\"stylesheet\" crossorigin href=\"./defaultSettingsView.CjdS-WJx.css\">\n" +
+    "    <link rel=\"stylesheet\" crossorigin href=\"./uiMode.BZQ54Kgt.css\">\n" +
+    "  </head>\n" +
+    "  <body>\n" +
+    "    <div id=\"root\"></div>\n" +
+    "  </body>\n" +
+    "</html>\n"
+  );
+
+
   $templateCache.put('node_modules/scrypt-js/index.html',
     "<html>\n" +
     "    <head>\n" +
