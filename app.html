@@ -15,33 +15,35 @@
             Bitcoin <span class="caret"></span>
           </a>
           <ul class="dropdown-menu">
-            <li ng-class="{active: $root.isActive('/hd-wallet')}">
-              <a href="#!/hd-wallet">Hierarchical Deterministic Wallet</a>
-            </li>
             <li ng-class="{active: $root.isActive('/bitcoin-block')}">
               <a href="#!/bitcoin-block">Bitcoin Block Parser</a>
-            </li>
-            <li ng-class="{active: $root.isActive('/schnorr')}">
-              <a href="#!/schnorr">BIP Schnorr Signatures</a>
-            </li>
-            <li ng-class="{active: $root.isActive('/mu-sig')}">
-              <a href="#!/mu-sig">MuSig: Key Aggregation for Schnorr
-                Signatures</a>
             </li>
             <li ng-class="{active: $root.isActive('/transaction-creator')}">
               <a href="#!/transaction-creator">Transaction Creator</a>
             </li>
-            <li ng-class="{active: $root.isActive('/psbt-editor')}">
-              <a href="#!/psbt-editor">PSBT Editor</a>
-            </li>
-            <li ng-class="{active: $root.isActive('/descriptors')}">
-              <a href="#!/descriptors">Output Descriptors</a>
-            </li>
             <li ng-class="{active: $root.isActive('/wallet-import')}">
               <a href="#!/wallet-import">Wallet Import helper</a>
             </li>
+            <li ng-class="{active: $root.isActive('/hd-wallet')}">
+              <a href="#!/hd-wallet">BIP-32: Hierarchical Deterministic Wallet</a>
+            </li>
+            <li ng-class="{active: $root.isActive('/bip157')}">
+              <a href="#!/bip157">BIP-157: Compact Filters</a>
+            </li>
+            <li ng-class="{active: $root.isActive('/psbt-editor')}">
+              <a href="#!/psbt-editor">BIP-174: PSBT Editor</a>
+            </li>
             <li ng-class="{active: $root.isActive('/bip322')}">
               <a href="#!/bip322">BIP-322: Generic Signed Message Format</a>
+            </li>
+            <li ng-class="{active: $root.isActive('/mu-sig')}">
+              <a href="#!/mu-sig">BIP-327: MuSig2 for BIP340-compatible Multi-Signatures</a>
+            </li>
+            <li ng-class="{active: $root.isActive('/schnorr')}">
+              <a href="#!/schnorr">BIP-340: Schnorr Signatures</a>
+            </li>
+            <li ng-class="{active: $root.isActive('/descriptors')}">
+              <a href="#!/descriptors">BIP-380: Output Script Descriptors</a>
             </li>
           </ul>
         </li>

@@ -19,33 +19,35 @@ angular.module('app').run(['$templateCache', function($templateCache) {
     "            Bitcoin <span class=\"caret\"></span>\n" +
     "          </a>\n" +
     "          <ul class=\"dropdown-menu\">\n" +
-    "            <li ng-class=\"{active: $root.isActive('/hd-wallet')}\">\n" +
-    "              <a href=\"#!/hd-wallet\">Hierarchical Deterministic Wallet</a>\n" +
-    "            </li>\n" +
     "            <li ng-class=\"{active: $root.isActive('/bitcoin-block')}\">\n" +
     "              <a href=\"#!/bitcoin-block\">Bitcoin Block Parser</a>\n" +
-    "            </li>\n" +
-    "            <li ng-class=\"{active: $root.isActive('/schnorr')}\">\n" +
-    "              <a href=\"#!/schnorr\">BIP Schnorr Signatures</a>\n" +
-    "            </li>\n" +
-    "            <li ng-class=\"{active: $root.isActive('/mu-sig')}\">\n" +
-    "              <a href=\"#!/mu-sig\">MuSig: Key Aggregation for Schnorr\n" +
-    "                Signatures</a>\n" +
     "            </li>\n" +
     "            <li ng-class=\"{active: $root.isActive('/transaction-creator')}\">\n" +
     "              <a href=\"#!/transaction-creator\">Transaction Creator</a>\n" +
     "            </li>\n" +
-    "            <li ng-class=\"{active: $root.isActive('/psbt-editor')}\">\n" +
-    "              <a href=\"#!/psbt-editor\">PSBT Editor</a>\n" +
-    "            </li>\n" +
-    "            <li ng-class=\"{active: $root.isActive('/descriptors')}\">\n" +
-    "              <a href=\"#!/descriptors\">Output Descriptors</a>\n" +
-    "            </li>\n" +
     "            <li ng-class=\"{active: $root.isActive('/wallet-import')}\">\n" +
     "              <a href=\"#!/wallet-import\">Wallet Import helper</a>\n" +
     "            </li>\n" +
+    "            <li ng-class=\"{active: $root.isActive('/hd-wallet')}\">\n" +
+    "              <a href=\"#!/hd-wallet\">BIP-32: Hierarchical Deterministic Wallet</a>\n" +
+    "            </li>\n" +
+    "            <li ng-class=\"{active: $root.isActive('/bip157')}\">\n" +
+    "              <a href=\"#!/bip157\">BIP-157: Compact Filters</a>\n" +
+    "            </li>\n" +
+    "            <li ng-class=\"{active: $root.isActive('/psbt-editor')}\">\n" +
+    "              <a href=\"#!/psbt-editor\">BIP-174: PSBT Editor</a>\n" +
+    "            </li>\n" +
     "            <li ng-class=\"{active: $root.isActive('/bip322')}\">\n" +
     "              <a href=\"#!/bip322\">BIP-322: Generic Signed Message Format</a>\n" +
+    "            </li>\n" +
+    "            <li ng-class=\"{active: $root.isActive('/mu-sig')}\">\n" +
+    "              <a href=\"#!/mu-sig\">BIP-327: MuSig2 for BIP340-compatible Multi-Signatures</a>\n" +
+    "            </li>\n" +
+    "            <li ng-class=\"{active: $root.isActive('/schnorr')}\">\n" +
+    "              <a href=\"#!/schnorr\">BIP-340: Schnorr Signatures</a>\n" +
+    "            </li>\n" +
+    "            <li ng-class=\"{active: $root.isActive('/descriptors')}\">\n" +
+    "              <a href=\"#!/descriptors\">BIP-380: Output Script Descriptors</a>\n" +
     "            </li>\n" +
     "          </ul>\n" +
     "        </li>\n" +
@@ -167,6 +169,7 @@ angular.module('app').run(['$templateCache', function($templateCache) {
     "  <script src=\"pages/bip322/bip322.js\"></script>\n" +
     "  <script src=\"pages/psbt-editor/psbt-editor.js\"></script>\n" +
     "  <script src=\"pages/descriptors/descriptors.js\"></script>\n" +
+    "  <script src=\"pages/bip157/bip157.js\"></script>\n" +
     "\n" +
     "  <title>Cryptography Toolkit</title>\n" +
     "</head>\n" +
@@ -2078,6 +2081,163 @@ angular.module('app').run(['$templateCache', function($templateCache) {
   );
 
 
+  $templateCache.put('pages/bip157/bip157.html',
+    "<h1>BIP-157: Compact Filters (Watch-Only Wallet)</h1>\n" +
+    "\n" +
+    "<div class=\"panel panel-default\">\n" +
+    "  <div class=\"panel-heading\">\n" +
+    "    <h4 class=\"panel-title\">\n" +
+    "      <a ng-click=\"vm.showExplanation = !vm.showExplanation\">Explanation</a>\n" +
+    "    </h4>\n" +
+    "  </div>\n" +
+    "  <div class=\"panel-collapse collapse\" ng-class=\"{in: vm.showExplanation}\">\n" +
+    "    <div class=\"panel-body\">\n" +
+    "      A fully browser-based watch-only Bitcoin wallet built on\n" +
+    "      <a href=\"https://github.com/bitcoin/bips/blob/master/bip-0157.mediawiki\">BIP-157</a>/<a\n" +
+    "        href=\"https://github.com/bitcoin/bips/blob/master/bip-0158.mediawiki\">BIP-158</a>\n" +
+    "      compact block filters: block headers are validated locally (proof of\n" +
+    "      work, difficulty retargets, median-time-past), every filter is\n" +
+    "      verified against its commitment chain and matched against your\n" +
+    "      watched addresses — all in WebAssembly, in this page.<br/><br/>\n" +
+    "\n" +
+    "      Chain data is fetched from a\n" +
+    "      <a href=\"https://github.com/guggero/block-dn\">block-dn</a> server\n" +
+    "      (configurable below; you can point it at your own). The server only\n" +
+    "      ever learns <em>which block ranges</em> you download — never which\n" +
+    "      addresses you are watching. Headers and filter headers are cached in\n" +
+    "      the browser's Origin Private File System, so subsequent visits\n" +
+    "      resume instead of re-syncing.\n" +
+    "\n" +
+    "      <h3>Sources:</h3>\n" +
+    "      <ul>\n" +
+    "        <li><a href=\"https://github.com/bitcoin/bips/blob/master/bip-0157.mediawiki\">BIP-157 Specification</a></li>\n" +
+    "        <li><a href=\"https://github.com/bitcoin/bips/blob/master/bip-0158.mediawiki\">BIP-158 Specification</a></li>\n" +
+    "        <li><a href=\"https://github.com/guggero/btcutil-js\">btcutil-js Library (wallet engine)</a></li>\n" +
+    "        <li><a href=\"https://github.com/guggero/block-dn\">block-dn (chain data over HTTP)</a></li>\n" +
+    "      </ul>\n" +
+    "    </div>\n" +
+    "  </div>\n" +
+    "</div>\n" +
+    "\n" +
+    "<h4>Settings</h4>\n" +
+    "<div class=\"well\">\n" +
+    "  <form class=\"form-horizontal\">\n" +
+    "    <div class=\"form-group\">\n" +
+    "      <label class=\"col-sm-4 control-label\">Network:</label>\n" +
+    "      <div class=\"col-sm-8 input-group\">\n" +
+    "        <select class=\"form-control\"\n" +
+    "                ng-model=\"vm.network\"\n" +
+    "                ng-change=\"vm.networkChanged()\"\n" +
+    "                ng-options=\"n.label for n in vm.networks\">\n" +
+    "        </select>\n" +
+    "      </div>\n" +
+    "    </div>\n" +
+    "    <div class=\"form-group\">\n" +
+    "      <label class=\"col-sm-4 control-label\">block-dn server:</label>\n" +
+    "      <div class=\"col-sm-8 input-group\">\n" +
+    "        <input type=\"text\" class=\"form-control\" ng-model=\"vm.server\"/>\n" +
+    "      </div>\n" +
+    "    </div>\n" +
+    "    <div class=\"form-group\">\n" +
+    "      <label class=\"col-sm-4 control-label\">\n" +
+    "        Parallel filter batches (1-16):\n" +
+    "      </label>\n" +
+    "      <div class=\"col-sm-8 input-group\">\n" +
+    "        <input type=\"number\" class=\"form-control\" min=\"1\" max=\"16\"\n" +
+    "               ng-model=\"vm.batchSize\"/>\n" +
+    "      </div>\n" +
+    "    </div>\n" +
+    "  </form>\n" +
+    "</div>\n" +
+    "\n" +
+    "<h4>Watch</h4>\n" +
+    "<div class=\"well\">\n" +
+    "  <form class=\"form-horizontal\">\n" +
+    "    <div class=\"form-group\">\n" +
+    "      <label class=\"col-sm-4 control-label\">\n" +
+    "        Address or output descriptor:\n" +
+    "      </label>\n" +
+    "      <div class=\"col-sm-8 input-group\">\n" +
+    "        <input type=\"text\" class=\"form-control\" ng-model=\"vm.watchValue\"\n" +
+    "               placeholder=\"tb1q... or wpkh(xpub.../<0;1>/*)\"/>\n" +
+    "      </div>\n" +
+    "    </div>\n" +
+    "    <div class=\"form-group\">\n" +
+    "      <label class=\"col-sm-4 control-label\">\n" +
+    "        Scan from height (blank = auto):\n" +
+    "      </label>\n" +
+    "      <div class=\"col-sm-8 input-group\">\n" +
+    "        <input type=\"number\" class=\"form-control\" ng-model=\"vm.birthday\"\n" +
+    "               placeholder=\"auto by address/descriptor type\"/>\n" +
+    "      </div>\n" +
+    "    </div>\n" +
+    "    <div class=\"form-group\">\n" +
+    "      <div class=\"col-sm-offset-4 col-sm-8\">\n" +
+    "        <button class=\"btn btn-primary\" ng-disabled=\"vm.busy\"\n" +
+    "                ng-click=\"vm.addAndScan()\">\n" +
+    "          Add &amp; scan\n" +
+    "        </button>\n" +
+    "      </div>\n" +
+    "    </div>\n" +
+    "  </form>\n" +
+    "</div>\n" +
+    "\n" +
+    "<h4>Progress</h4>\n" +
+    "<div class=\"well\">\n" +
+    "  <div class=\"row\">\n" +
+    "    <div class=\"col-sm-4\"><strong>Tip:</strong> {{vm.tip}}</div>\n" +
+    "    <div class=\"col-sm-4\"><strong>Scanned:</strong> {{vm.scanned}}</div>\n" +
+    "    <div class=\"col-sm-4\"><strong>Balance:</strong> {{vm.balance}}</div>\n" +
+    "  </div>\n" +
+    "  <div class=\"progress\" style=\"margin-top: 10px;\">\n" +
+    "    <div class=\"progress-bar\" role=\"progressbar\"\n" +
+    "         style=\"min-width: 2em; width: {{ vm.progressMax ? (100 * vm.progressValue / vm.progressMax) : 0 }}%\">\n" +
+    "      {{vm.progressKind}}\n" +
+    "    </div>\n" +
+    "  </div>\n" +
+    "  <pre style=\"max-height: 200px; overflow-y: auto;\"\n" +
+    "       ng-if=\"vm.logLines.length\">{{vm.logLines.join('\\n')}}</pre>\n" +
+    "</div>\n" +
+    "\n" +
+    "<h4>Local cache</h4>\n" +
+    "<div class=\"well\">\n" +
+    "  <p>{{vm.cacheText}}</p>\n" +
+    "  <button class=\"btn btn-default\" ng-click=\"vm.clearCache()\">\n" +
+    "    Clear cached chain data\n" +
+    "  </button>\n" +
+    "</div>\n" +
+    "\n" +
+    "<h4>Unspent outputs</h4>\n" +
+    "<div class=\"well\">\n" +
+    "  <table class=\"table table-striped table-condensed\">\n" +
+    "    <thead>\n" +
+    "    <tr>\n" +
+    "      <th>Outpoint</th>\n" +
+    "      <th>Address</th>\n" +
+    "      <th>Height</th>\n" +
+    "      <th>Value (sats)</th>\n" +
+    "    </tr>\n" +
+    "    </thead>\n" +
+    "    <tbody>\n" +
+    "    <tr ng-if=\"!vm.utxos.length\">\n" +
+    "      <td colspan=\"4\">none yet</td>\n" +
+    "    </tr>\n" +
+    "    <tr ng-repeat=\"u in vm.utxos track by u.outpoint\">\n" +
+    "      <td style=\"font-family: monospace; font-size: 0.85em;\">\n" +
+    "        {{u.outpoint}}\n" +
+    "      </td>\n" +
+    "      <td style=\"font-family: monospace; font-size: 0.85em;\">\n" +
+    "        {{u.address}}\n" +
+    "      </td>\n" +
+    "      <td>{{u.height}}</td>\n" +
+    "      <td>{{u.value.toLocaleString()}}</td>\n" +
+    "    </tr>\n" +
+    "    </tbody>\n" +
+    "  </table>\n" +
+    "</div>\n"
+  );
+
+
   $templateCache.put('pages/bip322/bip322.html',
     "<h1>BIP-322: Generic Signed Message Format</h1>\n" +
     "\n" +
@@ -2519,7 +2679,7 @@ angular.module('app').run(['$templateCache', function($templateCache) {
 
 
   $templateCache.put('pages/descriptors/descriptors.html',
-    "<h1>Output Descriptors</h1>\n" +
+    "<h1>BIP-380: Output Script Descriptors</h1>\n" +
     "\n" +
     "<div class=\"panel panel-default\">\n" +
     "  <div class=\"panel-heading\">\n" +
@@ -3536,19 +3696,35 @@ angular.module('app').run(['$templateCache', function($templateCache) {
     "<h2>Tools</h2>\n" +
     "<ul>\n" +
     "  <li><a href=\"#!/ecc\">Elliptic Curve Cryptography / Key Pair</a></li>\n" +
-    "  <li><a href=\"#!/hd-wallet\">Hierarchical Deterministic Wallet</a></li>\n" +
-    "  <li><a href=\"#!/bitcoin-block\">Bitcoin Block Parser</a></li>\n" +
-    "  <li><a href=\"#!/shamir-secret-sharing\">Shamir's Secret Sharing Scheme</a></li>\n" +
-    "  <li><a href=\"#!/schnorr\">BIP Schnorr Signatures</a></li>\n" +
-    "  <li><a href=\"#!/mu-sig\">MuSig: Key Aggregation for Schnorr Signatures</a></li>\n" +
-    "  <li><a href=\"#!/transaction-creator\">Transaction Creator</a></li>\n" +
-    "  <li><a href=\"#!/aezeed\">aezeed Cipher Seed Scheme</a></li>\n" +
-    "  <li><a href=\"#!/macaroon\">Macaroons</a></li>\n" +
-    "  <li><a href=\"#!/wallet-import\">Wallet Import helper</a></li>\n" +
-    "  <li><a href=\"#!/bip322\">BIP322: Generic Signed Message Format</a></li>\n" +
-    "  <li><a href=\"#!/psbt-editor\">PSBT Editor</a></li>\n" +
-    "  <li><a href=\"#!/descriptors\">Output Descriptors</a></li>\n" +
-    "  <li><a href=\"#!/encoding-decoding\">Encoding/Decoding</a></li>\n" +
+    "  <li>\n" +
+    "    Bitcoin<br/>\n" +
+    "    <ul>\n" +
+    "      <li><a href=\"#!/bitcoin-block\">Bitcoin Block Parser</a></li>\n" +
+    "      <li><a href=\"#!/transaction-creator\">Transaction Creator</a></li>\n" +
+    "      <li><a href=\"#!/wallet-import\">Wallet Import helper</a></li>\n" +
+    "      <li><a href=\"#!/hd-wallet\">BIP-32: Hierarchical Deterministic Wallet</a></li>\n" +
+    "      <li><a href=\"#!/bip157\">BIP-157: Compact Filters</a></li>\n" +
+    "      <li><a href=\"#!/psbt-editor\">BIP-174: PSBT Editor</a></li>\n" +
+    "      <li><a href=\"#!/bip322\">BIP-322: Generic Signed Message Format</a></li>\n" +
+    "      <li><a href=\"#!/mu-sig\">BIP-327: MuSig2 for BIP340-compatible Multi-Signatures</a></li>\n" +
+    "      <li><a href=\"#!/schnorr\">BIP-340: Schnorr Signatures</a></li>\n" +
+    "      <li><a href=\"#!/descriptors\">BIP-380: Output Script Descriptors</a></li>\n" +
+    "    </ul>\n" +
+    "  </li>\n" +
+    "  <li>\n" +
+    "    LND<br/>\n" +
+    "    <ul>\n" +
+    "      <li><a href=\"#!/aezeed\">aezeed Cipher Seed Scheme</a></li>\n" +
+    "      <li><a href=\"#!/macaroon\">Macaroons</a></li>\n" +
+    "    </ul>\n" +
+    "  </li>\n" +
+    "  <li>\n" +
+    "    Other<br/>\n" +
+    "    <ul>\n" +
+    "      <li><a href=\"#!/shamir-secret-sharing\">Shamir's Secret Sharing Scheme</a></li>\n" +
+    "      <li><a href=\"#!/encoding-decoding\">Encoding/Decoding</a></li>\n" +
+    "    </ul>\n" +
+    "  </li>\n" +
     "</ul>\n" +
     "\n" +
     "<p class=\"pull-right\">\n" +
@@ -3764,7 +3940,7 @@ angular.module('app').run(['$templateCache', function($templateCache) {
 
 
   $templateCache.put('pages/mu-sig/mu-sig.html',
-    "<h1>MuSig: Key Aggregation for Schnorr Signatures</h1>\n" +
+    "<h1>BIP-327: MuSig2 for BIP340-compatible Multi-Signatures</h1>\n" +
     "\n" +
     "<div class=\"panel panel-default\">\n" +
     "  <div class=\"panel-heading\">\n" +
@@ -3774,10 +3950,11 @@ angular.module('app').run(['$templateCache', function($templateCache) {
     "  </div>\n" +
     "  <div class=\"panel-collapse collapse\" ng-class=\"{in: vm.showExplanation}\">\n" +
     "    <div class=\"panel-body\">\n" +
-    "      MuSig is a key aggregation scheme for Schnorr signatures that is secured agains rogue-key-attacks.\n" +
+    "      MuSig2 is a key aggregation scheme for Schnorr signatures that is secured against rogue-key-attacks.\n" +
     "\n" +
     "      <h3>Sources, tools and other useful information:</h3>\n" +
     "      <ul>\n" +
+    "        <li><a href=\"https://github.com/bitcoin/bips/blob/master/bip-0327.mediawiki\">BIP-0327: MuSig2 for BIP340-compatible Multi-Signatures</a></li>\n" +
     "        <li><a href=\"https://eprint.iacr.org/2018/068\">MuSig paper from Blockstream</a></li>\n" +
     "        <li><a href=\"https://blockstream.com/2018/01/23/musig-key-aggregation-schnorr-signatures/\">MuSig article</a></li>\n" +
     "        <li><a href=\"https://github.com/guggero/bip-schnorr\">Used JavaScript library</a></li>\n" +
@@ -3874,7 +4051,7 @@ angular.module('app').run(['$templateCache', function($templateCache) {
 
 
   $templateCache.put('pages/psbt-editor/psbt-editor.html',
-    "<h1>PSBT Editor</h1>\n" +
+    "<h1>BIP-174: PSBT Editor</h1>\n" +
     "\n" +
     "<div class=\"panel panel-default\">\n" +
     "  <div class=\"panel-heading\">\n" +
@@ -4493,7 +4670,7 @@ angular.module('app').run(['$templateCache', function($templateCache) {
 
 
   $templateCache.put('pages/schnorr/schnorr.html',
-    "<h1>BIP Schnorr Signatures</h1>\n" +
+    "<h1>BIP-340: Schnorr Signatures</h1>\n" +
     "\n" +
     "<div class=\"panel panel-default\">\n" +
     "  <div class=\"panel-heading\">\n" +
@@ -4505,13 +4682,13 @@ angular.module('app').run(['$templateCache', function($templateCache) {
     "    <div class=\"panel-body\">\n" +
     "      Schnorr Signatures are a form of Digital Signature Algorithms (DSA) that produces short signatures even when combining multiple\n" +
     "      public keys (when using for multisig).<br/><br/>\n" +
-    "      Currently there is a BIP that has no number assigned yet that introduces a specific signature scheme for Schnorr that produces\n" +
+    "      BIP-0340 introduces a specific signature scheme for Schnorr that produces\n" +
     "      64-byte signatures over the elliptic curve <em>secp256k1</em>.<br/>\n" +
-    "      This demo page shows how this BIP could look like when implemented in Bitcoin.\n" +
+    "      This demo page shows how this BIP looks like as implemented in Bitcoin.\n" +
     "\n" +
     "      <h3>Sources, tools and other useful information:</h3>\n" +
     "      <ul>\n" +
-    "        <li><a href=\"https://github.com/sipa/bips/blob/bip-schnorr/bip-schnorr.mediawiki\">BIP</a></li>\n" +
+    "        <li><a href=\"https://github.com/bitcoin/bips/blob/master/bip-0340.mediawiki\">BIP-0340</a></li>\n" +
     "        <li><a href=\"https://en.wikipedia.org/wiki/Schnorr_signature\">Wikipedia article</a></li>\n" +
     "        <li><a href=\"https://github.com/guggero/bip-schnorr\">Used JavaScript library</a></li>\n" +
     "      </ul>\n" +
