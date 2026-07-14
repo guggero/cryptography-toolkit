@@ -18,11 +18,17 @@
       <ul>
         <li><a href="https://github.com/bitcoin/bips/blob/master/bip-0340.mediawiki">BIP-0340</a></li>
         <li><a href="https://en.wikipedia.org/wiki/Schnorr_signature">Wikipedia article</a></li>
-        <li><a href="https://github.com/guggero/bip-schnorr">Used JavaScript library</a></li>
+        <li><a href="https://github.com/guggero/btcutil-js">btcutil-js library</a></li>
       </ul>
     </div>
   </div>
 </div>
+
+<div class="alert alert-info" ng-if="vm.loading">
+  <strong>Loading...</strong> Initializing WebAssembly module...
+</div>
+
+<div ng-if="!vm.loading">
 
 <h4>Sign message</h4>
 <div class="well">
@@ -55,7 +61,7 @@
     <div class="form-group">
       <label class="col-sm-3 control-label">SHA256 hash of message:</label>
       <div class="col-sm-9 no-left-padding">
-        <input class="form-control" ng-readonly="true" value="{{vm.messageHash.toString('hex')}}">
+        <input class="form-control" ng-readonly="true" value="{{vm.messageHashToVerify}}">
       </div>
     </div>
 
@@ -111,4 +117,5 @@
       </div>
     </div>
   </form>
+</div>
 </div>

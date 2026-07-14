@@ -24,14 +24,19 @@
             Generating a Bitcoin Address with JavaScript
           </a>
         </li>
-        <li><a href="https://bitcoinjs.org/">BitcoinJS</a></li>
-        <li><a href="https://github.com/bitcoinjs/bitcoinjs-lib">BitcoinJS GitHub repo</a></li>
+        <li><a href="https://github.com/guggero/btcutil-js">btcutil-js library</a></li>
         <li><a href="https://en.bitcoin.it/wiki/List_of_address_prefixes">List of address prefixes</a></li>
         <li><a href="https://en.bitcoin.it/wiki/Wallet_import_format">Wallet Import Format (WIF)</a></li>
       </ul>
     </div>
   </div>
 </div>
+
+<div class="alert alert-info" ng-if="vm.loading">
+  <strong>Loading...</strong> Initializing WebAssembly module...
+</div>
+
+<div ng-if="!vm.loading">
 
 <div class="alert alert-warning">
   <strong>Warning</strong>: Any generated keys are for demonstration only.
@@ -273,4 +278,5 @@
       </div>
     </div>
   </form>
+</div>
 </div>

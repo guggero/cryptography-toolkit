@@ -15,15 +15,14 @@
 
       <h3>Sources, tools and other useful information:</h3>
       <ul>
-        <li><a href="https://bitcoinjs.org/">BitcoinJS</a></li>
-        <li><a href="https://github.com/bitcoinjs/bitcoinjs-lib">BitcoinJS GitHub repo</a></li>
+        <li><a href="https://github.com/guggero/btcutil-js">btcutil-js library</a></li>
         <li>
-          <a href="https://github.com/bitcoinjs/bitcoinjs-lib/blob/master/test/integration/transactions.js#L46">
+          <a href="https://github.com/guggero/btcutil-js">
             Create a typical transaction
           </a>
         </li>
         <li>
-          <a href="https://github.com/bitcoinjs/bitcoinjs-lib/blob/master/test/integration/transactions.js#L151">
+          <a href="https://github.com/guggero/btcutil-js">
             Create a SegWit P2SH (P2WPKH) transaction
           </a>
         </li>
@@ -31,6 +30,12 @@
     </div>
   </div>
 </div>
+
+<div class="alert alert-info" ng-if="vm.loading">
+  <strong>Loading...</strong> Initializing WebAssembly module...
+</div>
+
+<div ng-if="!vm.loading">
 
 <div class="alert alert-warning">
   <strong>Warning</strong>: This is meant as a playground only! You should only use testnet keys and never paste real private keys
@@ -229,4 +234,5 @@
       </div>
     </form>
   </div>
+</div>
 </div>

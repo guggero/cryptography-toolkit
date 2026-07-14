@@ -628,6 +628,21 @@ function txFromJson(j) {
     outputs: (j.outputs ?? []).map(txOutputFromJson)
   };
 }
+function blockFromJson(j) {
+  return {
+    hash: j.hash ?? "",
+    version: j.version,
+    prevBlock: j.prevBlock ?? "",
+    merkleRoot: j.merkleRoot ?? "",
+    timestamp: j.timestamp ?? 0,
+    bits: j.bits ?? 0,
+    nonce: j.nonce ?? 0,
+    size: j.size ?? 0,
+    legacySize: j.legacySize ?? 0,
+    weight: j.weight ?? 0,
+    transactions: (j.transactions ?? []).map(txFromJson)
+  };
+}
 function txToJson(t) {
   return {
     version: t.version,
@@ -1275,6 +1290,8 @@ function buildSyncApi() {
     const r = JSON.parse(json);
     return { valid: r.valid || false, timeConstraints: r.timeConstraints };
   };
+  const blockNs = wrapNamespace(raw.block);
+  blockNs.decode = (rawBlock) => blockFromJson(JSON.parse(unwrap(raw.block.decode(rawBlock))));
   const psbtNs = wrapNamespace(raw.psbt);
   psbtNs.decode = (b64) => psbtFromJson(JSON.parse(unwrap(raw.psbt.decode(b64))));
   psbtNs.encode = (decoded) => unwrap(raw.psbt.encode(JSON.stringify(psbtToJson(decoded))));
@@ -1298,6 +1315,8 @@ function buildSyncApi() {
     bip322: bip322Ns,
     txsort: wrapNamespace(raw.txsort),
     tx: txNs,
+    block: blockNs,
+    musig2: wrapNamespace(raw.musig2),
     psbt: psbtNs,
     gcs: wrapNamespace(raw.gcs),
     bloom: wrapNamespace(raw.bloom),

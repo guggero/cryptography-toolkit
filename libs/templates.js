@@ -1539,16 +1539,6 @@ angular.module('app').run(['$templateCache', function($templateCache) {
   );
 
 
-  $templateCache.put('node_modules/tslib/tslib.es6.html',
-    "<script src=\"tslib.es6.js\"></script>"
-  );
-
-
-  $templateCache.put('node_modules/tslib/tslib.html',
-    "<script src=\"tslib.js\"></script>"
-  );
-
-
   $templateCache.put('node_modules/uglify-js/tools/domprops.html',
     "<!doctype html>\n" +
     "<html>\n" +
@@ -2051,6 +2041,12 @@ angular.module('app').run(['$templateCache', function($templateCache) {
     "  </div>\n" +
     "</div>\n" +
     "\n" +
+    "<div class=\"alert alert-info\" ng-if=\"vm.loading\">\n" +
+    "  <strong>Loading...</strong> Initializing WebAssembly module...\n" +
+    "</div>\n" +
+    "\n" +
+    "<div ng-if=\"!vm.loading\">\n" +
+    "\n" +
     "<div class=\"alert alert-warning\">\n" +
     "  <strong>Warning</strong>: Any generated keys are for demonstration only.\n" +
     "  Your browser's random number generator might be too predictable to trust!\n" +
@@ -2247,6 +2243,7 @@ angular.module('app').run(['$templateCache', function($templateCache) {
     "    </div>\n" +
     "\n" +
     "  </form>\n" +
+    "</div>\n" +
     "</div>\n"
   );
 
@@ -2639,12 +2636,17 @@ angular.module('app').run(['$templateCache', function($templateCache) {
     "            <h3>Sources, tools and other useful information:</h3>\n" +
     "            <ul>\n" +
     "                <li><a href=\"https://blockexplorer.com/api-ref\">Blockchain Explorer API reference</a></li>\n" +
-    "                <li><a href=\"https://bitcoinjs.org/\">BitcoinJS</a></li>\n" +
-    "                <li><a href=\"https://github.com/bitcoinjs/bitcoinjs-lib\">BitcoinJS GitHub repo</a></li>\n" +
+    "                <li><a href=\"https://github.com/guggero/btcutil-js\">btcutil-js library</a></li>\n" +
     "            </ul>\n" +
     "        </div>\n" +
     "    </div>\n" +
     "</div>\n" +
+    "\n" +
+    "<div class=\"alert alert-info\" ng-if=\"vm.loading\">\n" +
+    "  <strong>Loading...</strong> Initializing WebAssembly module...\n" +
+    "</div>\n" +
+    "\n" +
+    "<div ng-if=\"!vm.loading\">\n" +
     "\n" +
     "<h4>Block data</h4>\n" +
     "<div class=\"well\">\n" +
@@ -2730,7 +2732,7 @@ angular.module('app').run(['$templateCache', function($templateCache) {
     "        <div class=\"form-group\">\n" +
     "            <label class=\"col-sm-4 control-label\" for=\"json\">Real block size with SegWit:</label>\n" +
     "            <div class=\"col-sm-8 input-group\">\n" +
-    "                <input ng-readonly=\"true\" value=\"{{vm.block.byteLength()}}\" class=\"form-control\">\n" +
+    "                <input ng-readonly=\"true\" value=\"{{vm.block.size}}\" class=\"form-control\">\n" +
     "            </div>\n" +
     "        </div>\n" +
     "        <div class=\"form-group\">\n" +
@@ -2752,15 +2754,15 @@ angular.module('app').run(['$templateCache', function($templateCache) {
     "</div>\n" +
     "\n" +
     "<div ng-if=\"!vm.error && vm.decodedBlock && vm.decodedBlock.transactions.length > 0\">\n" +
-    "    <div ng-repeat=\"tx in vm.decodedBlock.transactions\">\n" +
-    "        <h4 ng-init=\"origTx = vm.block.transactions[$index]\">TX {{$index}}</h4>\n" +
+    "    <div ng-repeat=\"tx in vm.block.transactions\">\n" +
+    "        <h4>TX {{$index}}</h4>\n" +
     "        <div class=\"well\">\n" +
     "            <form class=\"form-horizontal\">\n" +
     "                <!-- hash -->\n" +
     "                <div class=\"form-group\">\n" +
     "                    <label class=\"col-sm-3 control-label\" for=\"raw\">Calculated Hash:</label>\n" +
     "                    <div class=\"col-sm-9 input-group\">\n" +
-    "                        <input ng-readonly=\"true\" value=\"{{::origTx.getHash().toString('hex')}}\" class=\"form-control\">\n" +
+    "                        <input ng-readonly=\"true\" value=\"{{::tx.hash}}\" class=\"form-control\">\n" +
     "                    </div>\n" +
     "                </div>\n" +
     "\n" +
@@ -2768,7 +2770,7 @@ angular.module('app').run(['$templateCache', function($templateCache) {
     "                <div class=\"form-group\">\n" +
     "                    <label class=\"col-sm-3 control-label\" for=\"raw\">TX ID (reversed hash):</label>\n" +
     "                    <div class=\"col-sm-9 input-group\">\n" +
-    "                        <input ng-readonly=\"true\" value=\"{{::origTx.getId().toString('hex')}}\" class=\"form-control\">\n" +
+    "                        <input ng-readonly=\"true\" value=\"{{::tx.txid}}\" class=\"form-control\">\n" +
     "                    </div>\n" +
     "                </div>\n" +
     "\n" +
@@ -2777,7 +2779,7 @@ angular.module('app').run(['$templateCache', function($templateCache) {
     "                    <label class=\"col-sm-3 control-label\" for=\"raw\">Misc:</label>\n" +
     "                    <div class=\"col-sm-9 input-group\">\n" +
     "            <span class=\"form-control\" ng-readonly=\"true\">\n" +
-    "                Version: {{::tx.version}}, Locktime: {{::tx.locktime}}, is coinbase TX: {{::origTx.isCoinbase()}}, weight: {{::origTx.weight()}}\n" +
+    "                Version: {{::tx.version}}, Locktime: {{::tx.locktime}}, is coinbase TX: {{::tx.isCoinbase}}, weight: {{::tx.weight}}\n" +
     "            </span>\n" +
     "                    </div>\n" +
     "                </div>\n" +
@@ -2786,29 +2788,29 @@ angular.module('app').run(['$templateCache', function($templateCache) {
     "                <div class=\"form-group\">\n" +
     "                    <label class=\"col-sm-3 control-label\" for=\"raw\">Inputs:</label>\n" +
     "                    <div class=\"col-sm-9 input-group\">\n" +
-    "                        <div class=\"well\" ng-repeat=\"input in ::tx.ins\">\n" +
+    "                        <div class=\"well\" ng-repeat=\"input in ::tx.inputs\">\n" +
     "                            <div class=\"form-group\">\n" +
     "                                <div class=\"input-group\">\n" +
     "                                    <span class=\"input-group-addon\">Referencing TX ID:</span>\n" +
-    "                                    <input ng-readonly=\"true\" value=\"{{::vm.getTxId(input.hash)}}\" class=\"form-control\">\n" +
+    "                                    <input ng-readonly=\"true\" value=\"{{::input.txid}}\" class=\"form-control\">\n" +
     "                                </div>\n" +
     "                                <div class=\"input-group\">\n" +
     "                                    <span class=\"input-group-addon\">Referencing TX Output Index:</span>\n" +
-    "                                    <input ng-readonly=\"true\" value=\"{{::input.index}}\" class=\"form-control\">\n" +
+    "                                    <input ng-readonly=\"true\" value=\"{{::input.vout}}\" class=\"form-control\">\n" +
     "                                    <span class=\"input-group-addon\">Sequence Number:</span>\n" +
     "                                    <input ng-readonly=\"true\" value=\"{{::input.sequence.toString(16)}}\" class=\"form-control\">\n" +
     "                                </div>\n" +
-    "                                <div class=\"input-group\" ng-if=\"!origTx.isCoinbase()\">\n" +
+    "                                <div class=\"input-group\" ng-if=\"!tx.isCoinbase\">\n" +
     "                                    <span class=\"input-group-addon\">Script:</span>\n" +
-    "                                    <input ng-readonly=\"true\" value=\"{{::input.script}}\" class=\"form-control\">\n" +
+    "                                    <input ng-readonly=\"true\" value=\"{{::input.scriptSigHex}}\" class=\"form-control\">\n" +
     "                                </div>\n" +
-    "                                <div class=\"input-group\" ng-if=\"origTx.isCoinbase()\">\n" +
+    "                                <div class=\"input-group\" ng-if=\"tx.isCoinbase\">\n" +
     "                                    <span class=\"input-group-addon\">Data:</span>\n" +
-    "                                    <input ng-readonly=\"true\" value=\"{{::vm.getRawString(input.script)}}\" class=\"form-control\">\n" +
+    "                                    <input ng-readonly=\"true\" value=\"{{::input.scriptSigAscii}}\" class=\"form-control\">\n" +
     "                                </div>\n" +
-    "                                <div class=\"input-group\" ng-if=\"origTx.hasWitnesses()\">\n" +
+    "                                <div class=\"input-group\" ng-if=\"tx.hasWitness\">\n" +
     "                                    <span class=\"input-group-addon\">Witness:</span>\n" +
-    "                                    <input ng-readonly=\"true\" value=\"{{::input.witness}}\" class=\"form-control\">\n" +
+    "                                    <input ng-readonly=\"true\" value=\"{{::input.witnessHex}}\" class=\"form-control\">\n" +
     "                                </div>\n" +
     "                            </div>\n" +
     "                        </div>\n" +
@@ -2819,7 +2821,7 @@ angular.module('app').run(['$templateCache', function($templateCache) {
     "                <div class=\"form-group\">\n" +
     "                    <label class=\"col-sm-3 control-label\" for=\"raw\">Outputs:</label>\n" +
     "                    <div class=\"col-sm-9 input-group\">\n" +
-    "                        <div class=\"well\" ng-repeat=\"output in ::tx.outs\">\n" +
+    "                        <div class=\"well\" ng-repeat=\"output in ::tx.outputs\">\n" +
     "                            <div class=\"form-group\">\n" +
     "                                <div class=\"input-group\">\n" +
     "                                    <span class=\"input-group-addon\">Value (Raw/Satoshis):</span>\n" +
@@ -2829,13 +2831,11 @@ angular.module('app').run(['$templateCache', function($templateCache) {
     "                                </div>\n" +
     "                                <div class=\"input-group\">\n" +
     "                                    <span class=\"input-group-addon\">Script:</span>\n" +
-    "                                    <input ng-readonly=\"true\" value=\"{{::output.script}}\" class=\"form-control\">\n" +
+    "                                    <input ng-readonly=\"true\" value=\"{{::output.scriptAsm}}\" class=\"form-control\">\n" +
     "                                </div>\n" +
-    "                                <div class=\"input-group\" ng-if=\"::vm.isP2PKH(origTx.outs[$index].script)\">\n" +
+    "                                <div class=\"input-group\" ng-if=\"::output.address\">\n" +
     "                                    <span class=\"input-group-addon\">Address:</span>\n" +
-    "                                    <input ng-readonly=\"true\"\n" +
-    "                                           value=\"{{::$root.hexPubKeyToBitcoinAddr(vm.getP2PKH(origTx.outs[$index].script))}}\"\n" +
-    "                                           class=\"form-control\">\n" +
+    "                                    <input ng-readonly=\"true\" value=\"{{::output.address}}\" class=\"form-control\">\n" +
     "                                </div>\n" +
     "                            </div>\n" +
     "                        </div>\n" +
@@ -2844,6 +2844,7 @@ angular.module('app').run(['$templateCache', function($templateCache) {
     "            </form>\n" +
     "        </div>\n" +
     "    </div>\n" +
+    "</div>\n" +
     "</div>\n"
   );
 
@@ -3062,14 +3063,19 @@ angular.module('app').run(['$templateCache', function($templateCache) {
     "            Generating a Bitcoin Address with JavaScript\n" +
     "          </a>\n" +
     "        </li>\n" +
-    "        <li><a href=\"https://bitcoinjs.org/\">BitcoinJS</a></li>\n" +
-    "        <li><a href=\"https://github.com/bitcoinjs/bitcoinjs-lib\">BitcoinJS GitHub repo</a></li>\n" +
+    "        <li><a href=\"https://github.com/guggero/btcutil-js\">btcutil-js library</a></li>\n" +
     "        <li><a href=\"https://en.bitcoin.it/wiki/List_of_address_prefixes\">List of address prefixes</a></li>\n" +
     "        <li><a href=\"https://en.bitcoin.it/wiki/Wallet_import_format\">Wallet Import Format (WIF)</a></li>\n" +
     "      </ul>\n" +
     "    </div>\n" +
     "  </div>\n" +
     "</div>\n" +
+    "\n" +
+    "<div class=\"alert alert-info\" ng-if=\"vm.loading\">\n" +
+    "  <strong>Loading...</strong> Initializing WebAssembly module...\n" +
+    "</div>\n" +
+    "\n" +
+    "<div ng-if=\"!vm.loading\">\n" +
     "\n" +
     "<div class=\"alert alert-warning\">\n" +
     "  <strong>Warning</strong>: Any generated keys are for demonstration only.\n" +
@@ -3311,6 +3317,7 @@ angular.module('app').run(['$templateCache', function($templateCache) {
     "      </div>\n" +
     "    </div>\n" +
     "  </form>\n" +
+    "</div>\n" +
     "</div>\n"
   );
 
@@ -3514,6 +3521,12 @@ angular.module('app').run(['$templateCache', function($templateCache) {
     "  </div>\n" +
     "</div>\n" +
     "\n" +
+    "<div class=\"alert alert-info\" ng-if=\"vm.loading\">\n" +
+    "  <strong>Loading...</strong> Initializing WebAssembly module...\n" +
+    "</div>\n" +
+    "\n" +
+    "<div ng-if=\"!vm.loading\">\n" +
+    "\n" +
     "<div class=\"alert alert-warning\">\n" +
     "  <strong>Warning</strong>: Any generated keys are for demonstration only.\n" +
     "  Your browser's random number generator might be too predictable to trust!\n" +
@@ -3605,7 +3618,7 @@ angular.module('app').run(['$templateCache', function($templateCache) {
     "      <label class=\"col-sm-3 control-label\">Private key (WIF, compressed):</label>\n" +
     "      <div class=\"col-sm-9 input-group\">\n" +
     "        <input class=\"form-control\"\n" +
-    "               value=\"{{vm.node.toWIF()}}\"\n" +
+    "               value=\"{{vm.nodeWif}}\"\n" +
     "               ng-readonly=\"true\">\n" +
     "      </div>\n" +
     "    </div>\n" +
@@ -3695,7 +3708,7 @@ angular.module('app').run(['$templateCache', function($templateCache) {
     "      <label class=\"col-sm-3 control-label\">Derived private key base58:</label>\n" +
     "      <div class=\"col-sm-9 input-group\">\n" +
     "        <input class=\"form-control\"\n" +
-    "               value=\"{{vm.derivedKey.toBase58()}}\"\n" +
+    "               value=\"{{vm.derivedKey.base58}}\"\n" +
     "               ng-readonly=\"true\">\n" +
     "      </div>\n" +
     "    </div>\n" +
@@ -3715,7 +3728,7 @@ angular.module('app').run(['$templateCache', function($templateCache) {
     "      <label class=\"col-sm-3 control-label\">Private key (WIF, compressed):</label>\n" +
     "      <div class=\"col-sm-9 input-group\">\n" +
     "        <input class=\"form-control\"\n" +
-    "               value=\"{{vm.derivedKey.toWIF()}}\"\n" +
+    "               value=\"{{vm.derivedKey.wif}}\"\n" +
     "               ng-readonly=\"true\">\n" +
     "      </div>\n" +
     "    </div>\n" +
@@ -3788,7 +3801,7 @@ angular.module('app').run(['$templateCache', function($templateCache) {
     "      <label class=\"col-sm-3 control-label\">Derived key base58:</label>\n" +
     "      <div class=\"col-sm-9 input-group\">\n" +
     "        <input class=\"form-control\"\n" +
-    "               value=\"{{vm.customDerivedKey.toBase58()}}\"\n" +
+    "               value=\"{{vm.customDerivedKey.base58}}\"\n" +
     "               ng-readonly=\"true\">\n" +
     "      </div>\n" +
     "    </div>\n" +
@@ -3798,7 +3811,7 @@ angular.module('app').run(['$templateCache', function($templateCache) {
     "      <label class=\"col-sm-3 control-label\">Public key:</label>\n" +
     "      <div class=\"col-sm-9 input-group\">\n" +
     "        <input class=\"form-control\"\n" +
-    "               value=\"{{vm.customDerivedKey.publicKey.toString('hex')}}\"\n" +
+    "               value=\"{{vm.customDerivedKey.publicKeyHex}}\"\n" +
     "               ng-readonly=\"true\">\n" +
     "      </div>\n" +
     "    </div>\n" +
@@ -3808,7 +3821,7 @@ angular.module('app').run(['$templateCache', function($templateCache) {
     "      <label class=\"col-sm-3 control-label\">Private key (WIF, compressed):</label>\n" +
     "      <div class=\"col-sm-9 input-group\">\n" +
     "        <input class=\"form-control\"\n" +
-    "               value=\"{{vm.customDerivedKey.toWIF()}}\"\n" +
+    "               value=\"{{vm.customDerivedKey.wif}}\"\n" +
     "               ng-readonly=\"true\">\n" +
     "      </div>\n" +
     "    </div>\n" +
@@ -3847,6 +3860,7 @@ angular.module('app').run(['$templateCache', function($templateCache) {
     "      </div>\n" +
     "    </div>\n" +
     "  </form>\n" +
+    "</div>\n" +
     "</div>\n"
   );
 
@@ -4127,11 +4141,17 @@ angular.module('app').run(['$templateCache', function($templateCache) {
     "        <li><a href=\"https://github.com/bitcoin/bips/blob/master/bip-0327.mediawiki\">BIP-0327: MuSig2 for BIP340-compatible Multi-Signatures</a></li>\n" +
     "        <li><a href=\"https://eprint.iacr.org/2018/068\">MuSig paper from Blockstream</a></li>\n" +
     "        <li><a href=\"https://blockstream.com/2018/01/23/musig-key-aggregation-schnorr-signatures/\">MuSig article</a></li>\n" +
-    "        <li><a href=\"https://github.com/guggero/bip-schnorr\">Used JavaScript library</a></li>\n" +
+    "        <li><a href=\"https://github.com/guggero/btcutil-js\">btcutil-js library</a></li>\n" +
     "      </ul>\n" +
     "    </div>\n" +
     "  </div>\n" +
     "</div>\n" +
+    "\n" +
+    "<div class=\"alert alert-info\" ng-if=\"vm.loading\">\n" +
+    "  <strong>Loading...</strong> Initializing WebAssembly module...\n" +
+    "</div>\n" +
+    "\n" +
+    "<div ng-if=\"!vm.loading\">\n" +
     "\n" +
     "<h3>Interactive demo</h3>\n" +
     "\n" +
@@ -4146,7 +4166,7 @@ angular.module('app').run(['$templateCache', function($templateCache) {
     "        <input class=\"form-control\" ng-model=\"vm.message\" ng-change=\"vm.hashMessage()\">\n" +
     "        <div class=\"input-group\">\n" +
     "          <div class=\"input-group-addon\">Hash</div>\n" +
-    "          <input class=\"form-control\" ng-readonly=\"true\" value=\"{{vm.publicData.message.toString('hex')}}\">\n" +
+    "          <input class=\"form-control\" ng-readonly=\"true\" value=\"{{vm.publicData.messageHash}}\">\n" +
     "        </div>\n" +
     "      </div>\n" +
     "    </div>\n" +
@@ -4191,7 +4211,7 @@ angular.module('app').run(['$templateCache', function($templateCache) {
     "  To reset the demo, please reload the page.\n" +
     "</p>\n" +
     "\n" +
-    "<button class=\"btn btn-primary\" ng-click=\"vm.nextStep()\" ng-disabled=\"vm.step > 7\">{{vm.steps[vm.step].label}}</button>\n" +
+    "<button class=\"btn btn-primary\" ng-click=\"vm.nextStep()\" ng-disabled=\"vm.step >= vm.steps.length - 1\">{{vm.steps[vm.step].label}}</button>\n" +
     "\n" +
     "<h4>Public data</h4>\n" +
     "<small>This represents data that is known to all participants. In fact, every participant will calculate/store these values during the signing session.</small>\n" +
@@ -4218,6 +4238,7 @@ angular.module('app').run(['$templateCache', function($templateCache) {
     "      </div>\n" +
     "    </div>\n" +
     "  </form>\n" +
+    "</div>\n" +
     "</div>\n"
   );
 
@@ -4862,11 +4883,17 @@ angular.module('app').run(['$templateCache', function($templateCache) {
     "      <ul>\n" +
     "        <li><a href=\"https://github.com/bitcoin/bips/blob/master/bip-0340.mediawiki\">BIP-0340</a></li>\n" +
     "        <li><a href=\"https://en.wikipedia.org/wiki/Schnorr_signature\">Wikipedia article</a></li>\n" +
-    "        <li><a href=\"https://github.com/guggero/bip-schnorr\">Used JavaScript library</a></li>\n" +
+    "        <li><a href=\"https://github.com/guggero/btcutil-js\">btcutil-js library</a></li>\n" +
     "      </ul>\n" +
     "    </div>\n" +
     "  </div>\n" +
     "</div>\n" +
+    "\n" +
+    "<div class=\"alert alert-info\" ng-if=\"vm.loading\">\n" +
+    "  <strong>Loading...</strong> Initializing WebAssembly module...\n" +
+    "</div>\n" +
+    "\n" +
+    "<div ng-if=\"!vm.loading\">\n" +
     "\n" +
     "<h4>Sign message</h4>\n" +
     "<div class=\"well\">\n" +
@@ -4899,7 +4926,7 @@ angular.module('app').run(['$templateCache', function($templateCache) {
     "    <div class=\"form-group\">\n" +
     "      <label class=\"col-sm-3 control-label\">SHA256 hash of message:</label>\n" +
     "      <div class=\"col-sm-9 no-left-padding\">\n" +
-    "        <input class=\"form-control\" ng-readonly=\"true\" value=\"{{vm.messageHash.toString('hex')}}\">\n" +
+    "        <input class=\"form-control\" ng-readonly=\"true\" value=\"{{vm.messageHashToVerify}}\">\n" +
     "      </div>\n" +
     "    </div>\n" +
     "\n" +
@@ -4955,6 +4982,7 @@ angular.module('app').run(['$templateCache', function($templateCache) {
     "      </div>\n" +
     "    </div>\n" +
     "  </form>\n" +
+    "</div>\n" +
     "</div>\n"
   );
 
@@ -5091,15 +5119,14 @@ angular.module('app').run(['$templateCache', function($templateCache) {
     "\n" +
     "      <h3>Sources, tools and other useful information:</h3>\n" +
     "      <ul>\n" +
-    "        <li><a href=\"https://bitcoinjs.org/\">BitcoinJS</a></li>\n" +
-    "        <li><a href=\"https://github.com/bitcoinjs/bitcoinjs-lib\">BitcoinJS GitHub repo</a></li>\n" +
+    "        <li><a href=\"https://github.com/guggero/btcutil-js\">btcutil-js library</a></li>\n" +
     "        <li>\n" +
-    "          <a href=\"https://github.com/bitcoinjs/bitcoinjs-lib/blob/master/test/integration/transactions.js#L46\">\n" +
+    "          <a href=\"https://github.com/guggero/btcutil-js\">\n" +
     "            Create a typical transaction\n" +
     "          </a>\n" +
     "        </li>\n" +
     "        <li>\n" +
-    "          <a href=\"https://github.com/bitcoinjs/bitcoinjs-lib/blob/master/test/integration/transactions.js#L151\">\n" +
+    "          <a href=\"https://github.com/guggero/btcutil-js\">\n" +
     "            Create a SegWit P2SH (P2WPKH) transaction\n" +
     "          </a>\n" +
     "        </li>\n" +
@@ -5107,6 +5134,12 @@ angular.module('app').run(['$templateCache', function($templateCache) {
     "    </div>\n" +
     "  </div>\n" +
     "</div>\n" +
+    "\n" +
+    "<div class=\"alert alert-info\" ng-if=\"vm.loading\">\n" +
+    "  <strong>Loading...</strong> Initializing WebAssembly module...\n" +
+    "</div>\n" +
+    "\n" +
+    "<div ng-if=\"!vm.loading\">\n" +
     "\n" +
     "<div class=\"alert alert-warning\">\n" +
     "  <strong>Warning</strong>: This is meant as a playground only! You should only use testnet keys and never paste real private keys\n" +
@@ -5305,6 +5338,7 @@ angular.module('app').run(['$templateCache', function($templateCache) {
     "      </div>\n" +
     "    </form>\n" +
     "  </div>\n" +
+    "</div>\n" +
     "</div>\n"
   );
 
@@ -5325,6 +5359,12 @@ angular.module('app').run(['$templateCache', function($templateCache) {
     "    </div>\n" +
     "  </div>\n" +
     "</div>\n" +
+    "\n" +
+    "<div class=\"alert alert-info\" ng-if=\"vm.loading\">\n" +
+    "  <strong>Loading...</strong> Initializing WebAssembly module...\n" +
+    "</div>\n" +
+    "\n" +
+    "<div ng-if=\"!vm.loading\">\n" +
     "\n" +
     "<div class=\"alert alert-warning\">\n" +
     "  <strong>Warning</strong>: This is meant as a playground only! You should only use testnet keys and never paste real private keys\n" +
@@ -5443,7 +5483,8 @@ angular.module('app').run(['$templateCache', function($templateCache) {
     "    </div>\n" +
     "  </form>\n" +
     "</div>\n" +
-    "\n"
+    "\n" +
+    "</div>\n"
   );
 
 }]);

@@ -7,49 +7,67 @@ angular
     bindings: {}
   });
 
-function SchnorrPageController(lodash, bitcoinNetworks) {
+function SchnorrPageController($scope) {
   const vm = this;
-  const HASH_TYPE = bitcoin.Transaction.SIGHASH_ALL;
+  const SIGHASH_ALL = 0x01;
 
-  vm.network = lodash.find(bitcoinNetworks, ['label', 'BTC (Bitcoin, legacy, BIP32/44)']);
-  vm.keyPair = null;
+  vm.loading = true;
+  vm.lib = null;
   vm.privateKey = null;
   vm.publicKey = null;
   vm.message = 'Schnorr Signatures are awesome!';
 
   vm.$onInit = function () {
-    vm.newPrivateKey();
+    bitcoin.btcutil.init('libs/wasm/btcutil.wasm').then(function (lib) {
+      vm.lib = lib;
+      vm.loading = false;
+      vm.newPrivateKey();
+      $scope.$applyAsync();
+    }).catch(function (err) {
+      vm.loading = false;
+      vm.error = 'Failed to load WASM: ' + (err.message || err);
+      $scope.$applyAsync();
+    });
   };
 
+  function toHex(b) {
+    return bitcoin.Buffer.from(b).toString('hex');
+  }
+
   vm.newPrivateKey = function () {
-    vm.keyPair = bitcoin.ECPair.makeRandom();
-    vm.privateKey = vm.keyPair.privateKey.toString('hex');
-    vm.publicKey = vm.keyPair.publicKey.toString('hex');
+    const keyPair = vm.lib.btcec.newPrivateKey();
+    vm.privateKey = toHex(keyPair.privateKey);
+    vm.publicKey = toHex(keyPair.publicKey);
+    // BIP-340 uses the 32-byte x-only form of the public key.
     vm.publicKeyToVerify = vm.publicKey.substring(2, 66);
     vm.signMessage();
   };
 
   vm.signMessage = function () {
-    vm.messageHash = bitcoin.crypto.sha256(vm.message);
-    vm.messageHashToVerify = vm.messageHash.toString('hex');
+    if (!vm.lib) return;
+    const msgBytes = bitcoin.Buffer.from(vm.message, 'utf8');
+    vm.messageHash = vm.lib.chainhash.hash(msgBytes);
+    vm.messageHashToVerify = toHex(vm.messageHash);
 
-    const privKeyInt = bitcoin.BigInteger.fromBuffer(vm.keyPair.privateKey);
-    vm.signature = bitcoin.schnorr.sign(privKeyInt, bitcoin.Buffer.from(vm.messageHashToVerify, 'hex')).toString('hex');
-    const sig = vm.keyPair.sign(bitcoin.Buffer.from(vm.messageHashToVerify, 'hex'));
-    vm.ecdsaSignature = bitcoin.script.signature.encode(sig, HASH_TYPE).toString('hex');
-    vm.sizeImprovement = 100 - ((vm.signature.length / vm.ecdsaSignature.length) * 100);
+    vm.signature = toHex(
+      vm.lib.btcec.schnorrSign(vm.privateKey, vm.messageHash));
+    // For size comparison: the same hash signed with ECDSA, DER-encoded
+    // with the sighash type byte appended (as it appears in a tx).
+    const derSig = toHex(
+      vm.lib.btcec.ecdsaSign(vm.privateKey, vm.messageHash));
+    vm.ecdsaSignature = derSig + SIGHASH_ALL.toString(16).padStart(2, '0');
+    vm.sizeImprovement =
+      100 - ((vm.signature.length / vm.ecdsaSignature.length) * 100);
     vm.signatureToVerify = vm.signature;
     vm.verifySignature();
   };
 
   vm.verifySignature = function () {
     vm.signatureValid = false;
+    if (!vm.lib) return;
     try {
-      const publicKey = bitcoin.Buffer.from(vm.publicKeyToVerify, 'hex');
-      const hash = bitcoin.Buffer.from(vm.messageHashToVerify, 'hex');
-      const signature = bitcoin.Buffer.from(vm.signatureToVerify, 'hex');
-      bitcoin.schnorr.verify(publicKey, hash, signature);
-      vm.signatureValid = true;
+      vm.signatureValid = vm.lib.btcec.schnorrVerify(
+        vm.publicKeyToVerify, vm.messageHashToVerify, vm.signatureToVerify);
     } catch (e) {
       vm.signatureValid = false;
     }

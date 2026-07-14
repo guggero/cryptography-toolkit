@@ -25,6 +25,9 @@ test.describe('hd-wallet', () => {
     await byModel(page, 'vm.selectedBip')
       .selectOption({label: 'BIP84 (Native SegWit bech32 P2WPKH)'});
     await expect(page.locator(`input[value="${h.bip84Addr}"]`)).toBeVisible();
+    // The account xpub display must carry the scheme's zpub version bytes.
+    await expect(page.locator(`input[value="${h.masterZpub}"]`).first())
+      .toBeVisible();
   });
 
   test('derivation index changes the address', async ({page}) => {

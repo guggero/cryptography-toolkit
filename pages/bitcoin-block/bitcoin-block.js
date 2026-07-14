@@ -15,17 +15,29 @@ const BLOCK_SOURCE_API_URLS = [{
   url: 'https://bitcoin.gugger.guru/rest/block/%s.hex'
 }];
 
-function BitcoinBlockPageController($rootScope, $http, lodash) {
+function BitcoinBlockPageController($rootScope, $scope, $http, lodash) {
   const vm = this;
+  const Buffer = bitcoin.Buffer;
 
   vm.hash = '0000000000000000079c58e8b5bce4217f7515a74b170049398ed9b8428beb4a';
   vm.sources = BLOCK_SOURCE_API_URLS;
   vm.selectedBlockSource = vm.sources[0];
   vm.raw = null;
   vm.decodedBlock = null;
+  vm.lib = null;
+  vm.loading = true;
 
   vm.$onInit = function () {
-    vm.downloadBlock();
+    bitcoin.btcutil.init('libs/wasm/btcutil.wasm').then(function (lib) {
+      vm.lib = lib;
+      vm.loading = false;
+      vm.downloadBlock();
+      $scope.$applyAsync();
+    }).catch(function (err) {
+      vm.loading = false;
+      vm.error = 'Failed to load WASM: ' + (err.message || err);
+      $scope.$applyAsync();
+    });
   };
 
   vm.downloadBlock = function () {
@@ -42,18 +54,43 @@ function BitcoinBlockPageController($rootScope, $http, lodash) {
   };
 
   vm.parseBlock = function () {
+    if (!vm.lib) return;
     vm.error = null;
     vm.decodedBlock = 'loading...';
 
     try {
-      vm.block = bitcoin.Block.fromHex(vm.raw);
-      vm.block.weight = lodash.sumBy(vm.block.transactions, function (tx) {
-        return tx.weight();
+      vm.block = vm.lib.block.decode(vm.raw);
+      // Enrich each transaction with the display fields the template needs.
+      vm.block.transactions.forEach(function (tx) {
+        tx.hash = revHex(tx.txid);
+        tx.isCoinbase = tx.inputs.length === 1 &&
+          tx.inputs[0].txid === '0'.repeat(64) &&
+          tx.inputs[0].vout === 0xffffffff;
+        tx.weight = txWeight(tx);
+        tx.hasWitness = tx.inputs.some(function (input) {
+          return input.witness && input.witness.length > 0;
+        });
+        tx.inputs.forEach(function (input) {
+          input.scriptSigHex = Buffer.from(input.scriptSig).toString('hex');
+          input.scriptSigAscii = Buffer.from(input.scriptSig).toString();
+          input.witnessHex = input.witness.map(function (w) {
+            return Buffer.from(w).toString('hex');
+          });
+        });
+        tx.outputs.forEach(function (output) {
+          output.scriptAsm =
+            vm.lib.txscript.disasmString(output.scriptPubKey);
+          // Standard-script address, when there is one.
+          try {
+            const extracted = vm.lib.txscript.extractPkScriptAddrs(
+              output.scriptPubKey, 'mainnet');
+            output.address = (extracted.addresses || [])[0] || null;
+          } catch (e) {
+            output.address = null;
+          }
+        });
       });
-      vm.block.legacySize = 80 + bitcoin.varuint.encodingLength(vm.block.transactions.length) + vm.block.transactions.reduce(function (a, x) {
-        return a + x.byteLength(false);
-      }, 0);
-      vm.decodedBlock = lodash.deeply(lodash.mapValues)(angular.copy(vm.block), bufferToString);
+      vm.decodedBlock = normalize(vm.block);
       paintMerkleTree();
     } catch (e) {
       vm.error = e;
@@ -62,92 +99,75 @@ function BitcoinBlockPageController($rootScope, $http, lodash) {
     }
   };
 
-  vm.getP2PKH = function (script) {
-    var chunks = bitcoin.script.decompile(script);
-    var decoded = bitcoin.script.toASM(chunks);
-    if (decoded.indexOf('OP_DUP OP_HASH160 ') === 0) {
-      return chunks[2];
-    }
-    return null;
-  };
-
-  vm.isP2PKH = function (script) {
-    return vm.getP2PKH(script) !== null;
-  };
-
-  vm.getTxId = function (hex) {
-    return bitcoin.Buffer.from(hex, 'hex').reverse().toString('hex');
-  };
-
-  vm.getRawString = function (hex) {
-    return bitcoin.Buffer.from(hex, 'hex').toString();
-  };
-
-  function isArrayBuffer(value) {
-    return value && value.buffer instanceof ArrayBuffer && value.byteLength !== undefined;
+  function revHex(h) {
+    return Buffer.from(h, 'hex').reverse().toString('hex');
   }
 
-  function bufferToString(val, key) {
-    if (isArrayBuffer(val)) {
-      return val.toString('hex');
-    } else if (Array.isArray(val) && key === 'transactions') {
-      lodash.forEach(val, function (tx) {
-        lodash.forEach(tx.ins, function (txIn, index) {
-          txIn.hash = txIn.hash.toString('hex');
-          txIn.script = txIn.script.toString('hex');
-          txIn.witness = txIn.witness.map(function (witness) {
-            return witness.toString('hex');
-          });
-        });
-        lodash.forEach(tx.outs, function (txOut, index) {
-          var chunks = bitcoin.script.decompile(txOut.script);
-          txOut.script = bitcoin.script.toASM(chunks);
-        });
-      });
-      return val;
-    } else {
-      return val;
-    }
+  // BIP-141 weight of a single decoded transaction: re-encode it with and
+  // without its witness data (stripped size × 3 + full size).
+  function txWeight(tx) {
+    const full = vm.lib.tx.encode(tx).length;
+    const stripped = vm.lib.tx.encode(angular.extend({}, tx, {
+      inputs: tx.inputs.map(function (input) {
+        return angular.extend({}, input, {witness: []});
+      }),
+    })).length;
+    return stripped * 3 + full;
   }
 
+  // Recursively convert Uint8Array values to hex strings for the JSON view.
+  function normalize(v) {
+    if (v instanceof Uint8Array) return Buffer.from(v).toString('hex');
+    if (Array.isArray(v)) return v.map(normalize);
+    if (v && typeof v === 'object') {
+      var out = {};
+      for (var k in v) {
+        if (Object.prototype.hasOwnProperty.call(v, k)) {
+          out[k] = normalize(v[k]);
+        }
+      }
+      return out;
+    }
+    return v;
+  }
+
+  // Build the nested d3 tree from the bottom-up merkle levels
+  // (levels[0] = txids, last level = [merkleRoot], display byte order).
   function calculateTree() {
-    var txs = vm.block.transactions;
+    const levels = vm.lib.block.merkleTree(vm.raw);
 
-    var bottom = txs.map(function (tx, index) {
-      var hash = tx.getHash();
+    let nodes = levels[0].map(function (txid, index) {
       return {
         leave: true,
-        hash: hash,
+        hash: txid,
         name: 'TX ' + index,
-        info: '<pre>TX ' + index + ': ' + shortHash(hash) + '</pre>'
+        info: '<pre>TX ' + index + ': ' + shortHash(txid) + '</pre>'
       };
     });
-    var nextLevel = [];
-    do {
-      for (var i = 0; i < bottom.length; i += 2) {
-        var left = bottom[i];
-        var right = i + 1 === bottom.length ? angular.copy(left) : bottom[i + 1];
-        var hash = bitcoin.crypto.hash256(bitcoin.Buffer.concat([left.hash, right.hash]));
-        nextLevel.push({
+    for (let level = 1; level < levels.length; level++) {
+      nodes = levels[level].map(function (hash, i) {
+        const left = nodes[2 * i];
+        // Odd counts hash the last entry with itself.
+        const right = nodes[2 * i + 1] || angular.copy(left);
+        return {
           leave: false,
           hash: hash,
           name: shortHash(hash),
-          info: '<pre>sha256(\n  sha256(\n    ' + shortHash(left.hash) + ' + ' + shortHash(right.hash) + '\n  )\n)  =  ' + shortHash(hash) + '</pre>',
+          info: '<pre>sha256(\n  sha256(\n    ' + shortHash(left.hash) +
+            ' + ' + shortHash(right.hash) + '\n  )\n)  =  ' +
+            shortHash(hash) + '</pre>',
           children: [left, right]
-        });
-      }
-      bottom = nextLevel;
-      nextLevel = [];
-    } while (bottom.length > 1);
-
-    return bottom[0];
+        };
+      });
+    }
+    return nodes[0];
   }
 
   function paintMerkleTree() {
-    if (vm.decodedBlock.transactions > 200) {
+    if (vm.block.transactions.length > 200) {
       return;
     }
-    var numLeaves = vm.decodedBlock.transactions.length;
+    var numLeaves = vm.block.transactions.length;
     var width = (numLeaves * 100) + 200;
     var height = ((Math.log2(numLeaves) + 1) * 100) + 200;
 
@@ -204,6 +224,6 @@ function BitcoinBlockPageController($rootScope, $http, lodash) {
   }
 
   function shortHash(hash) {
-    return hash.toString('hex').substring(0, 16) + '...';
+    return hash.substring(0, 16) + '...';
   }
 }

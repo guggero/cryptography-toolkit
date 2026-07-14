@@ -134,36 +134,43 @@ window.allNetworks = [{
 
 window.bitcoinNetworks = _.filter(allNetworks, n => n.config.bech32 && (n.config.bip44 === 0x00 || n.config.bip44 === 0x01));
 
-function customToWIF(keyPair, network) {
-  return keyPair.toWIF();
+
+// The btcutil-js network name for each entry, derived from the label. Used
+// by pages that migrated to btcutil-js; the bitcoinjs-style `config` object
+// remains for the BIP32 version prefixes it carries.
+window.allNetworks.forEach(function (n) {
+  if (n.label.indexOf('Regtest') !== -1) n.net = 'regtest';
+  else if (n.label.indexOf('Signet') !== -1) n.net = 'signet';
+  else if (n.label.indexOf('Testnet') !== -1) n.net = 'testnet3';
+  else n.net = 'mainnet';
+});
+
+// btcutil-js flavours of the address helpers above. `keyPair` only needs a
+// `publicKey` (Uint8Array/Buffer/hex); `net` is the btcutil network name.
+function btcutilCalculateAddresses(lib, keyPair, net) {
+  const pkHash = lib.hash.hash160(keyPair.publicKey);
+  keyPair.address = lib.address.fromPubKeyHash(pkHash, net);
+  keyPair.P2WPKHAddress = lib.address.fromWitnessPubKeyHash(pkHash, net);
+  keyPair.nestedP2WPKHAddress = lib.address.fromScript(
+    lib.txscript.payToAddrScript(keyPair.P2WPKHAddress, net), net);
+  const xOnly = lib.btcec.schnorrSerializePubKey(keyPair.publicKey);
+  keyPair.P2TRAddress = lib.address.fromTaproot(
+    lib.txscript.computeTaprootKeyNoScript(xOnly), net);
 }
 
-function getP2PKHAddress(keyPair, network) {
-  return bitcoin.payments.p2pkh({ pubkey: keyPair.publicKey, network: network }).address;
+// Re-serialize an extended key with different version bytes (e.g. turn an
+// xprv into the yprv/zprv flavour of the same key). btcutil-js extended
+// keys are base58 strings; psbt.encode/decodeExtendedKey give us the raw
+// 78-byte form to patch.
+function btcutilXkeyWithVersion(lib, keyStr, versionInt) {
+  const raw = bitcoin.Buffer.from(lib.psbt.encodeExtendedKey(keyStr));
+  raw.writeUInt32BE(versionInt, 0);
+  return lib.psbt.decodeExtendedKey(raw);
 }
 
-function getP2WPKHAddress(keyPair, network) {
-  return bitcoin.payments.p2wpkh({ pubkey: keyPair.publicKey, network: network }).address;
-}
-
-function getNestedP2WPKHAddress(keyPair, network) {
-  const p2wpkh = bitcoin.payments.p2wpkh({ pubkey: keyPair.publicKey, network: network });
-  return bitcoin.payments.p2sh({ redeem: p2wpkh }).address;
-}
-
-function getP2TRAddress(keyPair, network) {
-  const pubKey = bitcoin.ecurve.Point.decodeFrom(bitcoin.secp256k1, keyPair.publicKey);
-  const taprootPubkey = bitcoin.schnorr.taproot.taprootConstruct(pubKey);
-  const words = bitcoin.bech32.toWords(taprootPubkey);
-  words.unshift(1);
-  return bitcoin.bech32m.encode(network.bech32, words);
-}
-
-function calculateAddresses(keyPair, network) {
-  keyPair.address = getP2PKHAddress(keyPair, network);
-  if (network.bech32) {
-    keyPair.nestedP2WPKHAddress = getNestedP2WPKHAddress(keyPair, network);
-    keyPair.P2WPKHAddress = getP2WPKHAddress(keyPair, network);
-    keyPair.P2TRAddress = getP2TRAddress(keyPair, network);
-  }
+// WIF of the private key inside an extended private key (the 32-byte
+// payload after the 0x00 pad in the 78-byte serialization).
+function btcutilXkeyWif(lib, keyStr, net) {
+  const raw = bitcoin.Buffer.from(lib.psbt.encodeExtendedKey(keyStr));
+  return lib.wif.encode(raw.slice(46, 78), net, true);
 }

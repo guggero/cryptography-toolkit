@@ -36,12 +36,20 @@ function AezeedPageController($timeout, lodash, bitcoin, bitcoinNetworks, Buffer
   vm.version = AEZEED_VERSION;
   vm.internalVersion = 1;
   vm.birthday = 0;
+  vm.loading = true;
 
   vm.$onInit = function () {
     vm.birthday = vm.calculateBirthday();
-    vm.generateEntropy();
-    vm.generateSalt();
-    vm.generateSeed();
+    // Only the master-key display uses the WASM lib; the aezeed scheme
+    // itself stays implemented step by step on this page.
+    bitcoin.btcutil.init('libs/wasm/btcutil.wasm').then(function (lib) {
+      vm.lib = lib;
+      vm.loading = false;
+      vm.generateEntropy();
+      vm.generateSalt();
+      vm.generateSeed();
+      $timeout(function () {});
+    });
   };
 
   vm.generateEntropy = function () {
@@ -50,7 +58,8 @@ function AezeedPageController($timeout, lodash, bitcoin, bitcoinNetworks, Buffer
   };
 
   vm.formatBase58 = function () {
-    vm.nodeBase58 = bitcoin.bip32.fromSeed(Buffer.from(vm.entropy, 'hex'), vm.network.config).toBase58();
+    if (!vm.lib) return;
+    vm.nodeBase58 = vm.lib.hdkeychain.newMaster(vm.entropy, vm.network.net);
   };
 
   vm.generateSalt = function () {
@@ -191,7 +200,9 @@ function AezeedPageController($timeout, lodash, bitcoin, bitcoinNetworks, Buffer
   };
 
   vm.fromEntropy = function () {
-    vm.decoded.nodeBase58 = bitcoin.bip32.fromSeed(Buffer.from(vm.decoded.entropy, 'hex'), vm.network2.config).toBase58();
+    if (!vm.lib) return;
+    vm.decoded.nodeBase58 =
+      vm.lib.hdkeychain.newMaster(vm.decoded.entropy, vm.network2.net);
   };
 
   function bytesToBinary(bytes) {

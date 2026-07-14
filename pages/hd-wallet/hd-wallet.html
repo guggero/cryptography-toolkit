@@ -41,6 +41,12 @@
   </div>
 </div>
 
+<div class="alert alert-info" ng-if="vm.loading">
+  <strong>Loading...</strong> Initializing WebAssembly module...
+</div>
+
+<div ng-if="!vm.loading">
+
 <div class="alert alert-warning">
   <strong>Warning</strong>: Any generated keys are for demonstration only.
   Your browser's random number generator might be too predictable to trust!
@@ -132,7 +138,7 @@
       <label class="col-sm-3 control-label">Private key (WIF, compressed):</label>
       <div class="col-sm-9 input-group">
         <input class="form-control"
-               value="{{vm.node.toWIF()}}"
+               value="{{vm.nodeWif}}"
                ng-readonly="true">
       </div>
     </div>
@@ -222,7 +228,7 @@
       <label class="col-sm-3 control-label">Derived private key base58:</label>
       <div class="col-sm-9 input-group">
         <input class="form-control"
-               value="{{vm.derivedKey.toBase58()}}"
+               value="{{vm.derivedKey.base58}}"
                ng-readonly="true">
       </div>
     </div>
@@ -242,7 +248,7 @@
       <label class="col-sm-3 control-label">Private key (WIF, compressed):</label>
       <div class="col-sm-9 input-group">
         <input class="form-control"
-               value="{{vm.derivedKey.toWIF()}}"
+               value="{{vm.derivedKey.wif}}"
                ng-readonly="true">
       </div>
     </div>
@@ -315,7 +321,7 @@
       <label class="col-sm-3 control-label">Derived key base58:</label>
       <div class="col-sm-9 input-group">
         <input class="form-control"
-               value="{{vm.customDerivedKey.toBase58()}}"
+               value="{{vm.customDerivedKey.base58}}"
                ng-readonly="true">
       </div>
     </div>
@@ -325,7 +331,7 @@
       <label class="col-sm-3 control-label">Public key:</label>
       <div class="col-sm-9 input-group">
         <input class="form-control"
-               value="{{vm.customDerivedKey.publicKey.toString('hex')}}"
+               value="{{vm.customDerivedKey.publicKeyHex}}"
                ng-readonly="true">
       </div>
     </div>
@@ -335,7 +341,7 @@
       <label class="col-sm-3 control-label">Private key (WIF, compressed):</label>
       <div class="col-sm-9 input-group">
         <input class="form-control"
-               value="{{vm.customDerivedKey.toWIF()}}"
+               value="{{vm.customDerivedKey.wif}}"
                ng-readonly="true">
       </div>
     </div>
@@ -374,4 +380,5 @@
       </div>
     </div>
   </form>
+</div>
 </div>

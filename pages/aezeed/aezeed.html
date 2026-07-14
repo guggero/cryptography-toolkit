@@ -27,6 +27,12 @@
   </div>
 </div>
 
+<div class="alert alert-info" ng-if="vm.loading">
+  <strong>Loading...</strong> Initializing WebAssembly module...
+</div>
+
+<div ng-if="!vm.loading">
+
 <div class="alert alert-warning">
   <strong>Warning</strong>: Any generated keys are for demonstration only.
   Your browser's random number generator might be too predictable to trust!
@@ -223,4 +229,5 @@
     </div>
 
   </form>
+</div>
 </div>

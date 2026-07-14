@@ -19,9 +19,11 @@ export default defineConfig({
   fullyParallel: true,
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 2 : 0,
-  // The WASM pages ship an 8.5 MB module; give slow CI runners headroom.
+  // Nearly every page loads the 8.5 MB WASM module now; parallel workers
+  // can contend on first compile (especially Firefox), so give the
+  // auto-retrying assertions generous headroom.
   timeout: 60_000,
-  expect: {timeout: 15_000},
+  expect: {timeout: 25_000},
   reporter: process.env.CI ? [['list'], ['html', {open: 'never'}]] : 'list',
   use: {
     trace: 'on-first-retry',

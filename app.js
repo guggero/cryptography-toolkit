@@ -82,11 +82,6 @@ function run($location, $rootScope, $route, lodash) {
     });
   };
 
-  $rootScope.hexPubKeyToBitcoinAddr = function (hex) {
-    var buffer = bitcoin.Buffer.from(hex, 'hex');
-    return bitcoin.address.toBase58Check(buffer, bitcoin.networks.bitcoin.pubKeyHash);
-  };
-
   $rootScope.round =   function (number, digits) {
     var exp = Math.pow(10, digits);
     return (Math.round(number * exp) / exp).toString().replace(/\B(?=(\d{3})+(?!\d))/g, '\'');

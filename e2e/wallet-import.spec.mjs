@@ -17,11 +17,22 @@ test.describe('wallet-import', () => {
     await expect(result).toContainText(g.hdWallet.bip44Addr);
   });
 
-  test('descriptor export contains the account xpub', async ({page}) => {
+  test('wpkh descriptor export has valid checksummed descriptors', async ({page}) => {
     await byModel(page, 'vm.importType')
       .selectOption({label: 'bitcoin-cli importdescriptors (wpkh)'});
     await page.getByRole('button', {name: 'Create export'}).click();
     const result = page.locator('textarea[readonly]').first();
-    await expect(result).toContainText('importdescriptors');
+    // Each line: a wpkh(WIF)#checksum descriptor plus the derived address.
+    await expect(result).toContainText(
+      /wpkh\([KL][1-9A-HJ-NP-Za-km-z]{51}\)#[qpzry9x8gf2tvdw0s3jn54khce6mua7l]{8}.* # bc1q/);
+  });
+
+  test('tr descriptor export works (enabled by btcutil-js)', async ({page}) => {
+    await byModel(page, 'vm.importType')
+      .selectOption({label: 'bitcoin-cli importdescriptors (tr)'});
+    await page.getByRole('button', {name: 'Create export'}).click();
+    const result = page.locator('textarea[readonly]').first();
+    await expect(result).toContainText(
+      /tr\([KL][1-9A-HJ-NP-Za-km-z]{51}\)#[qpzry9x8gf2tvdw0s3jn54khce6mua7l]{8}.* # bc1p/);
   });
 });

@@ -1,12 +1,12 @@
 // Regenerates e2e/goldens.json — the golden values the e2e suite asserts
 // against — plus the raw block fixture used by the bitcoin-block spec.
 //
-// Values are computed with the same libraries the app bundles (btcutil-js
-// WASM, bitcoinjs-lib, bip39/bip32, bip-schnorr, secrets.js), so they pin
-// today's behaviour exactly: the suite is a characterization net for
-// refactors. Several values double as independent anchors (BIP-39 reference
-// mnemonic addresses, the BIP-173 example address for privkey 0x01, btcd's
-// PSBT/descriptor test vectors).
+// Values are computed with btcutil-js (the same WASM the app ships) plus
+// the few JS libs that intentionally remain (bip39, secrets.js), so they
+// pin today's behaviour exactly: the suite is a characterization net for
+// refactors. Several values double as independent anchors (BIP-39
+// reference mnemonic addresses, the BIP-173 example address for privkey
+// 0x01, btcd's PSBT/descriptor test vectors).
 //
 // Run after an INTENTIONAL behaviour change:  node e2e/gen-goldens.mjs
 import {init} from 'btcutil-js';
@@ -16,14 +16,12 @@ import {fileURLToPath} from 'node:url';
 
 const require = createRequire(import.meta.url);
 const bip39 = require('bip39');
-const bip32 = require('bip32');
-const bjs = require('bitcoinjs-lib');
-const schnorr = require('bip-schnorr');
 
 const here = (p) => fileURLToPath(new URL(p, import.meta.url));
 const lib = await init(readFileSync(here('../libs/wasm/btcutil.wasm')).buffer);
 
 const hex = (b) => Buffer.from(b).toString('hex');
+const revHex = (h) => hex(Buffer.from(h, 'hex').reverse());
 const normalize = (v) => {
   if (v instanceof Uint8Array) return hex(v);
   if (Array.isArray(v)) return v.map(normalize);
@@ -53,6 +51,9 @@ const MESSAGE = 'refactor me';
 g.priv1 = PRIV1;
 g.mnemonic = MNEMONIC;
 g.message = MESSAGE;
+
+const PUB1 = lib.btcec.privKeyFromBytes(PRIV1).publicKey;
+const MSG_HASH = lib.chainhash.hash(Buffer.from(MESSAGE, 'utf8'));
 
 // ---------------------------------------------------------------------------
 // psbt-editor — sample is validHex[0] from btcd's psbt package tests
@@ -158,14 +159,29 @@ const SAMPLE_PSBT =
 // ---------------------------------------------------------------------------
 
 {
-  const root = bip32.fromSeed(bip39.mnemonicToSeed(MNEMONIC));
+  const seed = bip39.mnemonicToSeed(MNEMONIC);
+  const root = lib.hdkeychain.newMaster(seed, 'mainnet');
+  const addrFor = (path, segwit) => {
+    const pub = lib.hdkeychain.publicKey(lib.hdkeychain.derivePath(root, path));
+    const pkHash = lib.hash.hash160(pub);
+    return segwit
+      ? lib.address.fromWitnessPubKeyHash(pkHash, 'mainnet')
+      : lib.address.fromPubKeyHash(pkHash, 'mainnet');
+  };
+  // zpub flavour of the master public key (BIP84 scheme display), via the
+  // 0.3.3 neuter-with-target-version.
+  const zprvVersion = Buffer.from('04b2430c', 'hex');
+  const zpubVersion = Buffer.from('04b24746', 'hex');
+  const rawRoot = Buffer.from(lib.psbt.encodeExtendedKey(root));
+  zprvVersion.copy(rawRoot, 0);
+  const zprv = lib.psbt.decodeExtendedKey(rawRoot);
   g.hdWallet = {
-    rootXprv: root.toBase58(),
-    bip44Addr: bjs.payments.p2pkh(
-      {pubkey: root.derivePath("m/44'/0'/0'/0/0").publicKey}).address,
-    bip84Addr: bjs.payments.p2wpkh(
-      {pubkey: root.derivePath("m/84'/0'/0'/0/0").publicKey}).address,
-    accountXpub44: root.derivePath("m/44'/0'/0'").neutered().toBase58(),
+    rootXprv: root,
+    bip44Addr: addrFor("m/44'/0'/0'/0/0", false),
+    bip84Addr: addrFor("m/84'/0'/0'/0/0", true),
+    accountXpub44: lib.hdkeychain.neuter(
+      lib.hdkeychain.derivePath(root, "m/44'/0'/0'")),
+    masterZpub: lib.hdkeychain.neuter(zprv, zpubVersion),
   };
 }
 
@@ -174,21 +190,25 @@ const SAMPLE_PSBT =
 // ---------------------------------------------------------------------------
 
 {
-  const kp = bjs.ECPair.fromPrivateKey(Buffer.from(PRIV1, 'hex'));
-  const msgHash = bjs.crypto.sha256(Buffer.from(MESSAGE));
+  const pkHash = lib.hash.hash160(PUB1);
+  const derSig = hex(lib.btcec.ecdsaSign(PRIV1, MSG_HASH));
   g.ecc = {
-    wif: kp.toWIF(),
-    pubKey: hex(kp.publicKey),
-    p2pkhAddr: bjs.payments.p2pkh({pubkey: kp.publicKey}).address,
-    p2wpkhAddr: bjs.payments.p2wpkh({pubkey: kp.publicKey}).address,
-    msgHash: hex(msgHash),
-    // The page DER-encodes with SIGHASH_ALL appended.
-    derSig: hex(bjs.script.signature.encode(kp.sign(msgHash), 0x01)),
+    wif: lib.wif.encode(PRIV1, 'mainnet', true),
+    pubKey: hex(PUB1),
+    p2pkhAddr: lib.address.fromPubKeyHash(pkHash, 'mainnet'),
+    p2wpkhAddr: lib.address.fromWitnessPubKeyHash(pkHash, 'mainnet'),
+    msgHash: hex(MSG_HASH),
+    // The page appends the SIGHASH_ALL byte to the DER signature.
+    derSig: derSig + '01',
+    // ECC-multiply demo golden: pubkey(1) × fixed scalar.
+    multiplier: 'aabbccddeeff00112233445566778899',
+    multiplyResult: hex(lib.btcec.pointMultiply(
+      'aabbccddeeff00112233445566778899', PUB1).compressed),
   };
   g.schnorr = {
-    xOnlyPub: hex(kp.publicKey.slice(1)),
-    sig: hex(schnorr.sign(PRIV1, msgHash)),
-    msgHash: hex(msgHash),
+    xOnlyPub: hex(PUB1.slice(1)),
+    sig: hex(lib.btcec.schnorrSign(PRIV1, MSG_HASH)),
+    msgHash: hex(MSG_HASH),
   };
 }
 
@@ -226,19 +246,17 @@ const SAMPLE_PSBT =
 }
 
 // ---------------------------------------------------------------------------
-// mu-sig — the combined public key for two fixed private keys
+// mu-sig — MuSig2 (BIP-327) aggregated key for two fixed private keys
 // ---------------------------------------------------------------------------
 
 {
   const priv2 = PRIV1.replace(/1$/, '2');
-  const pubs = [PRIV1, priv2].map((p) =>
-    bjs.ECPair.fromPrivateKey(Buffer.from(p, 'hex')).publicKey);
+  const pub2 = lib.btcec.privKeyFromBytes(priv2).publicKey;
+  const agg = lib.musig2.aggregateKeys([PUB1, pub2]);
   g.musig = {
     priv1: PRIV1,
     priv2: priv2,
-    combinedPubKey: hex(
-      schnorr.muSig.pubKeyCombine(pubs.map((p) => p.slice(1)))
-        .affineX.toBuffer(32)),
+    combinedPubKey: hex(agg.xOnlyKey),
   };
 }
 
@@ -256,69 +274,93 @@ g.encoding = {
 
 // ---------------------------------------------------------------------------
 // transaction-creator — deterministic signed tx (RFC 6979 nonces) on the
-// page's default network (Bitcoin testnet, legacy)
+// page's default network (Bitcoin testnet, legacy), built the same way the
+// page builds it
 // ---------------------------------------------------------------------------
 
 {
-  const net = bjs.networks.testnet;
-  const kp = bjs.ECPair.fromPrivateKey(Buffer.from(PRIV1, 'hex'), {network: net});
-  const addr = bjs.payments.p2pkh({pubkey: kp.publicKey, network: net}).address;
-  const changeAddr = bjs.payments.p2wpkh({pubkey: kp.publicKey, network: net}).address;
+  const net = 'testnet3';
+  const wif = lib.wif.encode(PRIV1, net, true);
+  const pkHash = lib.hash.hash160(PUB1);
+  const addr = lib.address.fromPubKeyHash(pkHash, net);
+  const changeAddr = lib.address.fromWitnessPubKeyHash(pkHash, net);
   const inputTxId = '11'.repeat(32);
-  const txb = new bjs.TransactionBuilder(net);
-  txb.addInput(inputTxId, 0);
-  txb.addOutput(addr, 90000);
-  // The page defaults to "send change" with changeAmount 0 to the key's
-  // own P2WPKH address; mirror that.
-  txb.addOutput(changeAddr, 0);
-  txb.sign(0, kp);
-  const tx = txb.build();
+  const txData = {
+    version: 2, locktime: 0,
+    inputs: [{txid: inputTxId, vout: 0, scriptSig: '',
+      sequence: 0xffffffff, witness: []}],
+    outputs: [
+      {value: 90000, scriptPubKey: lib.txscript.payToAddrScript(addr, net)},
+      // The page defaults to "send change" with changeAmount 0 to the
+      // key's own P2WPKH address; mirror that.
+      {value: 0, scriptPubKey: lib.txscript.payToAddrScript(changeAddr, net)},
+    ],
+  };
+  const unsigned = lib.tx.encode(txData);
+  const subScript = lib.txscript.payToAddrScript(addr, net);
+  const sig = Buffer.from(lib.txscript.rawTxInSignature(
+    unsigned, 0, subScript, 0x01, PRIV1));
+  const pub = Buffer.from(PUB1);
+  txData.inputs[0].scriptSig = Buffer.concat([
+    Buffer.from([sig.length]), sig, Buffer.from([pub.length]), pub]);
+  const signed = lib.tx.encode(txData);
   g.txCreator = {
-    wif: kp.toWIF(),
+    wif: wif,
     addr: addr,
     inputTxId: inputTxId,
     inputAmount: '100000',
     outputAmount: '90000',
-    rawHex: tx.toHex(),
-    txid: tx.getId(),
+    rawHex: hex(signed),
+    txid: lib.tx.hash(signed),
   };
 }
 
 // ---------------------------------------------------------------------------
-// bitcoin-block — synthetic but structurally valid 2-tx block fixture
+// bitcoin-block — synthetic but structurally valid 2-tx block fixture,
+// hand-assembled (80-byte header + varint count + txs)
 // ---------------------------------------------------------------------------
 
 {
-  const coinbase = new bjs.Transaction();
-  coinbase.version = 1;
-  coinbase.addInput(Buffer.alloc(32), 0xffffffff, 0xffffffff,
-    Buffer.from('03aabbcc', 'hex'));
-  coinbase.addOutput(
-    bjs.payments.p2pkh({pubkey: bjs.ECPair.fromPrivateKey(
-      Buffer.from(PRIV1, 'hex')).publicKey}).output, 50e8);
+  const coinbaseData = {
+    version: 1, locktime: 0,
+    inputs: [{txid: '0'.repeat(64), vout: 0xffffffff,
+      scriptSig: '03aabbcc', sequence: 0xffffffff, witness: []}],
+    outputs: [{value: 50e8, scriptPubKey: lib.txscript.payToAddrScript(
+      lib.address.fromPubKeyHash(lib.hash.hash160(PUB1), 'mainnet'),
+      'mainnet')}],
+  };
+  const spendData = {
+    version: 1, locktime: 0,
+    inputs: [{txid: '11'.repeat(32), vout: 0, scriptSig: '00',
+      sequence: 0xffffffff, witness: []}],
+    outputs: [{value: 1000, scriptPubKey: '6a'}],
+  };
+  const tx1 = Buffer.from(lib.tx.encode(coinbaseData));
+  const tx2 = Buffer.from(lib.tx.encode(spendData));
+  const txid1 = lib.tx.hash(tx1);
+  const txid2 = lib.tx.hash(tx2);
+  // Merkle root of two txids: double-SHA256 over the internal-order hashes.
+  const rootLE = Buffer.from(lib.chainhash.doubleHash(Buffer.concat([
+    Buffer.from(txid1, 'hex').reverse(), Buffer.from(txid2, 'hex').reverse(),
+  ])));
 
-  const spend = new bjs.Transaction();
-  spend.version = 1;
-  spend.addInput(Buffer.alloc(32, 0x11), 0, 0xffffffff,
-    Buffer.from('00', 'hex'));
-  spend.addOutput(Buffer.from('6a', 'hex'), 1000);
+  const header = Buffer.alloc(80);
+  header.writeUInt32LE(2, 0);                     // version
+  // prevHash: 32 zero bytes (offset 4)
+  rootLE.copy(header, 36);                        // merkle root
+  header.writeUInt32LE(1500000000, 68);           // timestamp
+  header.writeUInt32LE(0x1d00ffff, 72);           // bits
+  header.writeUInt32LE(42, 76);                   // nonce
 
-  const block = new bjs.Block();
-  block.version = 2;
-  block.prevHash = Buffer.alloc(32);
-  block.timestamp = 1500000000;
-  block.bits = 0x1d00ffff;
-  block.nonce = 42;
-  block.transactions = [coinbase, spend];
-  block.merkleRoot = bjs.Block.calculateMerkleRoot([coinbase, spend]);
+  const raw = Buffer.concat([header, Buffer.from([2]), tx1, tx2]);
+  writeFileSync(here('fixtures/block.hex'), raw.toString('hex'));
 
-  const raw = block.toHex();
-  writeFileSync(here('fixtures/block.hex'), raw);
+  const decoded = lib.block.decode(raw);
   g.block = {
-    hash: block.getId(),
-    merkleRoot: Buffer.from(block.merkleRoot).reverse().toString('hex'),
-    txids: [coinbase.getId(), spend.getId()],
-    nonce: 42,
+    hash: decoded.hash,
+    merkleRoot: decoded.merkleRoot,
+    txids: [txid1, txid2],
+    nonce: decoded.nonce,
   };
 }
 

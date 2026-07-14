@@ -15,11 +15,17 @@
         <li><a href="https://github.com/bitcoin/bips/blob/master/bip-0327.mediawiki">BIP-0327: MuSig2 for BIP340-compatible Multi-Signatures</a></li>
         <li><a href="https://eprint.iacr.org/2018/068">MuSig paper from Blockstream</a></li>
         <li><a href="https://blockstream.com/2018/01/23/musig-key-aggregation-schnorr-signatures/">MuSig article</a></li>
-        <li><a href="https://github.com/guggero/bip-schnorr">Used JavaScript library</a></li>
+        <li><a href="https://github.com/guggero/btcutil-js">btcutil-js library</a></li>
       </ul>
     </div>
   </div>
 </div>
+
+<div class="alert alert-info" ng-if="vm.loading">
+  <strong>Loading...</strong> Initializing WebAssembly module...
+</div>
+
+<div ng-if="!vm.loading">
 
 <h3>Interactive demo</h3>
 
@@ -34,7 +40,7 @@
         <input class="form-control" ng-model="vm.message" ng-change="vm.hashMessage()">
         <div class="input-group">
           <div class="input-group-addon">Hash</div>
-          <input class="form-control" ng-readonly="true" value="{{vm.publicData.message.toString('hex')}}">
+          <input class="form-control" ng-readonly="true" value="{{vm.publicData.messageHash}}">
         </div>
       </div>
     </div>
@@ -79,7 +85,7 @@
   To reset the demo, please reload the page.
 </p>
 
-<button class="btn btn-primary" ng-click="vm.nextStep()" ng-disabled="vm.step > 7">{{vm.steps[vm.step].label}}</button>
+<button class="btn btn-primary" ng-click="vm.nextStep()" ng-disabled="vm.step >= vm.steps.length - 1">{{vm.steps[vm.step].label}}</button>
 
 <h4>Public data</h4>
 <small>This represents data that is known to all participants. In fact, every participant will calculate/store these values during the signing session.</small>
@@ -106,4 +112,5 @@
       </div>
     </div>
   </form>
+</div>
 </div>

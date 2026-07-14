@@ -38,7 +38,8 @@
     "rootXprv": "xprv9s21ZrQH143K3GJpoapnV8SFfukcVBSfeCficPSGfubmSFDxo1kuHnLisriDvSnRRuL2Qrg5ggqHKNVpxR86QEC8w35uxmGoggxtQTPvfUu",
     "bip44Addr": "1LqBGSKuX5yYUonjxT5qGfpUsXKYYWeabA",
     "bip84Addr": "bc1qcr8te4kr609gcawutmrza0j4xv80jy8z306fyu",
-    "accountXpub44": "xpub6BosfCnifzxcFwrSzQiqu2DBVTshkCXacvNsWGYJVVhhawA7d4R5WSWGFNbi8Aw6ZRc1brxMyWMzG3DSSSSoekkudhUd9yLb6qx39T9nMdj"
+    "accountXpub44": "xpub6BosfCnifzxcFwrSzQiqu2DBVTshkCXacvNsWGYJVVhhawA7d4R5WSWGFNbi8Aw6ZRc1brxMyWMzG3DSSSSoekkudhUd9yLb6qx39T9nMdj",
+    "masterZpub": "zpub6jftahH18ngZxLmXaKw3GSZzZsszmt9WqedkyZdezFtWRFBZqsQH5hyUmb4pCEeZGmVfQuP5bedXTB8is6fTv19U1GQRyQUKQGUTzyHACMF"
   },
   "ecc": {
     "wif": "KwDiBf89QgGbjEhKnhXJuH7LrciVrZi3qYjgd9M7rFU73sVHnoWn",
@@ -46,11 +47,13 @@
     "p2pkhAddr": "1BgGZ9tcN4rm9KBzDn7KprQz87SZ26SAMH",
     "p2wpkhAddr": "bc1qw508d6qejxtdg4y5r3zarvary0c5xw7kv8f3t4",
     "msgHash": "a0353d6668fd96c1dcdfe16ff185c4e763cfabffa7e07cb23b0cb635f9b644ca",
-    "derSig": "3044022100f0bb8e998d87c821fa8eed8a4c867de2c9a3202bc3be4a7c3060011f06ba39e9021f32e5f0437c965aeb4b8403839b988d67236dea89b6568b1538cb2406d8714501"
+    "derSig": "3044022100f0bb8e998d87c821fa8eed8a4c867de2c9a3202bc3be4a7c3060011f06ba39e9021f32e5f0437c965aeb4b8403839b988d67236dea89b6568b1538cb2406d8714501",
+    "multiplier": "aabbccddeeff00112233445566778899",
+    "multiplyResult": "038ca016c0a1bd38bfca9aae26f6c3ae296aa55c4b269d65097ee0c1d671656613"
   },
   "schnorr": {
     "xOnlyPub": "79be667ef9dcbbac55a06295ce870b07029bfcdb2dce28d959f2815b16f81798",
-    "sig": "6cc649b497c87e0577cfbdcae17000cc19d9bb2a7da59774018cea1532fdbf9ef760d180700205f1873e72c8c93d2f4bce4cb67979eacc3c425b4fcde5cee011",
+    "sig": "035f62080b333768e7fd8622e917288f156db209c7b9c044b8d8137936f4036cc729264a1580cc797a236a9be105daceb522b6c732398c520b7eea906f471c82",
     "msgHash": "a0353d6668fd96c1dcdfe16ff185c4e763cfabffa7e07cb23b0cb635f9b644ca"
   },
   "shamir": {
@@ -64,7 +67,7 @@
   "musig": {
     "priv1": "0000000000000000000000000000000000000000000000000000000000000001",
     "priv2": "0000000000000000000000000000000000000000000000000000000000000002",
-    "combinedPubKey": "af4aa89f066a52102208aac57b604499da3c707fc26bc12d04bec040c2a87665"
+    "combinedPubKey": "3b46d262d2f610e9038b44beabdfe97ab5a0feb89870acc2264edfb7f63ec2ec"
   },
   "encoding": {
     "hexIn": "deadbeef",

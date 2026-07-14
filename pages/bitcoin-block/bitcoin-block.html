@@ -14,12 +14,17 @@
             <h3>Sources, tools and other useful information:</h3>
             <ul>
                 <li><a href="https://blockexplorer.com/api-ref">Blockchain Explorer API reference</a></li>
-                <li><a href="https://bitcoinjs.org/">BitcoinJS</a></li>
-                <li><a href="https://github.com/bitcoinjs/bitcoinjs-lib">BitcoinJS GitHub repo</a></li>
+                <li><a href="https://github.com/guggero/btcutil-js">btcutil-js library</a></li>
             </ul>
         </div>
     </div>
 </div>
+
+<div class="alert alert-info" ng-if="vm.loading">
+  <strong>Loading...</strong> Initializing WebAssembly module...
+</div>
+
+<div ng-if="!vm.loading">
 
 <h4>Block data</h4>
 <div class="well">
@@ -105,7 +110,7 @@
         <div class="form-group">
             <label class="col-sm-4 control-label" for="json">Real block size with SegWit:</label>
             <div class="col-sm-8 input-group">
-                <input ng-readonly="true" value="{{vm.block.byteLength()}}" class="form-control">
+                <input ng-readonly="true" value="{{vm.block.size}}" class="form-control">
             </div>
         </div>
         <div class="form-group">
@@ -127,15 +132,15 @@
 </div>
 
 <div ng-if="!vm.error && vm.decodedBlock && vm.decodedBlock.transactions.length > 0">
-    <div ng-repeat="tx in vm.decodedBlock.transactions">
-        <h4 ng-init="origTx = vm.block.transactions[$index]">TX {{$index}}</h4>
+    <div ng-repeat="tx in vm.block.transactions">
+        <h4>TX {{$index}}</h4>
         <div class="well">
             <form class="form-horizontal">
                 <!-- hash -->
                 <div class="form-group">
                     <label class="col-sm-3 control-label" for="raw">Calculated Hash:</label>
                     <div class="col-sm-9 input-group">
-                        <input ng-readonly="true" value="{{::origTx.getHash().toString('hex')}}" class="form-control">
+                        <input ng-readonly="true" value="{{::tx.hash}}" class="form-control">
                     </div>
                 </div>
 
@@ -143,7 +148,7 @@
                 <div class="form-group">
                     <label class="col-sm-3 control-label" for="raw">TX ID (reversed hash):</label>
                     <div class="col-sm-9 input-group">
-                        <input ng-readonly="true" value="{{::origTx.getId().toString('hex')}}" class="form-control">
+                        <input ng-readonly="true" value="{{::tx.txid}}" class="form-control">
                     </div>
                 </div>
 
@@ -152,7 +157,7 @@
                     <label class="col-sm-3 control-label" for="raw">Misc:</label>
                     <div class="col-sm-9 input-group">
             <span class="form-control" ng-readonly="true">
-                Version: {{::tx.version}}, Locktime: {{::tx.locktime}}, is coinbase TX: {{::origTx.isCoinbase()}}, weight: {{::origTx.weight()}}
+                Version: {{::tx.version}}, Locktime: {{::tx.locktime}}, is coinbase TX: {{::tx.isCoinbase}}, weight: {{::tx.weight}}
             </span>
                     </div>
                 </div>
@@ -161,29 +166,29 @@
                 <div class="form-group">
                     <label class="col-sm-3 control-label" for="raw">Inputs:</label>
                     <div class="col-sm-9 input-group">
-                        <div class="well" ng-repeat="input in ::tx.ins">
+                        <div class="well" ng-repeat="input in ::tx.inputs">
                             <div class="form-group">
                                 <div class="input-group">
                                     <span class="input-group-addon">Referencing TX ID:</span>
-                                    <input ng-readonly="true" value="{{::vm.getTxId(input.hash)}}" class="form-control">
+                                    <input ng-readonly="true" value="{{::input.txid}}" class="form-control">
                                 </div>
                                 <div class="input-group">
                                     <span class="input-group-addon">Referencing TX Output Index:</span>
-                                    <input ng-readonly="true" value="{{::input.index}}" class="form-control">
+                                    <input ng-readonly="true" value="{{::input.vout}}" class="form-control">
                                     <span class="input-group-addon">Sequence Number:</span>
                                     <input ng-readonly="true" value="{{::input.sequence.toString(16)}}" class="form-control">
                                 </div>
-                                <div class="input-group" ng-if="!origTx.isCoinbase()">
+                                <div class="input-group" ng-if="!tx.isCoinbase">
                                     <span class="input-group-addon">Script:</span>
-                                    <input ng-readonly="true" value="{{::input.script}}" class="form-control">
+                                    <input ng-readonly="true" value="{{::input.scriptSigHex}}" class="form-control">
                                 </div>
-                                <div class="input-group" ng-if="origTx.isCoinbase()">
+                                <div class="input-group" ng-if="tx.isCoinbase">
                                     <span class="input-group-addon">Data:</span>
-                                    <input ng-readonly="true" value="{{::vm.getRawString(input.script)}}" class="form-control">
+                                    <input ng-readonly="true" value="{{::input.scriptSigAscii}}" class="form-control">
                                 </div>
-                                <div class="input-group" ng-if="origTx.hasWitnesses()">
+                                <div class="input-group" ng-if="tx.hasWitness">
                                     <span class="input-group-addon">Witness:</span>
-                                    <input ng-readonly="true" value="{{::input.witness}}" class="form-control">
+                                    <input ng-readonly="true" value="{{::input.witnessHex}}" class="form-control">
                                 </div>
                             </div>
                         </div>
@@ -194,7 +199,7 @@
                 <div class="form-group">
                     <label class="col-sm-3 control-label" for="raw">Outputs:</label>
                     <div class="col-sm-9 input-group">
-                        <div class="well" ng-repeat="output in ::tx.outs">
+                        <div class="well" ng-repeat="output in ::tx.outputs">
                             <div class="form-group">
                                 <div class="input-group">
                                     <span class="input-group-addon">Value (Raw/Satoshis):</span>
@@ -204,13 +209,11 @@
                                 </div>
                                 <div class="input-group">
                                     <span class="input-group-addon">Script:</span>
-                                    <input ng-readonly="true" value="{{::output.script}}" class="form-control">
+                                    <input ng-readonly="true" value="{{::output.scriptAsm}}" class="form-control">
                                 </div>
-                                <div class="input-group" ng-if="::vm.isP2PKH(origTx.outs[$index].script)">
+                                <div class="input-group" ng-if="::output.address">
                                     <span class="input-group-addon">Address:</span>
-                                    <input ng-readonly="true"
-                                           value="{{::$root.hexPubKeyToBitcoinAddr(vm.getP2PKH(origTx.outs[$index].script))}}"
-                                           class="form-control">
+                                    <input ng-readonly="true" value="{{::output.address}}" class="form-control">
                                 </div>
                             </div>
                         </div>
@@ -219,4 +222,5 @@
             </form>
         </div>
     </div>
+</div>
 </div>

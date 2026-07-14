@@ -46,6 +46,16 @@ test.describe('ecc', () => {
       .toHaveClass(/well-error/);
   });
 
+  test('ECC multiply golden', async ({page}) => {
+    await byModel(page, 'vm.keyPairUncompressed.wif').fill(g.priv1);
+    // The multiply section defaults to multiplicand = the imported pubkey
+    // and the page's fixed multiplier constant.
+    await expect(byModel(page, 'vm.eccMultiplier'))
+      .toHaveValue(e.multiplier);
+    await expect(page.locator(`input[value="${e.multiplyResult}"]`).first())
+      .toBeVisible();
+  });
+
   test('taproot key derivation', async ({page}) => {
     await byModel(page, 'vm.keyPairUncompressed.wif').fill(g.priv1);
     // Same key + no merkle root must yield the same P2TR address the
