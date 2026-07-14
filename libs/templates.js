@@ -4162,7 +4162,9 @@ angular.module('app').run(['$templateCache', function($templateCache) {
     "      <div class=\"col-sm-9 input-group\">\n" +
     "        <div class=\"input-group\">\n" +
     "          <div class=\"input-group-addon\">Private key</div>\n" +
-    "          <input class=\"form-control\" ng-model=\"pair.privateKeyHex\" ng-change=\"vm.updateKeyPair($index)\" ng-readonly=\"vm.step > 0\">\n" +
+    "          <input class=\"form-control\" ng-model=\"pair.privateKeyHex\"\n" +
+    "                 ng-change=\"vm.updateKeyPair($index)\" ng-readonly=\"vm.step > 0\"\n" +
+    "                 ng-class=\"{'well-error': pair.invalid}\">\n" +
     "          <span class=\"input-group-addon\">&lt;-- paste hex</span>\n" +
     "          <span class=\"input-group-btn\">\n" +
     "            <button class=\"btn btn-primary\" ng-click=\"vm.randomKeyPair($index)\" ng-disabled=\"vm.step > 0\">Randomize</button>\n" +

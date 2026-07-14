@@ -1,6 +1,10 @@
 import {test, expect, byModel} from './fixtures.mjs';
 import g from './goldens.json' with {type: 'json'};
 
+// The public-data JSON dump (pubKeys, combined key, nonces, signature, …).
+const publicData = (page) =>
+  page.locator('textarea', {hasText: 'pubKeyCombined'}).first();
+
 test.describe('mu-sig', () => {
   test.beforeEach(async ({gotoPage}) => {
     await gotoPage('/mu-sig');
@@ -10,7 +14,10 @@ test.describe('mu-sig', () => {
     await expect(byModel(page, 'pair.privateKeyHex')).toHaveCount(2);
   });
 
-  test('full 8-step ceremony with generated keys', async ({page}) => {
+  test('full 8-step ceremony with fixed keys', async ({page}) => {
+    const keys = byModel(page, 'pair.privateKeyHex');
+    await keys.nth(0).fill(g.musig.priv1);
+    await keys.nth(1).fill(g.musig.priv2);
     await byModel(page, 'vm.message').fill(g.message);
 
     // Walk the whole ceremony; the button label tracks the current step.
@@ -20,21 +27,28 @@ test.describe('mu-sig', () => {
       await next.click();
     }
     await expect(next).toContainText('Finished!');
-    // The final combined signature ends up in the public data dump.
-    await expect(page.locator('body')).toContainText('signature');
+
+    // The combined public key for the two fixed keys is deterministic; the
+    // final signature is not (random session ids), so only check its shape.
+    await expect(publicData(page)).toContainText(g.musig.combinedPubKey);
+    await expect(publicData(page))
+      .toContainText(/"signature": "[0-9a-f]{128}"/);
   });
 
-  // Typing a private key into the pair input crashes in
-  // vm.setPrivateKey(): it calls ECPair.fromPrivateKey(key, null, {...})
-  // but bitcoinjs-lib v5 takes (key, options) — the null lands in
-  // options.compressed. Until that is fixed, the golden ceremony with
-  // fixed keys (deterministic combined key) cannot run through the UI.
-  test.fixme('golden ceremony with fixed keys (blocked by setPrivateKey bug)',
-    async ({page}) => {
-      const keys = byModel(page, 'pair.privateKeyHex');
-      await keys.nth(0).fill(g.musig.priv1);
-      await keys.nth(1).fill(g.musig.priv2);
-      await expect(page.locator('body'))
-        .toContainText(g.musig.combinedPubKey);
-    });
+  test('invalid private key input flags the field without crashing', async ({page}) => {
+    const key = byModel(page, 'pair.privateKeyHex').first();
+    // Too short while typing: flagged, last valid key stays active.
+    await key.fill('abcdef');
+    await expect(key).toHaveClass(/well-error/);
+    // Valid scalar: flag clears (a fresh key pair replaces the object).
+    await key.fill(g.musig.priv1);
+    await expect(key).not.toHaveClass(/well-error/);
+    // Full-length but out-of-range scalar (= 0): flagged, no crash.
+    await key.fill('0'.repeat(64));
+    await expect(key).toHaveClass(/well-error/);
+    // The ceremony still works with the last valid keys (the console-error
+    // fixture verifies no exceptions leaked anywhere in this test).
+    await key.fill(g.musig.priv2);
+    await expect(key).not.toHaveClass(/well-error/);
+  });
 });

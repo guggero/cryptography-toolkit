@@ -79,8 +79,19 @@ function MuSigPageController(lodash, bitcoinNetworks) {
   };
 
   vm.updateKeyPair = function (index) {
-    const newPrivKey = bitcoin.Buffer.from(vm.keyPairs[index].privateKeyHex, 'hex');
-    vm.setPrivateKey(index, newPrivKey);
+    const pair = vm.keyPairs[index];
+    // While the user is still typing, keep the last valid key pair active
+    // and just flag the field. A full-length hex string can still be an
+    // invalid scalar (0 or >= curve order), so the parse stays guarded too.
+    if (!/^[0-9a-fA-F]{64}$/.test(pair.privateKeyHex)) {
+      pair.invalid = true;
+      return;
+    }
+    try {
+      vm.setPrivateKey(index, bitcoin.Buffer.from(pair.privateKeyHex, 'hex'));
+    } catch (e) {
+      pair.invalid = true;
+    }
   };
 
   vm.randomKeyPair = function (index) {
@@ -94,7 +105,7 @@ function MuSigPageController(lodash, bitcoinNetworks) {
   };
 
   vm.setPrivateKey = function (index, newPrivKey) {
-    const keyPair = bitcoin.ECPair.fromPrivateKey(newPrivKey, null, { compressed: true, network: network });
+    const keyPair = bitcoin.ECPair.fromPrivateKey(newPrivKey, { compressed: true, network: network });
     keyPair.privateKeyHex = newPrivKey.toString('hex');
     keyPair.publicKeyHex = bitcoin.tinySecp256k1.pointCompress(keyPair.publicKey).slice(1, 33).toString('hex');
     vm.keyPairs[index] = keyPair;
