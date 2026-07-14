@@ -17,7 +17,7 @@
     "grunt-angular-templates": "^1.1.0",
     "grunt-cli": "^1.3.2",
     "husky": "^2.1.0",
-    "macaroon": "guggero/js-macaroon",
+    "macaroon": "git+https://github.com/guggero/js-macaroon.git#3149414d2e21895a086b1851b64047ac027b19cb",
     "pbkdf2": "^3.0.13",
     "scrypt-js": "^3.0.0",
     "secrets.js-grempe": "^1.1.0"

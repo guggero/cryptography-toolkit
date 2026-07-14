@@ -1774,9 +1774,9 @@ lower-case@^1.1.1:
   resolved "https://registry.npmjs.org/lower-case/-/lower-case-1.1.4.tgz"
   integrity sha1-miyr0bno4K6ZOkv31YdcOcQujqw=
 
-macaroon@guggero/js-macaroon:
+"macaroon@git+https://github.com/guggero/js-macaroon.git#3149414d2e21895a086b1851b64047ac027b19cb":
   version "3.0.4"
-  resolved "git+ssh://git@github.com/guggero/js-macaroon.git#3149414d2e21895a086b1851b64047ac027b19cb"
+  resolved "git+https://github.com/guggero/js-macaroon.git#3149414d2e21895a086b1851b64047ac027b19cb"
   dependencies:
     sjcl "^1.0.6"
     tweetnacl "^1.0.0"
