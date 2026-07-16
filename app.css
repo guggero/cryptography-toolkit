@@ -315,3 +315,31 @@ pre.sig-decoded {
     padding: 10px;
     border-radius: 4px;
 }
+
+/* bip157: tip-following indicator and new-block flash */
+.follow-dot {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: #5cb85c;
+  margin: 0 2px 0 6px;
+  vertical-align: middle;
+  animation: follow-pulse 2s ease-in-out infinite;
+}
+
+@keyframes follow-pulse {
+  0%, 100% { opacity: 0.35; transform: scale(0.85); }
+  50% { opacity: 1; transform: scale(1.15); }
+}
+
+.tip-flash {
+  border-radius: 3px;
+  padding: 0 4px;
+  animation: tip-flash 2.5s ease-out;
+}
+
+@keyframes tip-flash {
+  0% { background-color: #5cb85c; color: #fff; }
+  100% { background-color: transparent; }
+}

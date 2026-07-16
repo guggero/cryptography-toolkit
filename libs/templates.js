@@ -2286,6 +2286,12 @@ angular.module('app').run(['$templateCache', function($templateCache) {
     "  </div>\n" +
     "</div>\n" +
     "\n" +
+    "<div class=\"alert alert-info\" ng-if=\"vm.loading\">\n" +
+    "  <strong>Loading...</strong> Initializing WebAssembly module...\n" +
+    "</div>\n" +
+    "\n" +
+    "<div ng-if=\"!vm.loading\">\n" +
+    "\n" +
     "<h4>Settings</h4>\n" +
     "<div class=\"well\">\n" +
     "  <form class=\"form-horizontal\">\n" +
@@ -2324,35 +2330,109 @@ angular.module('app').run(['$templateCache', function($templateCache) {
     "      <label class=\"col-sm-4 control-label\">\n" +
     "        Address or output descriptor:\n" +
     "      </label>\n" +
-    "      <div class=\"col-sm-8 input-group\">\n" +
-    "        <input type=\"text\" class=\"form-control\" ng-model=\"vm.watchValue\"\n" +
-    "               placeholder=\"tb1q... or wpkh(xpub.../<0;1>/*)\"/>\n" +
+    "      <div class=\"col-sm-8\">\n" +
+    "        <div class=\"input-group\">\n" +
+    "          <input type=\"text\" class=\"form-control\" ng-model=\"vm.watchValue\"\n" +
+    "                 ng-class=\"{'well-error': vm.addError}\"\n" +
+    "                 placeholder=\"bc1q... or wpkh(xpub.../<0;1>/*)\"/>\n" +
+    "          <span class=\"input-group-addon\" ng-if=\"vm.isDescriptor()\"\n" +
+    "                title=\"How many addresses to derive per multipath\">\n" +
+    "            # addresses\n" +
+    "          </span>\n" +
+    "          <input type=\"number\" class=\"form-control\" min=\"1\" max=\"1000\"\n" +
+    "                 style=\"max-width: 90px;\"\n" +
+    "                 ng-if=\"vm.isDescriptor()\"\n" +
+    "                 ng-model=\"vm.descriptorCount\"/>\n" +
+    "          <span class=\"input-group-btn\">\n" +
+    "            <button class=\"btn btn-primary\" type=\"button\"\n" +
+    "                    ng-disabled=\"!vm.watchValue\"\n" +
+    "                    ng-click=\"vm.addEntry()\">\n" +
+    "              <i class=\"fas fa-plus\"></i> Add\n" +
+    "            </button>\n" +
+    "          </span>\n" +
+    "        </div>\n" +
+    "        <p class=\"text-danger\" ng-if=\"vm.addError\" style=\"margin-top: 5px;\">\n" +
+    "          {{vm.addError}}\n" +
+    "        </p>\n" +
     "      </div>\n" +
     "    </div>\n" +
+    "  </form>\n" +
+    "\n" +
+    "  <table id=\"watchList\" class=\"table table-condensed table-striped\"\n" +
+    "         ng-if=\"vm.watchList.length\" style=\"margin-top: 10px;\">\n" +
+    "    <thead>\n" +
+    "    <tr>\n" +
+    "      <th>Watched value</th>\n" +
+    "      <th style=\"width: 90px;\">Status</th>\n" +
+    "      <th style=\"width: 50px;\"></th>\n" +
+    "    </tr>\n" +
+    "    </thead>\n" +
+    "    <tbody>\n" +
+    "    <tr ng-repeat=\"entry in vm.watchList\">\n" +
+    "      <td style=\"font-family: monospace; font-size: 0.85em; word-break: break-all;\">\n" +
+    "        {{entry.value}}\n" +
+    "        <div ng-if=\"entry.type === 'descriptor'\" class=\"text-muted\"\n" +
+    "             style=\"max-height: 90px; overflow-y: auto; margin-top: 4px;\">\n" +
+    "          <div ng-repeat=\"addr in entry.addresses track by $index\">{{addr}}</div>\n" +
+    "        </div>\n" +
+    "      </td>\n" +
+    "      <td>\n" +
+    "        <span class=\"label\"\n" +
+    "              ng-class=\"entry.state === 'pending' ? 'label-default' : 'label-success'\">\n" +
+    "          {{entry.state}}</span>\n" +
+    "        <span ng-if=\"entry.type === 'descriptor'\" class=\"label label-info\"\n" +
+    "              title=\"addresses derived per multipath\">{{entry.count}}×</span>\n" +
+    "      </td>\n" +
+    "      <td>\n" +
+    "        <button class=\"btn btn-danger btn-xs\" type=\"button\"\n" +
+    "                ng-if=\"entry.state === 'pending'\"\n" +
+    "                ng-click=\"vm.removeEntry($index)\"\n" +
+    "                title=\"Remove from the list\">\n" +
+    "          <i class=\"fas fa-times\"></i>\n" +
+    "        </button>\n" +
+    "      </td>\n" +
+    "    </tr>\n" +
+    "    </tbody>\n" +
+    "  </table>\n" +
+    "  <p class=\"text-muted\" ng-if=\"!vm.watchList.length\">\n" +
+    "    Nothing to scan yet — add at least one address or descriptor.\n" +
+    "  </p>\n" +
+    "\n" +
+    "  <form class=\"form-horizontal\" style=\"margin-top: 10px;\">\n" +
     "    <div class=\"form-group\">\n" +
     "      <label class=\"col-sm-4 control-label\">\n" +
     "        Scan from height (blank = auto):\n" +
     "      </label>\n" +
     "      <div class=\"col-sm-8 input-group\">\n" +
     "        <input type=\"number\" class=\"form-control\" ng-model=\"vm.birthday\"\n" +
-    "               placeholder=\"auto by address/descriptor type\"/>\n" +
-    "      </div>\n" +
-    "    </div>\n" +
-    "    <div class=\"form-group\">\n" +
-    "      <div class=\"col-sm-offset-4 col-sm-8\">\n" +
-    "        <button class=\"btn btn-primary\" ng-disabled=\"vm.busy\"\n" +
-    "                ng-click=\"vm.addAndScan()\">\n" +
-    "          Add &amp; scan\n" +
-    "        </button>\n" +
+    "               placeholder=\"{{vm.watchList.length ? 'auto: ' + vm.autoBirthday() : 'earliest height required by the listed entries'}}\"/>\n" +
     "      </div>\n" +
     "    </div>\n" +
     "  </form>\n" +
+    "\n" +
+    "  <button class=\"btn btn-primary\" type=\"button\"\n" +
+    "          ng-disabled=\"vm.busy || !vm.watchList.length\"\n" +
+    "          ng-click=\"vm.scan()\">\n" +
+    "    <i class=\"fas fa-search\"></i> Scan\n" +
+    "  </button>\n" +
+    "  <button class=\"btn btn-default\" type=\"button\"\n" +
+    "          ng-disabled=\"vm.busy || (!vm.watchList.length && !vm.utxos.length)\"\n" +
+    "          ng-click=\"vm.clearWatches()\"\n" +
+    "          title=\"Forget all watches and found UTXOs; the synced chain data stays cached\">\n" +
+    "    <i class=\"fas fa-trash-alt\"></i> Clear watch &amp; UTXO list\n" +
+    "  </button>\n" +
     "</div>\n" +
     "\n" +
     "<h4>Progress</h4>\n" +
     "<div class=\"well\">\n" +
     "  <div class=\"row\">\n" +
-    "    <div class=\"col-sm-4\"><strong>Tip:</strong> {{vm.tip}}</div>\n" +
+    "    <div class=\"col-sm-4\">\n" +
+    "      <strong>Tip:</strong>\n" +
+    "      <span ng-class=\"{'tip-flash': vm.tipFlash}\">{{vm.tip}}</span>\n" +
+    "      <span ng-if=\"vm.following\" class=\"follow-dot\"\n" +
+    "            title=\"Following the chain tip — new blocks are scanned automatically\"></span>\n" +
+    "      <small ng-if=\"vm.following\" class=\"text-muted\">following tip</small>\n" +
+    "    </div>\n" +
     "    <div class=\"col-sm-4\"><strong>Scanned:</strong> {{vm.scanned}}</div>\n" +
     "    <div class=\"col-sm-4\"><strong>Balance:</strong> {{vm.balance}}</div>\n" +
     "  </div>\n" +
@@ -2401,6 +2481,7 @@ angular.module('app').run(['$templateCache', function($templateCache) {
     "    </tr>\n" +
     "    </tbody>\n" +
     "  </table>\n" +
+    "</div>\n" +
     "</div>\n"
   );
 

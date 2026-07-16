@@ -32099,6 +32099,7 @@ var index_exports = {};
 __export(index_exports, {
   BlockDnClient: () => BlockDnClient,
   Descriptor: () => Descriptor,
+  FILTER_TYPES: () => FILTER_TYPES,
   HeaderChain: () => HeaderChain,
   MatchWorkerPool: () => MatchWorkerPool,
   NodeStorage: () => NodeStorage,
@@ -32127,6 +32128,8 @@ __export(index_exports, {
   musig2: () => musig2,
   neutrino: () => neutrino,
   psbt: () => psbt,
+  scriptFilterType: () => scriptFilterType,
+  selectFilterType: () => selectFilterType,
   tx: () => tx,
   txscript: () => txscript,
   txsort: () => txsort,
@@ -34766,6 +34769,9 @@ var musig2 = {
 };
 
 // src/blockdn.ts
+function typeSegment(filterType) {
+  return filterType === "basic" ? "" : `type/${filterType}/`;
+}
 var BlockDnClient = class {
   /** @param baseUrl e.g. `"https://block-dn.org"` */
   constructor(baseUrl) {
@@ -34813,14 +34819,21 @@ var BlockDnClient = class {
     return this.fetchBinary(`/headers/${startHeight}`);
   }
   /** Raw 32-byte filter headers, same range semantics as headers(). */
-  filterHeaders(startHeight) {
-    return this.fetchBinary(`/filter-headers/${startHeight}`);
+  filterHeaders(startHeight, filterType = "basic") {
+    return this.fetchBinary(
+      `/filter-headers/${typeSegment(filterType)}${startHeight}`
+    );
   }
   /** One var-int prefixed filter file (or the in-memory tail). */
   filters(startHeight, opts) {
-    return this.fetchBinary(`/filters/${startHeight}`, opts);
+    return this.fetchBinary(
+      `/filters/${typeSegment(opts?.filterType ?? "basic")}${startHeight}`,
+      opts
+    );
   }
-  /** The raw filter of a single block (tip following). */
+  /** The raw filter of a single block (tip following). Basic filters
+   *  only — block-dn does not define a single-filter endpoint for the
+   *  custom flavours. */
   filterSingle(height) {
     return this.fetchBinary(`/filters/single/${height}`);
   }
@@ -34833,17 +34846,34 @@ var BlockDnClient = class {
 // src/walletstore.ts
 var HEADER_SIZE = 80;
 var FILTER_HEADER_SIZE = 32;
+var FILTER_TYPES = [
+  "basic",
+  "p2wpkh",
+  "p2wsh",
+  "p2tr",
+  "segwit"
+];
+function filterHeaderFile(filterType = "basic") {
+  return filterType === "basic" ? "filter-headers.bin" : `filter-headers-${filterType}.bin`;
+}
 var STORE_FILES = [
   "headers.bin",
-  "filter-headers.bin",
+  ...FILTER_TYPES.map((t) => filterHeaderFile(t)),
   "chain-state.bin",
   "wallet.json"
 ];
 async function buildStats(sizeOf) {
-  const [headersBytes, filterHeadersBytes, stateBytes, walletBytes] = await Promise.all(STORE_FILES.map(sizeOf));
+  const [headersBytes, stateBytes, walletBytes] = await Promise.all(
+    ["headers.bin", "chain-state.bin", "wallet.json"].map(sizeOf)
+  );
+  const filterSizes = await Promise.all(
+    FILTER_TYPES.map((t) => sizeOf(filterHeaderFile(t)))
+  );
+  const filterHeadersBytes = filterSizes.reduce((s, n) => s + n, 0);
+  const longestChain = Math.max(...filterSizes);
   return {
     headerCount: Math.floor(headersBytes / HEADER_SIZE),
-    filterHeaderCount: Math.floor(filterHeadersBytes / FILTER_HEADER_SIZE),
+    filterHeaderCount: Math.floor(longestChain / FILTER_HEADER_SIZE),
     headersBytes,
     filterHeadersBytes,
     stateBytes,
@@ -34861,13 +34891,13 @@ var OpfsStorage = class _OpfsStorage {
       count * HEADER_SIZE
     );
     this.truncateHeaders = (count) => this.truncate("headers.bin", count * HEADER_SIZE);
-    this.appendFilterHeaders = (bytes) => this.append("filter-headers.bin", bytes);
-    this.readFilterHeaders = (height, count) => this.readSlice(
-      "filter-headers.bin",
+    this.appendFilterHeaders = (bytes, filterType) => this.append(filterHeaderFile(filterType), bytes);
+    this.readFilterHeaders = (height, count, filterType) => this.readSlice(
+      filterHeaderFile(filterType),
       height * FILTER_HEADER_SIZE,
       count * FILTER_HEADER_SIZE
     );
-    this.truncateFilterHeaders = (count) => this.truncate("filter-headers.bin", count * FILTER_HEADER_SIZE);
+    this.truncateFilterHeaders = (count, filterType) => this.truncate(filterHeaderFile(filterType), count * FILTER_HEADER_SIZE);
     this.setChainState = (bytes) => this.writeAll("chain-state.bin", bytes);
     this.setWallet = (obj) => this.writeAll(
       "wallet.json",
@@ -34925,9 +34955,9 @@ var OpfsStorage = class _OpfsStorage {
   async headerCount() {
     return Math.floor(await this.size("headers.bin") / HEADER_SIZE);
   }
-  async filterHeaderCount() {
+  async filterHeaderCount(filterType) {
     return Math.floor(
-      await this.size("filter-headers.bin") / FILTER_HEADER_SIZE
+      await this.size(filterHeaderFile(filterType)) / FILTER_HEADER_SIZE
     );
   }
   async getChainState() {
@@ -34961,14 +34991,14 @@ var NodeStorage = class _NodeStorage {
       count * HEADER_SIZE
     );
     this.truncateHeaders = (count) => this.fs.truncate(this.path("headers.bin"), count * HEADER_SIZE);
-    this.appendFilterHeaders = (bytes) => this.fs.appendFile(this.path("filter-headers.bin"), bytes);
-    this.readFilterHeaders = (height, count) => this.readSlice(
-      "filter-headers.bin",
+    this.appendFilterHeaders = (bytes, filterType) => this.fs.appendFile(this.path(filterHeaderFile(filterType)), bytes);
+    this.readFilterHeaders = (height, count, filterType) => this.readSlice(
+      filterHeaderFile(filterType),
       height * FILTER_HEADER_SIZE,
       count * FILTER_HEADER_SIZE
     );
-    this.truncateFilterHeaders = (count) => this.fs.truncate(
-      this.path("filter-headers.bin"),
+    this.truncateFilterHeaders = (count, filterType) => this.fs.truncate(
+      this.path(filterHeaderFile(filterType)),
       count * FILTER_HEADER_SIZE
     );
     this.setChainState = (bytes) => this.fs.writeFile(this.path("chain-state.bin"), bytes);
@@ -35004,9 +35034,9 @@ var NodeStorage = class _NodeStorage {
   async headerCount() {
     return Math.floor(await this.size("headers.bin") / HEADER_SIZE);
   }
-  async filterHeaderCount() {
+  async filterHeaderCount(filterType) {
     return Math.floor(
-      await this.size("filter-headers.bin") / FILTER_HEADER_SIZE
+      await this.size(filterHeaderFile(filterType)) / FILTER_HEADER_SIZE
     );
   }
   async getChainState() {
@@ -35181,6 +35211,26 @@ function birthdayHeuristic(network, value) {
   if (/^3/.test(v)) return P2SH_HEIGHT;
   return 0;
 }
+function scriptFilterType(scriptHex) {
+  if (/^0014[0-9a-f]{40}$/i.test(scriptHex)) return "p2wpkh";
+  if (/^0020[0-9a-f]{64}$/i.test(scriptHex)) return "p2wsh";
+  if (/^5120[0-9a-f]{64}$/i.test(scriptHex)) return "p2tr";
+  return null;
+}
+function selectFilterType(scriptsHex, customFiltersAvailable) {
+  if (!customFiltersAvailable || scriptsHex.length === 0) {
+    return "basic";
+  }
+  const types = /* @__PURE__ */ new Set();
+  for (const script of scriptsHex) {
+    const t = scriptFilterType(script);
+    if (t === null) {
+      return "basic";
+    }
+    types.add(t);
+  }
+  return types.size === 1 ? types.values().next().value : "segwit";
+}
 function reverseHex(bytes) {
   let s = "";
   for (let i = bytes.length - 1; i >= 0; i--) {
@@ -35208,7 +35258,7 @@ function formatBytes(n) {
   return `${value.toFixed(1)} ${unit}`;
 }
 function formatScanStats(stats) {
-  return `${stats.blocksScanned.toLocaleString()} blocks scanned with ${stats.batches} batch${stats.batches === 1 ? "" : "es"} in ${stats.seconds.toFixed(1)} s (${stats.matchedBlocks} blocks matched, ${formatBytes(stats.bytesDownloaded)} downloaded)`;
+  return `${stats.blocksScanned.toLocaleString()} blocks scanned with ${stats.batches} batch${stats.batches === 1 ? "" : "es"} in ${stats.seconds.toFixed(1)} s (${stats.matchedBlocks} blocks matched, ${formatBytes(stats.bytesDownloaded)} downloaded, ${stats.filterType} filters)`;
 }
 async function mapPool(items, limit, fn) {
   const results = new Array(items.length);
@@ -35229,6 +35279,9 @@ async function mapPool(items, limit, fn) {
 var WatchOnlyWallet = class _WatchOnlyWallet {
   constructor() {
     this.lastScanStats = null;
+    /** The filter flavour selected for the current watch set; refreshed by
+     *  syncHeaders()/scan(). */
+    this.filterType = "basic";
   }
   /** Open (or create) a wallet on the given storage backend. */
   static async open(opts) {
@@ -35346,17 +35399,40 @@ var WatchOnlyWallet = class _WatchOnlyWallet {
       onProgress("headers", this.chain.tip().tipHeight, target);
     }
     await this.storage.setChainState(this.chain.exportState());
+    await this.syncFilterHeaders(status, onProgress);
+  }
+  /** The smallest filter flavour covering the current watch set (given
+   *  what the server offers). */
+  selectType(status) {
+    this.filterType = selectFilterType(
+      this.data.watches.flatMap((w) => w.scripts),
+      status.custom_filters_available === true
+    );
+    return this.filterType;
+  }
+  /** Sync the selected flavour's filter-header chain to the tip. Chains of
+   *  other flavours already in the store are left untouched — they coexist
+   *  and stay valid for later scans with a different watch set.
+   *
+   *  There is no client-side cryptographic link to the block headers; each
+   *  downloaded *filter* is verified against this chain at scan time,
+   *  which makes CDN/server corruption detectable. */
+  async syncFilterHeaders(status, onProgress = () => {
+  }) {
+    const filterType = this.selectType(status);
+    const perFile = status.entries_per_header_file;
+    const target = status.best_block_height;
     for (; ; ) {
-      const have = await this.storage.filterHeaderCount();
+      const have = await this.storage.filterHeaderCount(filterType);
       if (have > target) break;
       const boundary = Math.floor(have / perFile) * perFile;
-      const file = await this.client.filterHeaders(boundary);
+      const file = await this.client.filterHeaders(boundary, filterType);
       const fresh = file.subarray((have - boundary) * FILTER_HEADER_SIZE2);
       if (fresh.length === 0) break;
-      await this.storage.appendFilterHeaders(fresh);
+      await this.storage.appendFilterHeaders(fresh, filterType);
       onProgress(
         "filter-headers",
-        await this.storage.filterHeaderCount() - 1,
+        await this.storage.filterHeaderCount(filterType) - 1,
         target
       );
     }
@@ -35421,15 +35497,15 @@ var WatchOnlyWallet = class _WatchOnlyWallet {
    *  fails its commitment check usually means a truncated/corrupted file
    *  (possibly cached by a CDN), so the file is refetched once with a
    *  cache-busting parameter before giving up. */
-  async matchRange(pool, watch, { start, count }, from) {
+  async matchRange(pool, watch, { start, count }, from, filterType) {
     const attempt = async (fresh) => {
       const [filterFile, headers, filterHeaders] = await Promise.all([
-        this.client.filters(start, { fresh }),
+        this.client.filters(start, { fresh, filterType }),
         this.storage.readHeaders(start, count),
-        this.storage.readFilterHeaders(start, count)
+        this.storage.readFilterHeaders(start, count, filterType)
       ]);
       const prev = start === 0 ? "" : reverseHex(
-        await this.storage.readFilterHeaders(start - 1, 1)
+        await this.storage.readFilterHeaders(start - 1, 1, filterType)
       );
       const matches = pool ? await pool.match({
         startHeight: start,
@@ -35476,7 +35552,8 @@ var WatchOnlyWallet = class _WatchOnlyWallet {
       batches: 0,
       matchedBlocks: 0,
       seconds: 0,
-      bytesDownloaded: 0
+      bytesDownloaded: 0,
+      filterType: this.filterType
     };
     if (from === null || from > tip) {
       this.lastScanStats = stats;
@@ -35487,6 +35564,9 @@ var WatchOnlyWallet = class _WatchOnlyWallet {
     const status = await this.client.status();
     const perFile = status.entries_per_filter_file;
     const batchSpan = perFile * this.batchSize;
+    const filterType = this.selectType(status);
+    stats.filterType = filterType;
+    await this.syncFilterHeaders(status);
     const watch = this.buildWatchList();
     const pool = this.batchSize > 1 ? await MatchWorkerPool.create(
       this.batchSize,
@@ -35506,7 +35586,7 @@ var WatchOnlyWallet = class _WatchOnlyWallet {
           });
         }
         const matches = (await Promise.all(ranges.map(
-          (range) => this.matchRange(pool, watch, range, from)
+          (range) => this.matchRange(pool, watch, range, from, filterType)
         ))).flat();
         stats.matchedBlocks += matches.length;
         const blocks = await mapPool(
@@ -35558,7 +35638,11 @@ var WatchOnlyWallet = class _WatchOnlyWallet {
       const back = Math.max(0, tip - 6);
       this.chain.rollback(back);
       await this.storage.truncateHeaders(back + 1);
-      await this.storage.truncateFilterHeaders(back + 1);
+      for (const t of FILTER_TYPES) {
+        if (await this.storage.filterHeaderCount(t) > back + 1) {
+          await this.storage.truncateFilterHeaders(back + 1, t);
+        }
+      }
       this.data.scannedTo = Math.min(this.data.scannedTo, back);
       await this.appendTail(status);
     }
@@ -35568,13 +35652,14 @@ var WatchOnlyWallet = class _WatchOnlyWallet {
   }
   async appendTail(status) {
     const perFile = status.entries_per_header_file;
+    const filterType = this.selectType(status);
     for (; ; ) {
       const tip = this.chain.tip().tipHeight;
       if (tip >= status.best_block_height) break;
       const boundary = Math.floor((tip + 1) / perFile) * perFile;
       const [headerFile, fheaderFile] = await Promise.all([
         this.client.headers(boundary),
-        this.client.filterHeaders(boundary)
+        this.client.filterHeaders(boundary, filterType)
       ]);
       const fresh = headerFile.subarray(
         (tip + 1 - boundary) * HEADER_SIZE2
@@ -35582,9 +35667,10 @@ var WatchOnlyWallet = class _WatchOnlyWallet {
       if (fresh.length === 0) break;
       this.chain.append(fresh);
       await this.storage.appendHeaders(fresh);
-      const have = await this.storage.filterHeaderCount();
+      const have = await this.storage.filterHeaderCount(filterType);
       await this.storage.appendFilterHeaders(
-        fheaderFile.subarray((have - boundary) * FILTER_HEADER_SIZE2)
+        fheaderFile.subarray((have - boundary) * FILTER_HEADER_SIZE2),
+        filterType
       );
     }
   }
@@ -35618,6 +35704,7 @@ var WatchOnlyWallet = class _WatchOnlyWallet {
 0 && (module.exports = {
   BlockDnClient,
   Descriptor,
+  FILTER_TYPES,
   HeaderChain,
   MatchWorkerPool,
   NodeStorage,
@@ -35646,6 +35733,8 @@ var WatchOnlyWallet = class _WatchOnlyWallet {
   musig2,
   neutrino,
   psbt,
+  scriptFilterType,
+  selectFilterType,
   tx,
   txscript,
   txsort,
