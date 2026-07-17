@@ -25,7 +25,7 @@
 
 "@playwright/test@^1.61.1":
   version "1.61.1"
-  resolved "https://registry.yarnpkg.com/@playwright/test/-/test-1.61.1.tgz#48568dc22af7819e55fa5e8e3bc79b7e6a3e6675"
+  resolved "https://registry.npmjs.org/@playwright/test/-/test-1.61.1.tgz"
   integrity sha512-8nKv6+0RJSL9FE4jYOEGXnPeM/Hg12qZpmqzZjRh3qM0Y7c3z1mrOTfFLids72RDQYVh9WpLEfR5WdpNX4fkig==
   dependencies:
     playwright "1.61.1"
@@ -391,10 +391,10 @@ browserify@^17.0.0:
     vm-browserify "^1.0.0"
     xtend "^4.0.0"
 
-btcutil-js@^0.3.4:
-  version "0.3.4"
-  resolved "https://registry.yarnpkg.com/btcutil-js/-/btcutil-js-0.3.4.tgz#2ba8f3f3243d5e2ea1a69489bbd53abf6a738475"
-  integrity sha512-0tSbXK2CzGekUyltpsGaSWVcBUMd2TLZx6Hph7vd27egxqogjaAOsfKa/CJRlQcwDt7tqvjTWs6dsq5Ph0rY1Q==
+btcutil-js@^0.4.0:
+  version "0.4.0"
+  resolved "https://registry.npmjs.org/btcutil-js/-/btcutil-js-0.4.0.tgz"
+  integrity sha512-lrzxE9uthPPnVQPAjcxU2T0+njrGjQhF9drojiUsDCJs6bZZZev/+OqUWBSYkG0KNYFKfdmgNc9Z1fAJEo/Faw==
 
 buffer-from@^1.0.0:
   version "1.1.1"
@@ -1776,7 +1776,8 @@ lower-case@^1.1.1:
 
 "macaroon@git+https://github.com/guggero/js-macaroon.git#3149414d2e21895a086b1851b64047ac027b19cb":
   version "3.0.4"
-  resolved "git+https://github.com/guggero/js-macaroon.git#3149414d2e21895a086b1851b64047ac027b19cb"
+  resolved "git+ssh://git@github.com/guggero/js-macaroon.git#3149414d2e21895a086b1851b64047ac027b19cb"
+  integrity sha512-ipLlA3KtvHyjhXxF1K9Wl/80N4M65OjQXU6HLlAL7EKhoP6AWeI5VSC6QZv6HgSdp2fKnLGT8HZb3YVIjkyYAQ==
   dependencies:
     sjcl "^1.0.6"
     tweetnacl "^1.0.0"
@@ -2220,12 +2221,12 @@ pkg-dir@^4.1.0:
 
 playwright-core@1.61.1:
   version "1.61.1"
-  resolved "https://registry.yarnpkg.com/playwright-core/-/playwright-core-1.61.1.tgz#3c99841307efbbabc9d724c41a88c914705d15fc"
+  resolved "https://registry.npmjs.org/playwright-core/-/playwright-core-1.61.1.tgz"
   integrity sha512-h7Qlt6m4REp25qvIdvbDtVmD4LqVXfpRxhORv9L0jzETM05p4fuPJ3dKyuSXQxDSbXnmS79HAgi9589lGSpLkg==
 
 playwright@1.61.1:
   version "1.61.1"
-  resolved "https://registry.yarnpkg.com/playwright/-/playwright-1.61.1.tgz#d8c0c06eb93c28981afc747bace453bdbd5018bc"
+  resolved "https://registry.npmjs.org/playwright/-/playwright-1.61.1.tgz"
   integrity sha512-DWnY5o3YbLWK4GovuAVwpqL+1VwGNdUGrRr++8j8PtQQzvAVZUIMjKQ90fY689sEJZJBbZVw1rXaOKSTitkzPQ==
   dependencies:
     playwright-core "1.61.1"

@@ -228,6 +228,7 @@ function HdWalletPageController($scope, lodash, allNetworks) {
     vm.address = vm.lib.hdkeychain.address(vm.customNode, vm.network.net);
     vm.nodeWif = keyDisplay(vm.node).wif;
     vm.calculatePath();
+    vm.calculateSpKeys();
   };
 
   vm.calculatePath = function () {
@@ -261,5 +262,72 @@ function HdWalletPageController($scope, lodash, allNetworks) {
       ? vm.customPath : 'm/' + vm.customPath;
     const derived = vm.lib.hdkeychain.derivePath(vm.customParent, path);
     vm.customDerivedKey = keyDisplay(derived);
+  };
+
+  // ---------------------------------------------------------------------
+  // BIP-352 Silent Payments codes
+  // ---------------------------------------------------------------------
+
+  vm.spAccount = 0;
+
+  // Derive the BIP-352 scan and spend key pairs from the master key and
+  // encode the silent payment code. Per the BIP, the scan key lives at
+  // m/352'/coin'/account'/1'/0 and the spend key at
+  // m/352'/coin'/account'/0'/0; the coin type follows the selected
+  // network (0 mainnet, 1 test networks), as does the code's HRP
+  // (sp1... vs tsp1...).
+  vm.calculateSpKeys = function () {
+    vm.spError = null;
+    vm.spScanPriv = null;
+    vm.spScanPub = null;
+    vm.spSpendPriv = null;
+    vm.spSpendPub = null;
+    vm.spCode = null;
+
+    const coin = vm.network.config.bip44;
+    const account = Number(vm.spAccount) || 0;
+    vm.spScanPath = 'm/352\'/' + coin + '\'/' + account + '\'/1\'/0';
+    vm.spSpendPath = 'm/352\'/' + coin + '\'/' + account + '\'/0\'/0';
+
+    if (!vm.lib || !vm.node) {
+      return;
+    }
+
+    try {
+      const info = vm.lib.hdkeychain.fromString(vm.node);
+      if (!info.isPrivate) {
+        vm.spError = 'Deriving silent payment keys requires the ' +
+          'private master key (imported public keys cannot derive ' +
+          'the hardened BIP-352 paths).';
+        return;
+      }
+
+      const privHex = function (keyStr) {
+        const wif = btcutilXkeyWif(vm.lib, keyStr, vm.network.net);
+        return Buffer.from(
+          vm.lib.wif.decode(wif).privateKey).toString('hex');
+      };
+      const pubHex = function (keyStr) {
+        return Buffer.from(
+          vm.lib.hdkeychain.publicKey(keyStr)).toString('hex');
+      };
+
+      const scanKey = vm.lib.hdkeychain.derivePath(
+        vm.node, vm.spScanPath);
+      const spendKey = vm.lib.hdkeychain.derivePath(
+        vm.node, vm.spSpendPath);
+
+      vm.spScanPriv = privHex(scanKey);
+      vm.spScanPub = pubHex(scanKey);
+      vm.spSpendPriv = privHex(spendKey);
+      vm.spSpendPub = pubHex(spendKey);
+
+      const scanner = vm.lib.silentpayments.scanner(
+        vm.spScanPriv, vm.spSpendPub, vm.network.net);
+      vm.spCode = scanner.address;
+      scanner.free();
+    } catch (e) {
+      vm.spError = e.message || String(e);
+    }
   };
 }

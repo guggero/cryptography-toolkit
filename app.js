@@ -45,6 +45,7 @@ function routeConfig($locationProvider, $routeProvider) {
     .when('/psbt-editor', {template: '<psbt-editor-page></psbt-editor-page>', containerClass: 'container'})
     .when('/descriptors', {template: '<descriptors-page></descriptors-page>', containerClass: 'container'})
     .when('/bip157', {template: '<bip157-page></bip157-page>', containerClass: 'container'})
+    .when('/silentpayments', {template: '<silentpayments-page></silentpayments-page>', containerClass: 'container'})
     .otherwise({redirectTo: '/'})
 }
 

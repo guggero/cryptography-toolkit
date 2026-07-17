@@ -46,6 +46,9 @@ angular.module('app').run(['$templateCache', function($templateCache) {
     "            <li ng-class=\"{active: $root.isActive('/schnorr')}\">\n" +
     "              <a href=\"#!/schnorr\">BIP-340: Schnorr Signatures</a>\n" +
     "            </li>\n" +
+    "            <li ng-class=\"{active: $root.isActive('/silentpayments')}\">\n" +
+    "              <a href=\"#!/silentpayments\">BIP-352: Silent Payments</a>\n" +
+    "            </li>\n" +
     "            <li ng-class=\"{active: $root.isActive('/descriptors')}\">\n" +
     "              <a href=\"#!/descriptors\">BIP-380: Output Script Descriptors</a>\n" +
     "            </li>\n" +
@@ -170,6 +173,7 @@ angular.module('app').run(['$templateCache', function($templateCache) {
     "  <script src=\"pages/psbt-editor/psbt-editor.js\"></script>\n" +
     "  <script src=\"pages/descriptors/descriptors.js\"></script>\n" +
     "  <script src=\"pages/bip157/bip157.js\"></script>\n" +
+    "  <script src=\"pages/silentpayments/silentpayments.js\"></script>\n" +
     "\n" +
     "  <title>Cryptography Toolkit</title>\n" +
     "</head>\n" +
@@ -3942,6 +3946,83 @@ angular.module('app').run(['$templateCache', function($templateCache) {
     "    </div>\n" +
     "  </form>\n" +
     "</div>\n" +
+    "\n" +
+    "<h4>BIP-352: Silent Payments codes</h4>\n" +
+    "<div class=\"well\">\n" +
+    "  <form class=\"form-horizontal\">\n" +
+    "\n" +
+    "    <!-- account -->\n" +
+    "    <div class=\"form-group\">\n" +
+    "      <label class=\"col-sm-3 control-label\">\n" +
+    "        BIP-352 parameters to derive keys:\n" +
+    "      </label>\n" +
+    "      <div class=\"col-sm-9 input-group\">\n" +
+    "        <div class=\"input-group-addon\">Account</div>\n" +
+    "        <input class=\"form-control\"\n" +
+    "               ng-model=\"vm.spAccount\"\n" +
+    "               ng-change=\"vm.calculateSpKeys()\"\n" +
+    "               min=\"0\"\n" +
+    "               max=\"2147483647\"\n" +
+    "               type=\"number\">\n" +
+    "      </div>\n" +
+    "    </div>\n" +
+    "\n" +
+    "    <div class=\"alert alert-danger\" ng-if=\"vm.spError\">\n" +
+    "      {{vm.spError}}\n" +
+    "    </div>\n" +
+    "\n" +
+    "    <!-- scan key pair -->\n" +
+    "    <div class=\"form-group\">\n" +
+    "      <label class=\"col-sm-3 control-label\">\n" +
+    "        Scan private key ({{vm.spScanPath}}):\n" +
+    "      </label>\n" +
+    "      <div class=\"col-sm-9 input-group\">\n" +
+    "        <input class=\"form-control\"\n" +
+    "               value=\"{{vm.spScanPriv}}\"\n" +
+    "               ng-readonly=\"true\">\n" +
+    "      </div>\n" +
+    "    </div>\n" +
+    "    <div class=\"form-group\">\n" +
+    "      <label class=\"col-sm-3 control-label\">Scan public key:</label>\n" +
+    "      <div class=\"col-sm-9 input-group\">\n" +
+    "        <input class=\"form-control\"\n" +
+    "               value=\"{{vm.spScanPub}}\"\n" +
+    "               ng-readonly=\"true\">\n" +
+    "      </div>\n" +
+    "    </div>\n" +
+    "\n" +
+    "    <!-- spend key pair -->\n" +
+    "    <div class=\"form-group\">\n" +
+    "      <label class=\"col-sm-3 control-label\">\n" +
+    "        Spend private key ({{vm.spSpendPath}}):\n" +
+    "      </label>\n" +
+    "      <div class=\"col-sm-9 input-group\">\n" +
+    "        <input class=\"form-control\"\n" +
+    "               value=\"{{vm.spSpendPriv}}\"\n" +
+    "               ng-readonly=\"true\">\n" +
+    "      </div>\n" +
+    "    </div>\n" +
+    "    <div class=\"form-group\">\n" +
+    "      <label class=\"col-sm-3 control-label\">Spend public key:</label>\n" +
+    "      <div class=\"col-sm-9 input-group\">\n" +
+    "        <input class=\"form-control\"\n" +
+    "               value=\"{{vm.spSpendPub}}\"\n" +
+    "               ng-readonly=\"true\">\n" +
+    "      </div>\n" +
+    "    </div>\n" +
+    "\n" +
+    "    <!-- silent payment code -->\n" +
+    "    <div class=\"form-group\">\n" +
+    "      <label class=\"col-sm-3 control-label\">Silent payment code:</label>\n" +
+    "      <div class=\"col-sm-9 input-group\">\n" +
+    "        <input class=\"form-control\"\n" +
+    "               style=\"font-family: monospace; font-size: 0.85em;\"\n" +
+    "               value=\"{{vm.spCode}}\"\n" +
+    "               ng-readonly=\"true\">\n" +
+    "      </div>\n" +
+    "    </div>\n" +
+    "  </form>\n" +
+    "</div>\n" +
     "</div>\n"
   );
 
@@ -3973,6 +4054,7 @@ angular.module('app').run(['$templateCache', function($templateCache) {
     "      <li><a href=\"#!/bip322\">BIP-322: Generic Signed Message Format</a></li>\n" +
     "      <li><a href=\"#!/mu-sig\">BIP-327: MuSig2 for BIP340-compatible Multi-Signatures</a></li>\n" +
     "      <li><a href=\"#!/schnorr\">BIP-340: Schnorr Signatures</a></li>\n" +
+    "      <li><a href=\"#!/silentpayments\">BIP-352: Silent Payments</a></li>\n" +
     "      <li><a href=\"#!/descriptors\">BIP-380: Output Script Descriptors</a></li>\n" +
     "    </ul>\n" +
     "  </li>\n" +
@@ -5178,6 +5260,226 @@ angular.module('app').run(['$templateCache', function($templateCache) {
     "      </div>\n" +
     "    </div>\n" +
     "  </form>\n" +
+    "</div>\n"
+  );
+
+
+  $templateCache.put('pages/silentpayments/silentpayments.html',
+    "<h1>BIP-352: Silent Payments</h1>\n" +
+    "\n" +
+    "<div class=\"panel panel-default\">\n" +
+    "  <div class=\"panel-heading\">\n" +
+    "    <h4 class=\"panel-title\">\n" +
+    "      <a ng-click=\"vm.showExplanation = !vm.showExplanation\">Explanation</a>\n" +
+    "    </h4>\n" +
+    "  </div>\n" +
+    "  <div class=\"panel-collapse collapse\" ng-class=\"{in: vm.showExplanation}\">\n" +
+    "    <div class=\"panel-body\">\n" +
+    "      <a href=\"https://github.com/bitcoin/bips/blob/master/bip-0352.mediawiki\">BIP-352</a>\n" +
+    "      Silent Payments let a receiver publish one static address\n" +
+    "      (<code>sp1q...</code>) while every actual payment lands on a unique,\n" +
+    "      unlinkable taproot output. The price: the receiver has to scan the\n" +
+    "      chain, computing one ECDH multiplication per eligible transaction.<br/><br/>\n" +
+    "\n" +
+    "      This page performs that scan entirely in your browser. A\n" +
+    "      <a href=\"https://github.com/guggero/block-dn\">block-dn</a> server\n" +
+    "      provides per-transaction <em>tweak data</em>\n" +
+    "      (<code>input_hash·A</code>, one 33-byte point per eligible\n" +
+    "      transaction) plus a taproot-only compact block filter. For every\n" +
+    "      transaction the page derives the candidate output keys for your\n" +
+    "      address (and its change label), matches them against the filter, and\n" +
+    "      only downloads full blocks on a hit — where it then identifies your\n" +
+    "      outputs across all output indexes k per BIP-352.<br/><br/>\n" +
+    "\n" +
+    "      <strong>Privacy:</strong> the scan private key and spend public key\n" +
+    "      never leave this page; the server only observes which block ranges\n" +
+    "      are downloaded. <strong>Note:</strong> only the base address and the\n" +
+    "      change label (m=0) are scanned; other labels are not supported yet.\n" +
+    "      On mainnet, tweak data is 40–100&nbsp;MB per 2000 blocks — a full\n" +
+    "      scan since taproot activation downloads several GB.\n" +
+    "\n" +
+    "      <h3>Sources:</h3>\n" +
+    "      <ul>\n" +
+    "        <li><a href=\"https://github.com/bitcoin/bips/blob/master/bip-0352.mediawiki\">BIP-352 Specification</a></li>\n" +
+    "        <li><a href=\"https://github.com/guggero/btcutil-js\">btcutil-js Library (scan engine)</a></li>\n" +
+    "        <li><a href=\"https://github.com/guggero/block-dn\">block-dn (tweak data + custom filters over HTTP)</a></li>\n" +
+    "      </ul>\n" +
+    "    </div>\n" +
+    "  </div>\n" +
+    "</div>\n" +
+    "\n" +
+    "<div class=\"alert alert-info\" ng-if=\"vm.loading\">\n" +
+    "  <strong>Loading...</strong> Initializing WebAssembly module...\n" +
+    "</div>\n" +
+    "\n" +
+    "<div ng-if=\"!vm.loading\">\n" +
+    "\n" +
+    "  <h4>Settings</h4>\n" +
+    "  <div class=\"well\">\n" +
+    "    <form class=\"form-horizontal\">\n" +
+    "      <div class=\"form-group\">\n" +
+    "        <label class=\"col-sm-4 control-label\">Network:</label>\n" +
+    "        <div class=\"col-sm-8 input-group\">\n" +
+    "          <select class=\"form-control\"\n" +
+    "                  ng-model=\"vm.network\"\n" +
+    "                  ng-change=\"vm.networkChanged()\"\n" +
+    "                  ng-options=\"n.label for n in vm.networks\">\n" +
+    "          </select>\n" +
+    "        </div>\n" +
+    "      </div>\n" +
+    "      <div class=\"form-group\">\n" +
+    "        <label class=\"col-sm-4 control-label\">block-dn server:</label>\n" +
+    "        <div class=\"col-sm-8 input-group\">\n" +
+    "          <input type=\"text\" class=\"form-control\" ng-model=\"vm.server\"/>\n" +
+    "        </div>\n" +
+    "      </div>\n" +
+    "      <div class=\"form-group\">\n" +
+    "        <label class=\"col-sm-4 control-label\">\n" +
+    "          Parallel scan units (1-16):\n" +
+    "        </label>\n" +
+    "        <div class=\"col-sm-8 input-group\">\n" +
+    "          <input type=\"number\" class=\"form-control\" min=\"1\" max=\"16\"\n" +
+    "                 ng-model=\"vm.batchSize\"/>\n" +
+    "        </div>\n" +
+    "      </div>\n" +
+    "    </form>\n" +
+    "  </div>\n" +
+    "\n" +
+    "  <h4>Keys</h4>\n" +
+    "  <div class=\"well\">\n" +
+    "    <div class=\"alert alert-warning\">\n" +
+    "      <strong>Warning:</strong> the scan private key can detect (but not\n" +
+    "      spend) all your incoming silent payments. Only use it on pages you\n" +
+    "      trust; everything here stays in your browser.\n" +
+    "    </div>\n" +
+    "    <form class=\"form-horizontal\">\n" +
+    "      <div class=\"form-group\">\n" +
+    "        <label class=\"col-sm-4 control-label\">Scan private key (hex):</label>\n" +
+    "        <div class=\"col-sm-8 input-group\">\n" +
+    "          <input type=\"text\" class=\"form-control\" ng-model=\"vm.scanPrivKey\"\n" +
+    "                 placeholder=\"32-byte scan private key, 64 hex characters\"/>\n" +
+    "        </div>\n" +
+    "      </div>\n" +
+    "      <div class=\"form-group\">\n" +
+    "        <label class=\"col-sm-4 control-label\">Spend public key (hex):</label>\n" +
+    "        <div class=\"col-sm-8 input-group\">\n" +
+    "          <input type=\"text\" class=\"form-control\" ng-model=\"vm.spendPubKey\"\n" +
+    "                 placeholder=\"33-byte compressed public key, 66 hex characters\"/>\n" +
+    "        </div>\n" +
+    "      </div>\n" +
+    "      <div class=\"form-group\">\n" +
+    "        <label class=\"col-sm-4 control-label\">\n" +
+    "          Scan from height (blank = taproot activation,\n" +
+    "          {{vm.taprootActivation().toLocaleString()}}):\n" +
+    "        </label>\n" +
+    "        <div class=\"col-sm-8 input-group\">\n" +
+    "          <input type=\"number\" class=\"form-control\" ng-model=\"vm.fromHeight\"\n" +
+    "                 placeholder=\"{{vm.taprootActivation()}}\"/>\n" +
+    "        </div>\n" +
+    "      </div>\n" +
+    "      <div class=\"form-group\">\n" +
+    "        <label class=\"col-sm-4 control-label\">Dust filter level:</label>\n" +
+    "        <div class=\"col-sm-8 input-group\">\n" +
+    "          <select class=\"form-control\" ng-model=\"vm.dustLimit\"\n" +
+    "                  ng-options=\"d.value as d.label for d in vm.dustLimits\">\n" +
+    "          </select>\n" +
+    "        </div>\n" +
+    "        <div class=\"col-sm-offset-4 col-sm-8\">\n" +
+    "          <span class=\"help-block\">\n" +
+    "            Skips transactions whose taproot outputs are all at or below\n" +
+    "            this value (inscription postage etc.) — a faster, smaller scan\n" +
+    "            that cannot see payments of that size. Scan with 0 sats for\n" +
+    "            completeness.\n" +
+    "          </span>\n" +
+    "        </div>\n" +
+    "      </div>\n" +
+    "      <div class=\"form-group\">\n" +
+    "        <div class=\"col-sm-offset-4 col-sm-8\">\n" +
+    "          <button class=\"btn btn-primary\" ng-disabled=\"vm.busy\"\n" +
+    "                  ng-click=\"vm.scan()\">\n" +
+    "            Scan\n" +
+    "          </button>\n" +
+    "        </div>\n" +
+    "      </div>\n" +
+    "    </form>\n" +
+    "    <div class=\"alert alert-danger\" ng-if=\"vm.scanError\">\n" +
+    "      {{vm.scanError}}\n" +
+    "    </div>\n" +
+    "    <div ng-if=\"vm.address\">\n" +
+    "      <strong>Silent payment address:</strong>\n" +
+    "      <span style=\"font-family: monospace; font-size: 0.85em; word-break: break-all;\">\n" +
+    "        {{vm.address}}\n" +
+    "      </span><br/>\n" +
+    "      <strong>Change address (label m=0):</strong>\n" +
+    "      <span style=\"font-family: monospace; font-size: 0.85em; word-break: break-all;\">\n" +
+    "        {{vm.changeAddress}}\n" +
+    "      </span>\n" +
+    "    </div>\n" +
+    "  </div>\n" +
+    "\n" +
+    "  <h4>Progress</h4>\n" +
+    "  <div class=\"well\">\n" +
+    "    <div class=\"row\">\n" +
+    "      <div class=\"col-sm-6\">\n" +
+    "        <strong>Phase:</strong> {{vm.progressKind || '–'}}\n" +
+    "      </div>\n" +
+    "      <div class=\"col-sm-6\">\n" +
+    "        <strong>Outputs found:</strong> {{vm.foundCount}}\n" +
+    "      </div>\n" +
+    "    </div>\n" +
+    "    <div class=\"progress\" style=\"margin-top: 10px;\">\n" +
+    "      <div class=\"progress-bar\" role=\"progressbar\"\n" +
+    "           style=\"min-width: 2em; width: {{ vm.progressMax ? (100 * vm.progressValue / vm.progressMax) : 0 }}%\">\n" +
+    "        {{vm.progressValue.toLocaleString()}}\n" +
+    "      </div>\n" +
+    "    </div>\n" +
+    "    <p ng-if=\"vm.statsLine\">{{vm.statsLine}}</p>\n" +
+    "    <pre style=\"max-height: 200px; overflow-y: auto;\"\n" +
+    "         ng-if=\"vm.logLines.length\">{{vm.logLines.join('\\n')}}</pre>\n" +
+    "  </div>\n" +
+    "\n" +
+    "  <h4>Local cache</h4>\n" +
+    "  <div class=\"well\">\n" +
+    "    <p>{{vm.cacheText}}</p>\n" +
+    "    <button class=\"btn btn-default\" ng-click=\"vm.clearCache()\">\n" +
+    "      Clear cached chain data\n" +
+    "    </button>\n" +
+    "  </div>\n" +
+    "\n" +
+    "  <h4>Found silent payment outputs</h4>\n" +
+    "  <div class=\"well\">\n" +
+    "    <table class=\"table table-striped table-condensed\">\n" +
+    "      <thead>\n" +
+    "      <tr>\n" +
+    "        <th>Outpoint</th>\n" +
+    "        <th>Value (sats)</th>\n" +
+    "        <th>Height</th>\n" +
+    "        <th>Label</th>\n" +
+    "        <th>k</th>\n" +
+    "        <th>Unspent</th>\n" +
+    "        <th>Private key tweak</th>\n" +
+    "      </tr>\n" +
+    "      </thead>\n" +
+    "      <tbody>\n" +
+    "      <tr ng-if=\"!vm.results.length\">\n" +
+    "        <td colspan=\"7\">none found yet</td>\n" +
+    "      </tr>\n" +
+    "      <tr ng-repeat=\"r in vm.results track by (r.txid + ':' + r.vout)\">\n" +
+    "        <td style=\"font-family: monospace; font-size: 0.85em;\">\n" +
+    "          {{r.txid}}:{{r.vout}}\n" +
+    "        </td>\n" +
+    "        <td>{{r.value.toLocaleString()}}</td>\n" +
+    "        <td>{{r.height}}</td>\n" +
+    "        <td>{{r.label}}</td>\n" +
+    "        <td>{{r.k}}</td>\n" +
+    "        <td>{{r.unspent === null ? '?' : (r.unspent ? 'yes' : 'spent')}}</td>\n" +
+    "        <td style=\"font-family: monospace; font-size: 0.85em;\">\n" +
+    "          {{vm.toHex(r.privKeyTweak)}}\n" +
+    "        </td>\n" +
+    "      </tr>\n" +
+    "      </tbody>\n" +
+    "    </table>\n" +
+    "  </div>\n" +
     "</div>\n"
   );
 

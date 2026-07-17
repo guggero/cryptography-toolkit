@@ -381,4 +381,81 @@
     </div>
   </form>
 </div>
+
+<h4>BIP-352: Silent Payments codes</h4>
+<div class="well">
+  <form class="form-horizontal">
+
+    <!-- account -->
+    <div class="form-group">
+      <label class="col-sm-3 control-label">
+        BIP-352 parameters to derive keys:
+      </label>
+      <div class="col-sm-9 input-group">
+        <div class="input-group-addon">Account</div>
+        <input class="form-control"
+               ng-model="vm.spAccount"
+               ng-change="vm.calculateSpKeys()"
+               min="0"
+               max="2147483647"
+               type="number">
+      </div>
+    </div>
+
+    <div class="alert alert-danger" ng-if="vm.spError">
+      {{vm.spError}}
+    </div>
+
+    <!-- scan key pair -->
+    <div class="form-group">
+      <label class="col-sm-3 control-label">
+        Scan private key ({{vm.spScanPath}}):
+      </label>
+      <div class="col-sm-9 input-group">
+        <input class="form-control"
+               value="{{vm.spScanPriv}}"
+               ng-readonly="true">
+      </div>
+    </div>
+    <div class="form-group">
+      <label class="col-sm-3 control-label">Scan public key:</label>
+      <div class="col-sm-9 input-group">
+        <input class="form-control"
+               value="{{vm.spScanPub}}"
+               ng-readonly="true">
+      </div>
+    </div>
+
+    <!-- spend key pair -->
+    <div class="form-group">
+      <label class="col-sm-3 control-label">
+        Spend private key ({{vm.spSpendPath}}):
+      </label>
+      <div class="col-sm-9 input-group">
+        <input class="form-control"
+               value="{{vm.spSpendPriv}}"
+               ng-readonly="true">
+      </div>
+    </div>
+    <div class="form-group">
+      <label class="col-sm-3 control-label">Spend public key:</label>
+      <div class="col-sm-9 input-group">
+        <input class="form-control"
+               value="{{vm.spSpendPub}}"
+               ng-readonly="true">
+      </div>
+    </div>
+
+    <!-- silent payment code -->
+    <div class="form-group">
+      <label class="col-sm-3 control-label">Silent payment code:</label>
+      <div class="col-sm-9 input-group">
+        <input class="form-control"
+               style="font-family: monospace; font-size: 0.85em;"
+               value="{{vm.spCode}}"
+               ng-readonly="true">
+      </div>
+    </div>
+  </form>
+</div>
 </div>

@@ -1085,6 +1085,67 @@ function createDescriptor(descriptor) {
   return new Descriptor(info);
 }
 
+// src/spscan.ts
+var spScannerFinalizers = new FinalizationRegistry((handle2) => {
+  try {
+    g()?.silentpayments?.scannerFree(handle2);
+  } catch {
+  }
+});
+var SpScanner = class {
+  /** @internal Construct via {@link silentpayments.scanner}. */
+  constructor(info) {
+    this.freed = false;
+    this.handle = info.handle;
+    this.address = info.address;
+    this.changeAddress = info.changeAddress;
+    spScannerFinalizers.register(this, info.handle, this);
+  }
+  /** Release the Go-side scanner. Safe to call more than once. */
+  free() {
+    if (this.freed) {
+      return;
+    }
+    this.freed = true;
+    spScannerFinalizers.unregister(this);
+    unwrap(g().silentpayments.scannerFree(this.handle));
+  }
+};
+function createSpScanner(scanPrivKey, spendPubKey, network = "mainnet") {
+  const info = unwrap(
+    g().silentpayments.scannerNew(scanPrivKey, spendPubKey, network)
+  );
+  return new SpScanner(info);
+}
+function scanBatchSync(scanner, startHeight, tweakData, filterFile, headers, filterHeaders, prevFilterHeader, dustLimit) {
+  return unwrap(
+    g().silentpayments.scanBatch(
+      scanner.handle,
+      startHeight,
+      tweakData,
+      filterFile,
+      headers,
+      filterHeaders,
+      prevFilterHeader,
+      dustLimit
+    )
+  );
+}
+function scanBlockSpSync(scanner, blockBytes, tweakBytes) {
+  return unwrap(
+    g().silentpayments.scanBlock(
+      scanner.handle,
+      blockBytes,
+      tweakBytes
+    )
+  );
+}
+function scanOutputsSync(scanner, tweak, xOnlyKeys) {
+  return unwrap(
+    g().silentpayments.scanOutputs(scanner.handle, tweak, xOnlyKeys)
+  );
+}
+
 // src/neutrino.ts
 function cleanState(v) {
   return {
@@ -1330,6 +1391,22 @@ function buildSyncApi() {
     descriptors: {
       create: (descriptor) => createDescriptor(descriptor)
     },
+    // Silent payment scanning follows the same stateful-handle model.
+    silentpayments: {
+      scanner: (scanPriv, spendPub, network) => createSpScanner(scanPriv, spendPub, network),
+      scanBatch: (scanner, startHeight, tweakData, filterFile, headers, filterHeaders, prevFilterHeader, dustLimit = 0) => scanBatchSync(
+        scanner,
+        startHeight,
+        tweakData,
+        filterFile,
+        headers,
+        filterHeaders,
+        prevFilterHeader,
+        dustLimit
+      ),
+      scanBlock: (scanner, blockBytes, tweakBytes) => scanBlockSpSync(scanner, blockBytes, tweakBytes),
+      scanOutputs: (scanner, tweak, xOnlyKeys) => scanOutputsSync(scanner, tweak, xOnlyKeys)
+    },
     // Neutrino primitives follow the same stateful-handle model as
     // descriptors; the module is loaded here, so creation is synchronous.
     neutrino: {
@@ -1377,6 +1454,7 @@ function unwrap(result) {
 
 // src/neutrino-worker.ts
 var watch = null;
+var spScanner = null;
 async function handle(msg, reply) {
   try {
     switch (msg.type) {
@@ -1399,6 +1477,39 @@ async function handle(msg, reply) {
           msg.prev
         );
         reply({ id: msg.id, ok: true, matches });
+        break;
+      }
+      case "spInit": {
+        await init(msg.wasmUrl);
+        spScanner = createSpScanner(
+          msg.scanPrivKey,
+          msg.spendPubKey,
+          msg.network
+        );
+        reply({ id: msg.id, ok: true, address: spScanner.address });
+        break;
+      }
+      case "spScanBatch": {
+        if (!spScanner) {
+          throw new Error("worker not sp-initialized");
+        }
+        const spResult = scanBatchSync(
+          spScanner,
+          msg.startHeight,
+          new Uint8Array(msg.tweakData),
+          new Uint8Array(msg.filterFile),
+          new Uint8Array(msg.headers),
+          new Uint8Array(msg.filterHeaders),
+          msg.prev,
+          msg.dustLimit
+        );
+        reply({
+          id: msg.id,
+          ok: true,
+          matches: spResult.matches,
+          skippedTweaks: spResult.skippedTweaks,
+          timings: spResult.timings
+        });
         break;
       }
       default:

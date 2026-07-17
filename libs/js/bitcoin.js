@@ -32105,6 +32105,11 @@ __export(index_exports, {
   NodeStorage: () => NodeStorage,
   OpfsStorage: () => OpfsStorage,
   Plan: () => Plan,
+  SP_TWEAK_DUST_LIMITS: () => SP_TWEAK_DUST_LIMITS,
+  SilentPaymentScanner: () => SilentPaymentScanner,
+  SpScanPool: () => SpScanPool,
+  SpScanner: () => SpScanner,
+  TAPROOT_ACTIVATION: () => TAPROOT_ACTIVATION,
   WatchList: () => WatchList,
   WatchOnlyWallet: () => WatchOnlyWallet,
   address: () => address,
@@ -32121,6 +32126,8 @@ __export(index_exports, {
   descriptors: () => descriptors,
   formatBytes: () => formatBytes,
   formatScanStats: () => formatScanStats,
+  formatSpScanBreakdown: () => formatSpScanBreakdown,
+  formatSpScanStats: () => formatSpScanStats,
   gcs: () => gcs,
   hash: () => hash,
   hdkeychain: () => hdkeychain,
@@ -32130,6 +32137,7 @@ __export(index_exports, {
   psbt: () => psbt,
   scriptFilterType: () => scriptFilterType,
   selectFilterType: () => selectFilterType,
+  silentpayments: () => silentpayments,
   tx: () => tx,
   txscript: () => txscript,
   txsort: () => txsort,
@@ -33235,6 +33243,109 @@ var descriptors = {
   }
 };
 
+// src/spscan.ts
+var spScannerFinalizers = new FinalizationRegistry((handle) => {
+  try {
+    g()?.silentpayments?.scannerFree(handle);
+  } catch {
+  }
+});
+var SpScanner = class {
+  /** @internal Construct via {@link silentpayments.scanner}. */
+  constructor(info) {
+    this.freed = false;
+    this.handle = info.handle;
+    this.address = info.address;
+    this.changeAddress = info.changeAddress;
+    spScannerFinalizers.register(this, info.handle, this);
+  }
+  /** Release the Go-side scanner. Safe to call more than once. */
+  free() {
+    if (this.freed) {
+      return;
+    }
+    this.freed = true;
+    spScannerFinalizers.unregister(this);
+    unwrap(g().silentpayments.scannerFree(this.handle));
+  }
+};
+function createSpScanner(scanPrivKey, spendPubKey, network = "mainnet") {
+  const info = unwrap(
+    g().silentpayments.scannerNew(scanPrivKey, spendPubKey, network)
+  );
+  return new SpScanner(info);
+}
+function scanBatchSync(scanner, startHeight, tweakData, filterFile, headers, filterHeaders, prevFilterHeader, dustLimit) {
+  return unwrap(
+    g().silentpayments.scanBatch(
+      scanner.handle,
+      startHeight,
+      tweakData,
+      filterFile,
+      headers,
+      filterHeaders,
+      prevFilterHeader,
+      dustLimit
+    )
+  );
+}
+function scanBlockSpSync(scanner, blockBytes, tweakBytes) {
+  return unwrap(
+    g().silentpayments.scanBlock(
+      scanner.handle,
+      blockBytes,
+      tweakBytes
+    )
+  );
+}
+function scanOutputsSync(scanner, tweak, xOnlyKeys) {
+  return unwrap(
+    g().silentpayments.scanOutputs(scanner.handle, tweak, xOnlyKeys)
+  );
+}
+var silentpayments = {
+  /** Create a scanner from a 32-byte scan private key and a 33-byte
+   *  compressed spend public key. */
+  async scanner(scanPrivKey, spendPubKey, network = "mainnet") {
+    await init();
+    return createSpScanner(scanPrivKey, spendPubKey, network);
+  },
+  /** One verify-and-match pass over a p2tr filter file range: derives the
+   *  k=0 candidate output keys of every served transaction tweak (base +
+   *  change addresses) and matches them against each block's p2tr filter,
+   *  verifying every filter against the committed filter-header chain.
+   *  `tweakData` is block-dn's raw binary /sp/tweaks response for the same
+   *  range; its self-describing header is validated against the scanner's
+   *  network, `startHeight` and `dustLimit`. */
+  async scanBatch(scanner, startHeight, tweakData, filterFile, headers, filterHeaders, prevFilterHeader, dustLimit = 0) {
+    await init();
+    return scanBatchSync(
+      scanner,
+      startHeight,
+      tweakData,
+      filterFile,
+      headers,
+      filterHeaders,
+      prevFilterHeader,
+      dustLimit
+    );
+  },
+  /** Identify the scanner's outputs in a downloaded block, across output
+   *  indexes k = 0, 1, 2, ... per BIP-352 continuation semantics.
+   *  `tweakBytes` is the block's concatenated 33-byte tweak keys (as
+   *  returned in a {@link SpBatchMatch}). */
+  async scanBlock(scanner, blockBytes, tweakBytes) {
+    await init();
+    return scanBlockSpSync(scanner, blockBytes, tweakBytes);
+  },
+  /** Pure identification: which of the given x-only taproot output keys
+   *  belong to the scanner under the given transaction tweak. */
+  async scanOutputs(scanner, tweak, xOnlyKeys) {
+    await init();
+    return scanOutputsSync(scanner, tweak, xOnlyKeys);
+  }
+};
+
 // src/neutrino.ts
 function cleanState(v) {
   return {
@@ -33517,6 +33628,22 @@ function buildSyncApi() {
     // already loaded here, so create() is synchronous.
     descriptors: {
       create: (descriptor) => createDescriptor(descriptor)
+    },
+    // Silent payment scanning follows the same stateful-handle model.
+    silentpayments: {
+      scanner: (scanPriv, spendPub, network) => createSpScanner(scanPriv, spendPub, network),
+      scanBatch: (scanner, startHeight, tweakData, filterFile, headers, filterHeaders, prevFilterHeader, dustLimit = 0) => scanBatchSync(
+        scanner,
+        startHeight,
+        tweakData,
+        filterFile,
+        headers,
+        filterHeaders,
+        prevFilterHeader,
+        dustLimit
+      ),
+      scanBlock: (scanner, blockBytes, tweakBytes) => scanBlockSpSync(scanner, blockBytes, tweakBytes),
+      scanOutputs: (scanner, tweak, xOnlyKeys) => scanOutputsSync(scanner, tweak, xOnlyKeys)
     },
     // Neutrino primitives follow the same stateful-handle model as
     // descriptors; the module is loaded here, so creation is synchronous.
@@ -34841,6 +34968,234 @@ var BlockDnClient = class {
   block(hashHex) {
     return this.fetchBinary(`/block/${hashHex}`);
   }
+  /** One binary BIP-352 tweak file: an 18-byte self-describing header
+   *  (network magic, format version, file type, start height, dust
+   *  limit), then per block of the range a compact-size count followed by
+   *  that many 33-byte compressed tweak keys (input_hash * A_sum), in
+   *  transaction order. The dust limit selects one of the server's
+   *  materialized filter levels (0, 600, 1000 or 3750 sats): a
+   *  transaction is included if its largest taproot output value is
+   *  strictly greater than the limit. Requires --index-sp-tweak-data on
+   *  the server. */
+  spTweaks(dustLimit, startHeight, opts) {
+    return this.fetchBinary(
+      `/sp/tweaks/${dustLimit}/${startHeight}`,
+      opts
+    );
+  }
+  /** Whether an outpoint is currently unspent, via the server's proxied
+   *  UTXO lookup. Returns null when the server can't answer. */
+  async isUnspent(txid, vout) {
+    try {
+      const resp = await fetch(
+        `${this.baseUrl}/utxo/${txid}-${vout}?format=json`
+      );
+      if (!resp.ok) return null;
+      const result = await resp.json();
+      if (typeof result?.bitmap === "string") {
+        return result.bitmap.startsWith("1");
+      }
+      return null;
+    } catch {
+      return null;
+    }
+  }
+};
+
+// src/matchpool.ts
+var MatchWorker = class _MatchWorker {
+  constructor() {
+    this.pending = /* @__PURE__ */ new Map();
+    this.nextId = 1;
+  }
+  static async spawn(url) {
+    const w = new _MatchWorker();
+    if (typeof Worker !== "undefined") {
+      w.worker = new Worker(url, { type: "module" });
+      w.worker.onmessage = (e) => w.dispatch(e.data);
+      w.worker.onerror = (e) => w.failAll(new Error(e?.message ?? "worker error"));
+      w.post = (msg, transfer) => w.worker.postMessage(msg, transfer);
+      w.kill = () => w.worker.terminate();
+    } else {
+      const { Worker: NodeWorker } = await nodeImport(
+        "node:worker_threads"
+      );
+      w.worker = new NodeWorker(url);
+      w.worker.on("message", (m) => w.dispatch(m));
+      w.worker.on("error", (err) => w.failAll(err));
+      w.post = (msg, transfer) => w.worker.postMessage(msg, transfer);
+      w.kill = () => w.worker.terminate();
+    }
+    return w;
+  }
+  dispatch(msg) {
+    const entry = this.pending.get(msg.id);
+    if (!entry) return;
+    this.pending.delete(msg.id);
+    if (msg.ok) entry.resolve(msg);
+    else entry.reject(new Error(msg.error));
+  }
+  failAll(err) {
+    for (const entry of this.pending.values()) entry.reject(err);
+    this.pending.clear();
+  }
+  request(msg, transfer = []) {
+    const id = this.nextId++;
+    return new Promise((resolve, reject) => {
+      this.pending.set(id, { resolve, reject });
+      this.post({ ...msg, id }, transfer);
+    });
+  }
+};
+var nodeImport = new Function("m", "return import(m)");
+var MatchWorkerPool = class _MatchWorkerPool {
+  constructor() {
+    this.workers = [];
+    this.idle = [];
+    this.waiters = [];
+  }
+  /** Spawn `size` workers, each initialized with its own WASM instance and
+   *  the given watch scripts (hex strings). Resolves to `null` if workers
+   *  aren't available or fail to initialize — callers fall back to inline
+   *  matching. */
+  static create(size, scripts, opts = {}) {
+    return _MatchWorkerPool.createWithInit(size, opts, {
+      type: "init",
+      scripts,
+      wasmUrl: opts.wasmUrl
+    });
+  }
+  /** Spawn `size` workers and send each the given init message — the
+   *  generic base for pools with different worker-side contexts (script
+   *  watch lists, silent-payment scanners, ...). */
+  static async createWithInit(size, opts, initMsg) {
+    const url = opts.workerUrl ?? new URL("./neutrino-worker.js", importMetaUrl);
+    const timeoutMs = opts.initTimeoutMs ?? 3e4;
+    const pool = new _MatchWorkerPool();
+    try {
+      pool.workers = await Promise.all(
+        Array.from({ length: size }, () => MatchWorker.spawn(url))
+      );
+      const timeout = new Promise((_, reject) => setTimeout(
+        () => reject(new Error("worker init timeout")),
+        timeoutMs
+      ));
+      await Promise.race([
+        Promise.all(pool.workers.map((w) => w.request(initMsg))),
+        timeout
+      ]);
+      pool.idle = [...pool.workers];
+      return pool;
+    } catch {
+      pool.free();
+      return null;
+    }
+  }
+  /** Run one request on an idle worker, transferring the given named
+   *  Uint8Array buffers zero-copy (non-exact views are copied first). */
+  async requestOnIdle(msg, buffers = {}) {
+    const exact = (view) => view.byteOffset === 0 && view.byteLength === view.buffer.byteLength ? view.buffer : view.slice().buffer;
+    const transfer = [];
+    const payload = { ...msg };
+    for (const [name, view] of Object.entries(buffers)) {
+      const buf = exact(view);
+      payload[name] = buf;
+      transfer.push(buf);
+    }
+    const worker = await this.acquire();
+    try {
+      return await worker.request(payload, transfer);
+    } finally {
+      this.release(worker);
+    }
+  }
+  acquire() {
+    const worker = this.idle.pop();
+    if (worker) return Promise.resolve(worker);
+    return new Promise((resolve) => this.waiters.push(resolve));
+  }
+  release(worker) {
+    const waiter = this.waiters.shift();
+    if (waiter) waiter(worker);
+    else this.idle.push(worker);
+  }
+  /** Run one matchFilters call on an idle worker. The three data buffers
+   *  are transferred (zero-copy where possible), so they must not be used
+   *  afterwards. */
+  async match(task) {
+    const exact = (view) => view.byteOffset === 0 && view.byteLength === view.buffer.byteLength ? view.buffer : view.slice().buffer;
+    const worker = await this.acquire();
+    try {
+      const filterBuf = exact(task.filterFile);
+      const headerBuf = exact(task.headers);
+      const fheaderBuf = exact(task.filterHeaders);
+      const resp = await worker.request(
+        {
+          type: "match",
+          startHeight: task.startHeight,
+          filterFile: filterBuf,
+          headers: headerBuf,
+          filterHeaders: fheaderBuf,
+          prev: task.prev
+        },
+        [filterBuf, headerBuf, fheaderBuf]
+      );
+      return resp.matches;
+    } finally {
+      this.release(worker);
+    }
+  }
+  free() {
+    for (const w of this.workers) w.kill();
+    this.workers = [];
+    this.idle = [];
+  }
+};
+var SpScanPool = class _SpScanPool {
+  /** Spawn `size` workers initialized with the scanning keys. Resolves to
+   *  `null` if workers are unavailable — callers fall back to inline
+   *  scanning. The scan private key is sent to same-origin workers only
+   *  (never over the network). */
+  static async create(size, scanPrivKey, spendPubKey, network, opts = {}) {
+    const inner = await MatchWorkerPool.createWithInit(size, opts, {
+      type: "spInit",
+      scanPrivKey,
+      spendPubKey,
+      network,
+      wasmUrl: opts.wasmUrl
+    });
+    if (!inner) return null;
+    const pool = new _SpScanPool();
+    pool.pool = inner;
+    return pool;
+  }
+  /** Run one spScanBatch call on an idle worker. The four data buffers
+   *  are transferred (zero-copy where possible), so they must not be used
+   *  afterwards. */
+  async scanBatch(task) {
+    const resp = await this.pool.requestOnIdle(
+      {
+        type: "spScanBatch",
+        startHeight: task.startHeight,
+        prev: task.prev,
+        dustLimit: task.dustLimit
+      },
+      {
+        tweakData: task.tweakData,
+        filterFile: task.filterFile,
+        headers: task.headers,
+        filterHeaders: task.filterHeaders
+      }
+    );
+    return {
+      matches: resp.matches,
+      skippedTweaks: resp.skippedTweaks ?? 0,
+      timings: resp.timings
+    };
+  }
+  free() {
+    this.pool.free();
+  }
 };
 
 // src/walletstore.ts
@@ -34979,7 +35334,7 @@ var OpfsStorage = class _OpfsStorage {
     }
   }
 };
-var nodeImport = new Function("m", "return import(m)");
+var nodeImport2 = new Function("m", "return import(m)");
 var NodeStorage = class _NodeStorage {
   constructor(fs2, dir) {
     this.fs = fs2;
@@ -35007,7 +35362,7 @@ var NodeStorage = class _NodeStorage {
     this.stats = () => buildStats((name) => this.size(name));
   }
   static async open(dirPath) {
-    const fs2 = await nodeImport("node:fs/promises");
+    const fs2 = await nodeImport2("node:fs/promises");
     await fs2.mkdir(dirPath, { recursive: true });
     return new _NodeStorage(fs2, dirPath);
   }
@@ -35062,132 +35417,6 @@ var NodeStorage = class _NodeStorage {
     for (const name of STORE_FILES) {
       await this.fs.rm(this.path(name), { force: true });
     }
-  }
-};
-
-// src/matchpool.ts
-var MatchWorker = class _MatchWorker {
-  constructor() {
-    this.pending = /* @__PURE__ */ new Map();
-    this.nextId = 1;
-  }
-  static async spawn(url) {
-    const w = new _MatchWorker();
-    if (typeof Worker !== "undefined") {
-      w.worker = new Worker(url, { type: "module" });
-      w.worker.onmessage = (e) => w.dispatch(e.data);
-      w.worker.onerror = (e) => w.failAll(new Error(e?.message ?? "worker error"));
-      w.post = (msg, transfer) => w.worker.postMessage(msg, transfer);
-      w.kill = () => w.worker.terminate();
-    } else {
-      const { Worker: NodeWorker } = await nodeImport2(
-        "node:worker_threads"
-      );
-      w.worker = new NodeWorker(url);
-      w.worker.on("message", (m) => w.dispatch(m));
-      w.worker.on("error", (err) => w.failAll(err));
-      w.post = (msg, transfer) => w.worker.postMessage(msg, transfer);
-      w.kill = () => w.worker.terminate();
-    }
-    return w;
-  }
-  dispatch(msg) {
-    const entry = this.pending.get(msg.id);
-    if (!entry) return;
-    this.pending.delete(msg.id);
-    if (msg.ok) entry.resolve(msg);
-    else entry.reject(new Error(msg.error));
-  }
-  failAll(err) {
-    for (const entry of this.pending.values()) entry.reject(err);
-    this.pending.clear();
-  }
-  request(msg, transfer = []) {
-    const id = this.nextId++;
-    return new Promise((resolve, reject) => {
-      this.pending.set(id, { resolve, reject });
-      this.post({ ...msg, id }, transfer);
-    });
-  }
-};
-var nodeImport2 = new Function("m", "return import(m)");
-var MatchWorkerPool = class _MatchWorkerPool {
-  constructor() {
-    this.workers = [];
-    this.idle = [];
-    this.waiters = [];
-  }
-  /** Spawn `size` workers, each initialized with its own WASM instance and
-   *  the given watch scripts (hex strings). Resolves to `null` if workers
-   *  aren't available or fail to initialize — callers fall back to inline
-   *  matching. */
-  static async create(size, scripts, opts = {}) {
-    const url = opts.workerUrl ?? new URL("./neutrino-worker.js", importMetaUrl);
-    const timeoutMs = opts.initTimeoutMs ?? 3e4;
-    const pool = new _MatchWorkerPool();
-    try {
-      pool.workers = await Promise.all(
-        Array.from({ length: size }, () => MatchWorker.spawn(url))
-      );
-      const timeout = new Promise((_, reject) => setTimeout(
-        () => reject(new Error("worker init timeout")),
-        timeoutMs
-      ));
-      await Promise.race([
-        Promise.all(pool.workers.map((w) => w.request({
-          type: "init",
-          scripts,
-          wasmUrl: opts.wasmUrl
-        }))),
-        timeout
-      ]);
-      pool.idle = [...pool.workers];
-      return pool;
-    } catch {
-      pool.free();
-      return null;
-    }
-  }
-  acquire() {
-    const worker = this.idle.pop();
-    if (worker) return Promise.resolve(worker);
-    return new Promise((resolve) => this.waiters.push(resolve));
-  }
-  release(worker) {
-    const waiter = this.waiters.shift();
-    if (waiter) waiter(worker);
-    else this.idle.push(worker);
-  }
-  /** Run one matchFilters call on an idle worker. The three data buffers
-   *  are transferred (zero-copy where possible), so they must not be used
-   *  afterwards. */
-  async match(task) {
-    const exact = (view) => view.byteOffset === 0 && view.byteLength === view.buffer.byteLength ? view.buffer : view.slice().buffer;
-    const worker = await this.acquire();
-    try {
-      const filterBuf = exact(task.filterFile);
-      const headerBuf = exact(task.headers);
-      const fheaderBuf = exact(task.filterHeaders);
-      const resp = await worker.request(
-        {
-          type: "match",
-          startHeight: task.startHeight,
-          filterFile: filterBuf,
-          headers: headerBuf,
-          filterHeaders: fheaderBuf,
-          prev: task.prev
-        },
-        [filterBuf, headerBuf, fheaderBuf]
-      );
-      return resp.matches;
-    } finally {
-      this.release(worker);
-    }
-  }
-  free() {
-    for (const w of this.workers) w.kill();
-    this.workers = [];
-    this.idle = [];
   }
 };
 
@@ -35700,6 +35929,357 @@ var WatchOnlyWallet = class _WatchOnlyWallet {
     this.chain.free();
   }
 };
+
+// src/spscanner.ts
+var HEADER_SIZE3 = 80;
+var FILTER_HEADER_SIZE3 = 32;
+var TAPROOT_ACTIVATION = {
+  mainnet: 709632,
+  testnet: 2011968,
+  testnet3: 2011968,
+  testnet4: 1,
+  signet: 1
+};
+var SP_TWEAK_DUST_LIMITS = [0, 600, 1e3, 3750];
+function reverseHex2(bytes) {
+  let s = "";
+  for (let i = bytes.length - 1; i >= 0; i--) {
+    s += bytes[i].toString(16).padStart(2, "0");
+  }
+  return s;
+}
+function formatSpScanStats(stats) {
+  const invalid = stats.invalidTweaks > 0 ? `, ${stats.invalidTweaks} invalid tweak entries skipped` : "";
+  return `${stats.blocksScanned.toLocaleString()} blocks / ${stats.txsScanned.toLocaleString()} eligible txs scanned in ${stats.seconds.toFixed(1)} s (${stats.matchedBlocks} blocks matched, ${stats.foundOutputs} outputs found, ${formatBytes(stats.bytesDownloaded)} downloaded${invalid})`;
+}
+function formatMs(ms) {
+  return ms >= 1e3 ? `${(ms / 1e3).toFixed(2)}s` : `${Math.round(ms)}ms`;
+}
+function formatSpScanBreakdown(stats) {
+  const b = stats.breakdown;
+  const perTweak = stats.txsScanned > 0 ? ` = ${(b.deriveMs * 1e3 / stats.txsScanned).toFixed(0)}\xB5s/tweak` : "";
+  return `time spent (summed across workers): download ${formatMs(b.tweakFetchMs + b.filterFetchMs)} (tweak data ${formatMs(b.tweakFetchMs)}, filters ${formatMs(b.filterFetchMs)}), cache reads ${formatMs(b.cacheReadMs)}, wasm scan ${formatMs(b.scanMs)} (ecdh derive ${formatMs(b.deriveMs)}${perTweak}, filter verify ${formatMs(b.verifyMs)}, gcs match ${formatMs(b.matchMs)}, json parse ${formatMs(b.wasmParseMs)}), matched blocks ${formatMs(b.blockMs)}`;
+}
+var SilentPaymentScanner = class _SilentPaymentScanner {
+  constructor() {
+    /** The bech32m address of the most recent scan run. */
+    this.address = "";
+    this.changeAddress = "";
+  }
+  /** Open a scanner on the given storage backend. The storage is shared
+   *  with the watch-only wallet engine: block headers, the validated
+   *  chain state and the p2tr filter-header cache are reused across both;
+   *  wallet data is never touched. */
+  static async open(opts) {
+    const scanner = new _SilentPaymentScanner();
+    scanner.lib = await init(opts.wasmSource);
+    scanner.network = opts.network;
+    scanner.client = new BlockDnClient(opts.serverUrl);
+    scanner.storage = opts.storage;
+    scanner.batchSize = Math.max(
+      1,
+      Math.min(16, Math.floor(opts.batchSize ?? 4))
+    );
+    scanner.wasmSource = opts.wasmSource;
+    scanner.workerUrl = opts.workerUrl;
+    const state = await opts.storage.getChainState();
+    scanner.chain = scanner.lib.neutrino.headerChain(
+      opts.network,
+      state ?? void 0
+    );
+    const stored = await opts.storage.headerCount();
+    const tip = scanner.chain.tip().tipHeight;
+    if (tip + 1 !== stored) {
+      scanner.chain.free();
+      scanner.chain = scanner.lib.neutrino.headerChain(opts.network);
+      const batch = 5e4;
+      for (let h = 0; h < stored; h += batch) {
+        scanner.chain.append(await opts.storage.readHeaders(
+          h,
+          Math.min(batch, stored - h)
+        ));
+      }
+    }
+    return scanner;
+  }
+  /** Sync block headers and the p2tr filter-header chain to the server
+   *  tip, validating headers locally. Cached data (including anything a
+   *  previous watch-only wallet session synced) is reused. */
+  async syncHeaders(onProgress = () => {
+  }) {
+    const status = await this.client.status();
+    if (!status.custom_filters_available) {
+      throw new Error("the block-dn server does not serve custom filters (--index-custom-filters)");
+    }
+    if (!status.best_sptweak_height) {
+      throw new Error("the block-dn server does not serve silent payment tweak data (--index-sp-tweak-data)");
+    }
+    const perFile = status.entries_per_header_file;
+    const target = status.best_block_height;
+    for (; ; ) {
+      const tip = this.chain.tip().tipHeight;
+      if (tip >= target) break;
+      const boundary = Math.floor((tip + 1) / perFile) * perFile;
+      const file = await this.client.headers(boundary);
+      const fresh = file.subarray((tip + 1 - boundary) * HEADER_SIZE3);
+      if (fresh.length === 0) break;
+      this.chain.append(fresh);
+      await this.storage.appendHeaders(fresh);
+      onProgress("headers", this.chain.tip().tipHeight, target);
+    }
+    await this.storage.setChainState(this.chain.exportState());
+    for (; ; ) {
+      const have = await this.storage.filterHeaderCount("p2tr");
+      if (have > target) break;
+      const boundary = Math.floor(have / perFile) * perFile;
+      const file = await this.client.filterHeaders(boundary, "p2tr");
+      const fresh = file.subarray((have - boundary) * FILTER_HEADER_SIZE3);
+      if (fresh.length === 0) break;
+      await this.storage.appendFilterHeaders(fresh, "p2tr");
+      onProgress(
+        "filter-headers",
+        await this.storage.filterHeaderCount("p2tr") - 1,
+        target
+      );
+    }
+    return status;
+  }
+  /** Scan for silent payment outputs from the given (or taproot
+   *  activation) height to the chain tip. Found outputs stream through
+   *  `onFound`; the returned array holds all of them plus stats. */
+  async scan(run) {
+    const startedAt = Date.now();
+    const bytesBefore = this.client.bytesFetched;
+    const dustLimit = run.dustLimit ?? 0;
+    if (!SP_TWEAK_DUST_LIMITS.includes(dustLimit)) {
+      throw new Error(`unsupported dust limit ${dustLimit}; the server serves ${SP_TWEAK_DUST_LIMITS.join(", ")}`);
+    }
+    const status = await this.syncHeaders();
+    const perFile = status.entries_per_filter_file;
+    if (status.entries_per_sptweak_file !== void 0 && status.entries_per_sptweak_file !== perFile) {
+      throw new Error(`unsupported server layout: ${status.entries_per_sptweak_file} blocks per tweak file vs ${perFile} per filter file`);
+    }
+    const activation = TAPROOT_ACTIVATION[this.network] ?? 0;
+    const from = Math.max(run.fromHeight ?? activation, 0);
+    const tip = Math.min(
+      this.chain.tip().tipHeight,
+      status.best_sptweak_height ?? 0,
+      status.best_custom_filter_height ?? status.best_block_height,
+      run.toHeight ?? Infinity
+    );
+    const scanner = createSpScanner(
+      run.scanPrivKey,
+      run.spendPubKey,
+      this.network
+    );
+    this.address = scanner.address;
+    this.changeAddress = scanner.changeAddress;
+    const pool = this.batchSize > 1 ? await SpScanPool.create(
+      this.batchSize,
+      run.scanPrivKey,
+      run.spendPubKey,
+      this.network,
+      { workerUrl: this.workerUrl, wasmUrl: this.wasmSource }
+    ) : null;
+    const results = [];
+    const stats = {
+      blocksScanned: tip >= from ? tip - from + 1 : 0,
+      txsScanned: 0,
+      matchedBlocks: 0,
+      foundOutputs: 0,
+      invalidTweaks: 0,
+      seconds: 0,
+      bytesDownloaded: 0,
+      breakdown: {
+        tweakFetchMs: 0,
+        filterFetchMs: 0,
+        cacheReadMs: 0,
+        scanMs: 0,
+        deriveMs: 0,
+        verifyMs: 0,
+        matchMs: 0,
+        wasmParseMs: 0,
+        blockMs: 0
+      }
+    };
+    try {
+      const firstFile = Math.floor(from / perFile) * perFile;
+      const batchSpan = perFile * this.batchSize;
+      for (let batch = firstFile; batch <= tip; batch += batchSpan) {
+        const ranges = [];
+        for (let i = 0; i < this.batchSize; i++) {
+          const start = batch + i * perFile;
+          if (start > tip) break;
+          ranges.push({
+            start,
+            count: Math.min(perFile, tip - start + 1)
+          });
+        }
+        const rangeResults = await Promise.all(ranges.map(
+          (range) => this.scanRange(
+            pool,
+            scanner,
+            range,
+            from,
+            dustLimit,
+            run.onLog
+          )
+        ));
+        const b = stats.breakdown;
+        for (const rr of rangeResults) {
+          stats.txsScanned += rr.txsScanned;
+          stats.matchedBlocks += rr.matches.length;
+          stats.invalidTweaks += rr.skippedTweaks;
+          b.tweakFetchMs += rr.timing.tweakFetchMs;
+          b.filterFetchMs += rr.timing.filterFetchMs;
+          b.cacheReadMs += rr.timing.cacheReadMs;
+          b.scanMs += rr.timing.scanMs;
+          b.deriveMs += rr.timing.deriveMs;
+          b.verifyMs += rr.timing.verifyMs;
+          b.matchMs += rr.timing.matchMs;
+          b.wasmParseMs += rr.timing.wasmParseMs;
+        }
+        const blockStarted = Date.now();
+        const matches = rangeResults.flatMap((rr) => rr.matches);
+        const blocks = await mapPool(
+          matches,
+          this.batchSize * 2,
+          (m) => this.client.block(m.blockHash)
+        );
+        for (let i = 0; i < matches.length; i++) {
+          const m = matches[i];
+          const found = scanBlockSpSync(scanner, blocks[i], m.tweaks);
+          for (const out of found) {
+            const result = {
+              ...out,
+              height: m.height,
+              blockHash: m.blockHash,
+              unspent: await this.client.isUnspent(
+                out.txid,
+                out.vout
+              )
+            };
+            results.push(result);
+            stats.foundOutputs++;
+            run.onFound?.(result);
+          }
+        }
+        if (matches.length > 0) {
+          const blockMs = Date.now() - blockStarted;
+          stats.breakdown.blockMs += blockMs;
+          run.onLog?.(`matched blocks: fetched + identified ${matches.length} block(s) in ${formatMs(blockMs)}`);
+        }
+        const last = ranges[ranges.length - 1];
+        run.onProgress?.(
+          last.start + last.count - 1,
+          tip,
+          stats.foundOutputs
+        );
+      }
+    } finally {
+      scanner.free();
+      pool?.free();
+    }
+    stats.seconds = (Date.now() - startedAt) / 1e3;
+    stats.bytesDownloaded = this.client.bytesFetched - bytesBefore;
+    return { results, stats };
+  }
+  /** Fetch and scan one 2000-block range: tweak data + p2tr filter file
+   *  from the network, header + filter-header slices from the cache. A
+   *  commitment-check failure triggers one cache-busting refetch of the
+   *  filter file. */
+  async scanRange(pool, scanner, { start, count }, from, dustLimit, onLog) {
+    const attempt = async (fresh) => {
+      const timing = {
+        tweakFetchMs: 0,
+        filterFetchMs: 0,
+        cacheReadMs: 0,
+        scanMs: 0,
+        deriveMs: 0,
+        verifyMs: 0,
+        matchMs: 0,
+        wasmParseMs: 0
+      };
+      const timed = async (p, key) => {
+        const started = Date.now();
+        try {
+          return await p;
+        } finally {
+          timing[key] += Date.now() - started;
+        }
+      };
+      const [tweakData, filterFile, headers, filterHeaders] = await Promise.all([
+        timed(
+          this.client.spTweaks(dustLimit, start, { fresh }),
+          "tweakFetchMs"
+        ),
+        timed(
+          this.client.filters(start, { fresh, filterType: "p2tr" }),
+          "filterFetchMs"
+        ),
+        timed(this.storage.readHeaders(start, count), "cacheReadMs"),
+        timed(
+          this.storage.readFilterHeaders(start, count, "p2tr"),
+          "cacheReadMs"
+        )
+      ]);
+      const tweakBytes = tweakData.length;
+      const filterBytes = filterFile.length;
+      const prev = start === 0 ? "" : reverseHex2(
+        await this.storage.readFilterHeaders(start - 1, 1, "p2tr")
+      );
+      const scanStarted = Date.now();
+      const batchResult = pool ? await pool.scanBatch({
+        startHeight: start,
+        tweakData,
+        filterFile,
+        headers,
+        filterHeaders,
+        prev,
+        dustLimit
+      }) : scanBatchSync(
+        scanner,
+        start,
+        tweakData,
+        filterFile,
+        headers,
+        filterHeaders,
+        prev,
+        dustLimit
+      );
+      timing.scanMs = Date.now() - scanStarted;
+      const wasm = batchResult.timings;
+      if (wasm) {
+        timing.deriveMs = wasm.deriveMs;
+        timing.verifyMs = wasm.verifyMs;
+        timing.matchMs = wasm.matchMs;
+        timing.wasmParseMs = wasm.parseMs;
+      }
+      onLog?.(
+        `[${start}-${start + count - 1}] tweak data ${formatMs(timing.tweakFetchMs)}/${formatBytes(tweakBytes)}, filters ${formatMs(timing.filterFetchMs)}/${formatBytes(filterBytes)}, cache ${formatMs(timing.cacheReadMs)}, wasm scan ${formatMs(timing.scanMs)}` + (wasm ? ` (ecdh derive ${formatMs(wasm.deriveMs)}, filter verify ${formatMs(wasm.verifyMs)}, gcs match ${formatMs(wasm.matchMs)}, decode ${formatMs(wasm.parseMs)}; ${wasm.tweaks.toLocaleString()} tweaks)` : "")
+      );
+      return {
+        txsScanned: wasm?.tweaks ?? 0,
+        skippedTweaks: batchResult.skippedTweaks,
+        timing,
+        matches: batchResult.matches.filter(
+          (m) => m.height >= from
+        )
+      };
+    };
+    try {
+      return await attempt(false);
+    } catch (err) {
+      if (!String(err?.message).includes("committed filter header")) {
+        throw err;
+      }
+      return attempt(true);
+    }
+  }
+  close() {
+    this.chain.free();
+  }
+};
 // Annotate the CommonJS export names for ESM import in node:
 0 && (module.exports = {
   BlockDnClient,
@@ -35710,6 +36290,11 @@ var WatchOnlyWallet = class _WatchOnlyWallet {
   NodeStorage,
   OpfsStorage,
   Plan,
+  SP_TWEAK_DUST_LIMITS,
+  SilentPaymentScanner,
+  SpScanPool,
+  SpScanner,
+  TAPROOT_ACTIVATION,
   WatchList,
   WatchOnlyWallet,
   address,
@@ -35726,6 +36311,8 @@ var WatchOnlyWallet = class _WatchOnlyWallet {
   descriptors,
   formatBytes,
   formatScanStats,
+  formatSpScanBreakdown,
+  formatSpScanStats,
   gcs,
   hash,
   hdkeychain,
@@ -35735,6 +36322,7 @@ var WatchOnlyWallet = class _WatchOnlyWallet {
   psbt,
   scriptFilterType,
   selectFilterType,
+  silentpayments,
   tx,
   txscript,
   txsort,
