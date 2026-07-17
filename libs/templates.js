@@ -256,12 +256,12 @@ angular.module('app').run(['$templateCache', function($templateCache) {
     "<html>\n" +
     "<script src=bundle.js></script>\n" +
     "<body>\n" +
-    "  <pre>\n" +
-    "  require('crypto').createHash('sha1').update('abc').digest('hex') == '<span id=ans></span>'\n" +
-    "  </pre>\n" +
+    "	<pre>\n" +
+    "		require('crypto').createHash('sha1').update('abc').digest('hex') == '<span id=ans></span>'\n" +
+    "	</pre>\n" +
     "</body>\n" +
     "<script>\n" +
-    "  document.getElementById('ans').innerHTML = require('crypto').createHash('sha1').update('abc').digest('hex')\n" +
+    "	document.getElementById('ans').innerHTML = require('crypto').createHash('sha1').update('abc').digest('hex')\n" +
     "</script>\n" +
     "</html>\n"
   );
