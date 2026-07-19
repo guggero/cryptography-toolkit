@@ -45,7 +45,7 @@ test.describe('silentpayments', () => {
     await expect(network.locator('option:checked')).toHaveText('Signet');
     await expect(byModel(page, 'vm.server'))
       .toHaveValue('https://signet.block-dn.org');
-    await expect(byModel(page, 'vm.batchSize')).toHaveValue('4');
+    await expect(byModel(page, 'vm.batchSize')).toHaveValue('8');
 
     const dust = byModel(page, 'vm.dustLimit');
     await expect(dust.locator('option')).toHaveCount(4);
@@ -77,6 +77,25 @@ test.describe('silentpayments', () => {
     await expect(page.getByText('none found yet')).toBeVisible();
   });
 
+  test('example button fills the signet test payment @smoke', async ({page}) => {
+    // Start from a non-default network to prove the button switches back.
+    await byModel(page, 'vm.network').selectOption({label: 'Mainnet'});
+
+    await page.getByRole('button', {name: 'Load signet example'}).click();
+
+    await expect(byModel(page, 'vm.network').locator('option:checked'))
+      .toHaveText('Signet');
+    await expect(byModel(page, 'vm.server'))
+      .toHaveValue('https://signet.block-dn.org');
+    await expect(byModel(page, 'vm.scanPrivKey')).toHaveValue(LIVE.scanPriv);
+    await expect(byModel(page, 'vm.spendPubKey')).toHaveValue(LIVE.spendPub);
+    await expect(byModel(page, 'vm.fromHeight'))
+      .toHaveValue(LIVE.fromHeight);
+    await expect(byModel(page, 'vm.dustLimit').locator('option:checked'))
+      .toHaveText('0 sats (complete scan)');
+    await expect(page.locator('pre')).toContainText('example loaded');
+  });
+
   test('network switch auto-fills the server, custom entries persist', async ({page}) => {
     const server = byModel(page, 'vm.server');
     await byModel(page, 'vm.network').selectOption({label: 'Mainnet'});
@@ -95,11 +114,10 @@ test.describe('silentpayments', () => {
     // ~1,600-block scan over a spam-heavy range.
     test.setTimeout(900_000);
 
-    await byModel(page, 'vm.scanPrivKey').fill(LIVE.scanPriv);
-    await byModel(page, 'vm.spendPubKey').fill(LIVE.spendPub);
-    await byModel(page, 'vm.fromHeight').fill(LIVE.fromHeight);
-    await byModel(page, 'vm.dustLimit')
-      .selectOption({label: '0 sats (complete scan)'});
+    // The example button fills exactly this payment's parameters; driving
+    // it here keeps the button's constants live-verified.
+    await page.getByRole('button', {name: 'Load signet example'}).click();
+    await expect(byModel(page, 'vm.scanPrivKey')).toHaveValue(LIVE.scanPriv);
     await scanButton(page).click();
 
     // The scan announces itself, derives the address, and streams
@@ -108,6 +126,18 @@ test.describe('silentpayments', () => {
     await expect(log).toContainText(
       'scanning from height 312000 at dust filter level 0',
       {timeout: 120_000});
+
+    // The piece map appears and the main progress bar advances while
+    // the scan runs (in-scan progress streams from the WASM workers).
+    await expect(page.getByText('One piece per 2,000-block range'))
+      .toBeVisible({timeout: 60_000});
+    await expect
+      .poll(async () => {
+        const text = await page.locator('.progress-bar').textContent();
+        return parseInt(text.replace(/[^0-9]/g, ''), 10) || 0;
+      }, {timeout: 120_000, message: 'progress bar advances mid-scan'})
+      .toBeGreaterThan(0);
+
     await expect(page.locator('body')).toContainText(LIVE.address,
       {timeout: 300_000});
 

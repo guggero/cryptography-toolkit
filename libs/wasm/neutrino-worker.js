@@ -1117,7 +1117,7 @@ function createSpScanner(scanPrivKey, spendPubKey, network = "mainnet") {
   );
   return new SpScanner(info);
 }
-function scanBatchSync(scanner, startHeight, tweakData, filterFile, headers, filterHeaders, prevFilterHeader, dustLimit) {
+function scanBatchSync(scanner, startHeight, tweakData, filterFile, headers, filterHeaders, prevFilterHeader, dustLimit, onBlocks) {
   return unwrap(
     g().silentpayments.scanBatch(
       scanner.handle,
@@ -1127,7 +1127,8 @@ function scanBatchSync(scanner, startHeight, tweakData, filterFile, headers, fil
       headers,
       filterHeaders,
       prevFilterHeader,
-      dustLimit
+      dustLimit,
+      onBlocks
     )
   );
 }
@@ -1268,7 +1269,7 @@ function createWatchList(scripts) {
   );
   return new WatchList(info.handle);
 }
-function matchFiltersSync(watch2, startHeight, filterFile, headers, filterHeaders, prevFilterHeader) {
+function matchFiltersSync(watch2, startHeight, filterFile, headers, filterHeaders, prevFilterHeader, onBlocks) {
   return unwrap(
     g().neutrino.matchFilters(
       watch2.handle,
@@ -1276,7 +1277,8 @@ function matchFiltersSync(watch2, startHeight, filterFile, headers, filterHeader
       filterFile,
       headers,
       filterHeaders,
-      prevFilterHeader
+      prevFilterHeader,
+      onBlocks
     )
   );
 }
@@ -1394,7 +1396,7 @@ function buildSyncApi() {
     // Silent payment scanning follows the same stateful-handle model.
     silentpayments: {
       scanner: (scanPriv, spendPub, network) => createSpScanner(scanPriv, spendPub, network),
-      scanBatch: (scanner, startHeight, tweakData, filterFile, headers, filterHeaders, prevFilterHeader, dustLimit = 0) => scanBatchSync(
+      scanBatch: (scanner, startHeight, tweakData, filterFile, headers, filterHeaders, prevFilterHeader, dustLimit = 0, onBlocks) => scanBatchSync(
         scanner,
         startHeight,
         tweakData,
@@ -1402,7 +1404,8 @@ function buildSyncApi() {
         headers,
         filterHeaders,
         prevFilterHeader,
-        dustLimit
+        dustLimit,
+        onBlocks
       ),
       scanBlock: (scanner, blockBytes, tweakBytes) => scanBlockSpSync(scanner, blockBytes, tweakBytes),
       scanOutputs: (scanner, tweak, xOnlyKeys) => scanOutputsSync(scanner, tweak, xOnlyKeys)
@@ -1412,13 +1415,14 @@ function buildSyncApi() {
     neutrino: {
       headerChain: (network, state) => createHeaderChain(network, state),
       watchList: (scripts) => createWatchList(scripts),
-      matchFilters: (watch2, startHeight, filterFile, headers, filterHeaders, prevFilterHeader) => matchFiltersSync(
+      matchFilters: (watch2, startHeight, filterFile, headers, filterHeaders, prevFilterHeader, onBlocks) => matchFiltersSync(
         watch2,
         startHeight,
         filterFile,
         headers,
         filterHeaders,
-        prevFilterHeader
+        prevFilterHeader,
+        onBlocks
       ),
       scanBlock: (watch2, blockBytes) => scanBlockSync(watch2, blockBytes)
     }
@@ -1474,7 +1478,14 @@ async function handle(msg, reply) {
           new Uint8Array(msg.filterFile),
           new Uint8Array(msg.headers),
           new Uint8Array(msg.filterHeaders),
-          msg.prev
+          msg.prev,
+          // Stream per-block progress as non-final messages; the final
+          // reply below carries the same id with ok set.
+          (blocks) => reply({
+            id: msg.id,
+            progress: true,
+            blocks
+          })
         );
         reply({ id: msg.id, ok: true, matches });
         break;
@@ -1501,7 +1512,14 @@ async function handle(msg, reply) {
           new Uint8Array(msg.headers),
           new Uint8Array(msg.filterHeaders),
           msg.prev,
-          msg.dustLimit
+          msg.dustLimit,
+          // Stream per-block progress as non-final messages; the final
+          // reply below carries the same id with ok set.
+          (blocks) => reply({
+            id: msg.id,
+            progress: true,
+            blocks
+          })
         );
         reply({
           id: msg.id,

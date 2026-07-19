@@ -30,7 +30,7 @@ function SilentPaymentsPageController($scope, $window) {
 
   vm.network = vm.networks[0];
   vm.server = vm.network.server;
-  vm.batchSize = 4;
+  vm.batchSize = 8;
   vm.scanPrivKey = '';
   vm.spendPubKey = '';
   vm.fromHeight = null;
@@ -58,6 +58,31 @@ function SilentPaymentsPageController($scope, $window) {
   vm.statsLine = '';
   vm.cacheText = 'nothing cached yet';
   vm.logLines = [];
+
+  // The piece map: one segment per 2000-block range of the scan, filled
+  // in individually as parallel units work through them (like the chunk
+  // display of a file sharing tool). Stages map to fixed fill levels.
+  vm.segments = [];
+  vm.blocksPerRange = 2000;
+  var SEGMENT_PCT = {pending: 0, fetch: 15, scan: 25, done: 100};
+  var SEGMENT_COLOR = {
+    pending: '#e8e8e8',
+    fetch: '#f0ad4e',
+    scan: '#337ab7',
+    done: '#5cb85c',
+  };
+  vm.segmentStyle = function (segment) {
+    var pct = SEGMENT_PCT[segment.stage];
+    if (segment.stage === 'scan' && segment.blocks > 0) {
+      // Scanning pieces fill up gradually with the in-scan block count.
+      pct = 25 + Math.min(75, 75 * segment.blocks / vm.blocksPerRange);
+    }
+    return {
+      width: pct + '%',
+      background: SEGMENT_COLOR[segment.stage],
+      height: '100%',
+    };
+  };
 
   let storage = null;
   let engine = null;
@@ -96,6 +121,25 @@ function SilentPaymentsPageController($scope, $window) {
 
   vm.taprootActivation = function () {
     return btcutil.TAPROOT_ACTIVATION[vm.network.value] || 0;
+  };
+
+  // A real signet payment anyone can find: 100,000 sats to this key pair,
+  // mined in block 313,552. The scan private key can only detect (not
+  // spend) the payment, so sharing it here is safe.
+  vm.loadExample = function () {
+    vm.network = vm.networks.find(function (n) {
+      return n.value === 'signet';
+    });
+    vm.networkChanged();
+    vm.scanPrivKey =
+      'd93a9e640712daf16349c137b5b10b60aae1329fe4be304dd438918e0537241d';
+    vm.spendPubKey =
+      '0333e80ffc460ec39f9db07f99a55f393860a19d038e173ef6916935429e80db60';
+    vm.fromHeight = 312000;
+    vm.dustLimit = 0;
+    vm.scanError = null;
+    log('example loaded: expect one payment of 100,000 sats in signet ' +
+      'block 313,552 — press Scan');
   };
 
   // Switching networks auto-fills the server field — but only if it still
@@ -210,8 +254,15 @@ function SilentPaymentsPageController($scope, $window) {
     vm.results = [];
     vm.foundCount = 0;
     vm.statsLine = '';
+    vm.segments = [];
+    vm.scanContext = '';
+    var segmentIndex = {};
 
     openEngine().then(function (e) {
+      // The engine is cached across scans, but the parallel-units field
+      // may have changed in the form since it was created.
+      e.batchSize = Number(vm.batchSize) || 8;
+
       log('syncing headers + p2tr filter headers...');
       return e.syncHeaders(function (kind, height, target) {
         vm.progressKind = kind;
@@ -235,13 +286,32 @@ function SilentPaymentsPageController($scope, $window) {
         spendPubKey: spendPub,
         fromHeight: from,
         dustLimit: vm.dustLimit,
-        onProgress: function (height, target, found) {
+        onProgress: function (blocksDone, totalBlocks, found) {
           vm.progressKind = 'scan';
-          vm.progressValue = height;
-          vm.progressMax = target;
+          vm.progressValue = blocksDone;
+          vm.progressMax = totalBlocks;
           vm.foundCount = found;
           vm.address = e.address;
           vm.changeAddress = e.changeAddress;
+          $scope.$applyAsync();
+        },
+        onRanges: function (plan) {
+          vm.blocksPerRange = plan.blocksPerRange;
+          vm.segments = plan.starts.map(function (start, idx) {
+            segmentIndex[start] = idx;
+            return {start: start, stage: 'pending', blocks: 0};
+          });
+          vm.scanContext = 'blocks ' + plan.fromHeight.toLocaleString() +
+            ' to ' + plan.toHeight.toLocaleString() + ' (' +
+            plan.totalBlocks.toLocaleString() + ' total)';
+          $scope.$applyAsync();
+        },
+        onRange: function (start, stage, blocks) {
+          var segment = vm.segments[segmentIndex[start]];
+          if (segment) {
+            segment.stage = stage;
+            segment.blocks = blocks || 0;
+          }
           $scope.$applyAsync();
         },
         onFound: function (result) {

@@ -191,6 +191,21 @@
       {{vm.progressKind}}
     </div>
   </div>
+  <div ng-if="vm.segments.length"
+       title="One piece per 2,000-block range, filled in as parallel scan units work through them.">
+    <div style="display: flex; gap: 1px; height: 14px; border: 1px solid #ddd; border-radius: 3px; overflow: hidden;">
+      <div ng-repeat="s in vm.segments track by s.start"
+           style="flex: 1 1 0; min-width: 1px; background: #e8e8e8;">
+        <div ng-style="vm.segmentStyle(s)"></div>
+      </div>
+    </div>
+    <span class="small text-muted">
+      Scanning {{vm.scanContext}} — one piece per 2,000-block range:
+      <span style="color: #f0ad4e;">&#9632;</span> downloading,
+      <span style="color: #337ab7;">&#9632;</span> scanning,
+      <span style="color: #5cb85c;">&#9632;</span> done.
+    </span>
+  </div>
   <pre style="max-height: 200px; overflow-y: auto;"
        ng-if="vm.logLines.length">{{vm.logLines.join('\n')}}</pre>
 </div>

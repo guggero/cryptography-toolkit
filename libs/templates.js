@@ -2446,6 +2446,21 @@ angular.module('app').run(['$templateCache', function($templateCache) {
     "      {{vm.progressKind}}\n" +
     "    </div>\n" +
     "  </div>\n" +
+    "  <div ng-if=\"vm.segments.length\"\n" +
+    "       title=\"One piece per 2,000-block range, filled in as parallel scan units work through them.\">\n" +
+    "    <div style=\"display: flex; gap: 1px; height: 14px; border: 1px solid #ddd; border-radius: 3px; overflow: hidden;\">\n" +
+    "      <div ng-repeat=\"s in vm.segments track by s.start\"\n" +
+    "           style=\"flex: 1 1 0; min-width: 1px; background: #e8e8e8;\">\n" +
+    "        <div ng-style=\"vm.segmentStyle(s)\"></div>\n" +
+    "      </div>\n" +
+    "    </div>\n" +
+    "    <span class=\"small text-muted\">\n" +
+    "      Scanning {{vm.scanContext}} — one piece per 2,000-block range:\n" +
+    "      <span style=\"color: #f0ad4e;\">&#9632;</span> downloading,\n" +
+    "      <span style=\"color: #337ab7;\">&#9632;</span> scanning,\n" +
+    "      <span style=\"color: #5cb85c;\">&#9632;</span> done.\n" +
+    "    </span>\n" +
+    "  </div>\n" +
     "  <pre style=\"max-height: 200px; overflow-y: auto;\"\n" +
     "       ng-if=\"vm.logLines.length\">{{vm.logLines.join('\\n')}}</pre>\n" +
     "</div>\n" +
@@ -5399,6 +5414,15 @@ angular.module('app').run(['$templateCache', function($templateCache) {
     "                  ng-click=\"vm.scan()\">\n" +
     "            Scan\n" +
     "          </button>\n" +
+    "          <button class=\"btn btn-default\" ng-disabled=\"vm.busy\"\n" +
+    "                  ng-click=\"vm.loadExample()\">\n" +
+    "            Load signet example\n" +
+    "          </button>\n" +
+    "          <span class=\"help-block\">\n" +
+    "            The example keys receive a real 100,000 sat payment in signet\n" +
+    "            block 313,552 — scanning from height 312,000 finds it in under\n" +
+    "            a minute.\n" +
+    "          </span>\n" +
     "        </div>\n" +
     "      </div>\n" +
     "    </form>\n" +
@@ -5420,10 +5444,13 @@ angular.module('app').run(['$templateCache', function($templateCache) {
     "  <h4>Progress</h4>\n" +
     "  <div class=\"well\">\n" +
     "    <div class=\"row\">\n" +
-    "      <div class=\"col-sm-6\">\n" +
+    "      <div class=\"col-sm-8\">\n" +
     "        <strong>Phase:</strong> {{vm.progressKind || '–'}}\n" +
+    "        <span class=\"text-muted\" ng-if=\"vm.scanContext\">\n" +
+    "          — {{vm.scanContext}}\n" +
+    "        </span>\n" +
     "      </div>\n" +
-    "      <div class=\"col-sm-6\">\n" +
+    "      <div class=\"col-sm-4\">\n" +
     "        <strong>Outputs found:</strong> {{vm.foundCount}}\n" +
     "      </div>\n" +
     "    </div>\n" +
@@ -5432,6 +5459,21 @@ angular.module('app').run(['$templateCache', function($templateCache) {
     "           style=\"min-width: 2em; width: {{ vm.progressMax ? (100 * vm.progressValue / vm.progressMax) : 0 }}%\">\n" +
     "        {{vm.progressValue.toLocaleString()}}\n" +
     "      </div>\n" +
+    "    </div>\n" +
+    "    <div ng-if=\"vm.segments.length\"\n" +
+    "         title=\"One piece per 2,000-block range, filled in as parallel scan units work through them.\">\n" +
+    "      <div style=\"display: flex; gap: 1px; height: 14px; border: 1px solid #ddd; border-radius: 3px; overflow: hidden;\">\n" +
+    "        <div ng-repeat=\"s in vm.segments track by s.start\"\n" +
+    "             style=\"flex: 1 1 0; min-width: 1px; background: #e8e8e8;\">\n" +
+    "          <div ng-style=\"vm.segmentStyle(s)\"></div>\n" +
+    "        </div>\n" +
+    "      </div>\n" +
+    "      <span class=\"small text-muted\">\n" +
+    "        One piece per 2,000-block range —\n" +
+    "        <span style=\"color: #f0ad4e;\">&#9632;</span> downloading,\n" +
+    "        <span style=\"color: #337ab7;\">&#9632;</span> scanning,\n" +
+    "        <span style=\"color: #5cb85c;\">&#9632;</span> done.\n" +
+    "      </span>\n" +
     "    </div>\n" +
     "    <p ng-if=\"vm.statsLine\">{{vm.statsLine}}</p>\n" +
     "    <pre style=\"max-height: 200px; overflow-y: auto;\"\n" +

@@ -132,6 +132,15 @@
                   ng-click="vm.scan()">
             Scan
           </button>
+          <button class="btn btn-default" ng-disabled="vm.busy"
+                  ng-click="vm.loadExample()">
+            Load signet example
+          </button>
+          <span class="help-block">
+            The example keys receive a real 100,000 sat payment in signet
+            block 313,552 — scanning from height 312,000 finds it in under
+            a minute.
+          </span>
         </div>
       </div>
     </form>
@@ -153,10 +162,13 @@
   <h4>Progress</h4>
   <div class="well">
     <div class="row">
-      <div class="col-sm-6">
+      <div class="col-sm-8">
         <strong>Phase:</strong> {{vm.progressKind || '–'}}
+        <span class="text-muted" ng-if="vm.scanContext">
+          — {{vm.scanContext}}
+        </span>
       </div>
-      <div class="col-sm-6">
+      <div class="col-sm-4">
         <strong>Outputs found:</strong> {{vm.foundCount}}
       </div>
     </div>
@@ -165,6 +177,21 @@
            style="min-width: 2em; width: {{ vm.progressMax ? (100 * vm.progressValue / vm.progressMax) : 0 }}%">
         {{vm.progressValue.toLocaleString()}}
       </div>
+    </div>
+    <div ng-if="vm.segments.length"
+         title="One piece per 2,000-block range, filled in as parallel scan units work through them.">
+      <div style="display: flex; gap: 1px; height: 14px; border: 1px solid #ddd; border-radius: 3px; overflow: hidden;">
+        <div ng-repeat="s in vm.segments track by s.start"
+             style="flex: 1 1 0; min-width: 1px; background: #e8e8e8;">
+          <div ng-style="vm.segmentStyle(s)"></div>
+        </div>
+      </div>
+      <span class="small text-muted">
+        One piece per 2,000-block range —
+        <span style="color: #f0ad4e;">&#9632;</span> downloading,
+        <span style="color: #337ab7;">&#9632;</span> scanning,
+        <span style="color: #5cb85c;">&#9632;</span> done.
+      </span>
     </div>
     <p ng-if="vm.statsLine">{{vm.statsLine}}</p>
     <pre style="max-height: 200px; overflow-y: auto;"

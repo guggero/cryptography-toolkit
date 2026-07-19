@@ -49,6 +49,32 @@ function Bip157PageController($scope, $interval, $timeout, $window) {
   vm.progressKind = '';
   vm.progressValue = 0;
   vm.progressMax = 1;
+
+  // The piece map: one segment per 2000-block range of the scan, filled
+  // in individually as parallel units work through them (like the chunk
+  // display of a file sharing tool). Stages map to fixed fill levels.
+  vm.segments = [];
+  vm.blocksPerRange = 2000;
+  vm.scanContext = '';
+  var SEGMENT_PCT = {pending: 0, fetch: 15, scan: 25, done: 100};
+  var SEGMENT_COLOR = {
+    pending: '#e8e8e8',
+    fetch: '#f0ad4e',
+    scan: '#337ab7',
+    done: '#5cb85c',
+  };
+  vm.segmentStyle = function (segment) {
+    var pct = SEGMENT_PCT[segment.stage];
+    if (segment.stage === 'scan' && segment.blocks > 0) {
+      // Scanning pieces fill up gradually with the in-scan block count.
+      pct = 25 + Math.min(75, 75 * segment.blocks / vm.blocksPerRange);
+    }
+    return {
+      width: pct + '%',
+      background: SEGMENT_COLOR[segment.stage],
+      height: '100%',
+    };
+  };
   vm.tip = '–';
   vm.scanned = '–';
   vm.balance = '–';
@@ -403,6 +429,23 @@ function Bip157PageController($scope, $interval, $timeout, $window) {
       });
     }).then(function (w) {
       wallet = w;
+
+      // Log wallet events as they happen — during full scans and while
+      // following the tip.
+      var btc = function (sats) {
+        return (sats / 1e8).toFixed(8) + ' BTC';
+      };
+      w.onFound = function (u) {
+        log('found UTXO ' + u.txid + ':' + u.vout + ' — ' +
+          btc(u.value) + (u.address ? ' to ' + u.address : '') +
+          ' @ ' + u.height.toLocaleString());
+      };
+      w.onSpent = function (s) {
+        log('UTXO spent: ' + s.txid + ':' + s.vout + ' — ' +
+          btc(s.value) + (s.address ? ' from ' + s.address : '') +
+          ' spent by ' + s.spentBy + ' @ ' + s.height.toLocaleString());
+      };
+
       log('wallet open, tip ' + w.chain.tip().tipHeight);
       render();
       return w;
@@ -468,15 +511,45 @@ function Bip157PageController($scope, $interval, $timeout, $window) {
       render();
       refreshCacheStats();
       log('scanning ' + w.filterType + ' filters...');
-      return w.scan(function (height, target, found) {
+
+      // The wallet engine is cached across scans, but the parallel-units
+      // field may have changed in the form since it was created.
+      w.batchSize = Number(vm.batchSize) || 8;
+
+      vm.segments = [];
+      vm.scanContext = '';
+      var segmentIndex = {};
+
+      return w.scan(function (blocksDone, totalBlocks, found) {
         vm.progressKind = 'scan';
-        vm.progressValue = height;
-        vm.progressMax = target;
-        vm.scanned = height + '/' + target;
+        vm.progressValue = blocksDone;
+        vm.progressMax = totalBlocks;
+        vm.scanned = blocksDone.toLocaleString() + '/' +
+          totalBlocks.toLocaleString();
         if (found) {
           render();
         }
         $scope.$applyAsync();
+      }, {
+        onRanges: function (plan) {
+          vm.blocksPerRange = plan.blocksPerRange;
+          vm.segments = plan.starts.map(function (start, idx) {
+            segmentIndex[start] = idx;
+            return {start: start, stage: 'pending', blocks: 0};
+          });
+          vm.scanContext = 'blocks ' + plan.fromHeight.toLocaleString() +
+            ' to ' + plan.toHeight.toLocaleString() + ' (' +
+            plan.totalBlocks.toLocaleString() + ' total)';
+          $scope.$applyAsync();
+        },
+        onRange: function (start, stage, blocks) {
+          var segment = vm.segments[segmentIndex[start]];
+          if (segment) {
+            segment.stage = stage;
+            segment.blocks = blocks || 0;
+          }
+          $scope.$applyAsync();
+        },
       });
     }).then(function (result) {
       render();

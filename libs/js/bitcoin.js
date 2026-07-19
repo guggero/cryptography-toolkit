@@ -30393,7 +30393,7 @@ function createSpScanner(scanPrivKey, spendPubKey, network = "mainnet") {
   );
   return new SpScanner(info);
 }
-function scanBatchSync(scanner, startHeight, tweakData, filterFile, headers, filterHeaders, prevFilterHeader, dustLimit) {
+function scanBatchSync(scanner, startHeight, tweakData, filterFile, headers, filterHeaders, prevFilterHeader, dustLimit, onBlocks) {
   return unwrap(
     g().silentpayments.scanBatch(
       scanner.handle,
@@ -30403,7 +30403,8 @@ function scanBatchSync(scanner, startHeight, tweakData, filterFile, headers, fil
       headers,
       filterHeaders,
       prevFilterHeader,
-      dustLimit
+      dustLimit,
+      onBlocks
     )
   );
 }
@@ -30435,7 +30436,7 @@ var silentpayments = {
    *  `tweakData` is block-dn's raw binary /sp/tweaks response for the same
    *  range; its self-describing header is validated against the scanner's
    *  network, `startHeight` and `dustLimit`. */
-  async scanBatch(scanner, startHeight, tweakData, filterFile, headers, filterHeaders, prevFilterHeader, dustLimit = 0) {
+  async scanBatch(scanner, startHeight, tweakData, filterFile, headers, filterHeaders, prevFilterHeader, dustLimit = 0, onBlocks) {
     await init();
     return scanBatchSync(
       scanner,
@@ -30445,7 +30446,8 @@ var silentpayments = {
       headers,
       filterHeaders,
       prevFilterHeader,
-      dustLimit
+      dustLimit,
+      onBlocks
     );
   },
   /** Identify the scanner's outputs in a downloaded block, across output
@@ -30586,7 +30588,7 @@ function createWatchList(scripts) {
   );
   return new WatchList(info.handle);
 }
-function matchFiltersSync(watch, startHeight, filterFile, headers, filterHeaders, prevFilterHeader) {
+function matchFiltersSync(watch, startHeight, filterFile, headers, filterHeaders, prevFilterHeader, onBlocks) {
   return unwrap(
     g().neutrino.matchFilters(
       watch.handle,
@@ -30594,7 +30596,8 @@ function matchFiltersSync(watch, startHeight, filterFile, headers, filterHeaders
       filterFile,
       headers,
       filterHeaders,
-      prevFilterHeader
+      prevFilterHeader,
+      onBlocks
     )
   );
 }
@@ -30623,7 +30626,7 @@ var neutrino = {
    *  same height range starting at `startHeight`; `prevFilterHeader` is the
    *  display-order hex filter header of `startHeight - 1` (empty string for
    *  genesis). Throws if any filter fails its commitment check. */
-  async matchFilters(watch, startHeight, filterFile, headers, filterHeaders, prevFilterHeader) {
+  async matchFilters(watch, startHeight, filterFile, headers, filterHeaders, prevFilterHeader, onBlocks) {
     await init();
     return matchFiltersSync(
       watch,
@@ -30631,7 +30634,8 @@ var neutrino = {
       filterFile,
       headers,
       filterHeaders,
-      prevFilterHeader
+      prevFilterHeader,
+      onBlocks
     );
   },
   /** Extract watched-script outputs and watched-outpoint spends from a full
@@ -30750,7 +30754,7 @@ function buildSyncApi() {
     // Silent payment scanning follows the same stateful-handle model.
     silentpayments: {
       scanner: (scanPriv, spendPub, network) => createSpScanner(scanPriv, spendPub, network),
-      scanBatch: (scanner, startHeight, tweakData, filterFile, headers, filterHeaders, prevFilterHeader, dustLimit = 0) => scanBatchSync(
+      scanBatch: (scanner, startHeight, tweakData, filterFile, headers, filterHeaders, prevFilterHeader, dustLimit = 0, onBlocks) => scanBatchSync(
         scanner,
         startHeight,
         tweakData,
@@ -30758,7 +30762,8 @@ function buildSyncApi() {
         headers,
         filterHeaders,
         prevFilterHeader,
-        dustLimit
+        dustLimit,
+        onBlocks
       ),
       scanBlock: (scanner, blockBytes, tweakBytes) => scanBlockSpSync(scanner, blockBytes, tweakBytes),
       scanOutputs: (scanner, tweak, xOnlyKeys) => scanOutputsSync(scanner, tweak, xOnlyKeys)
@@ -30768,13 +30773,14 @@ function buildSyncApi() {
     neutrino: {
       headerChain: (network, state) => createHeaderChain(network, state),
       watchList: (scripts) => createWatchList(scripts),
-      matchFilters: (watch, startHeight, filterFile, headers, filterHeaders, prevFilterHeader) => matchFiltersSync(
+      matchFilters: (watch, startHeight, filterFile, headers, filterHeaders, prevFilterHeader, onBlocks) => matchFiltersSync(
         watch,
         startHeight,
         filterFile,
         headers,
         filterHeaders,
-        prevFilterHeader
+        prevFilterHeader,
+        onBlocks
       ),
       scanBlock: (watch, blockBytes) => scanBlockSync(watch, blockBytes)
     }
@@ -32149,6 +32155,10 @@ var MatchWorker = class _MatchWorker {
   dispatch(msg) {
     const entry = this.pending.get(msg.id);
     if (!entry) return;
+    if (msg.progress) {
+      entry.onProgress?.(msg);
+      return;
+    }
     this.pending.delete(msg.id);
     if (msg.ok) entry.resolve(msg);
     else entry.reject(new Error(msg.error));
@@ -32157,10 +32167,10 @@ var MatchWorker = class _MatchWorker {
     for (const entry of this.pending.values()) entry.reject(err);
     this.pending.clear();
   }
-  request(msg, transfer = []) {
+  request(msg, transfer = [], onProgress) {
     const id = this.nextId++;
     return new Promise((resolve, reject) => {
-      this.pending.set(id, { resolve, reject });
+      this.pending.set(id, { resolve, reject, onProgress });
       this.post({ ...msg, id }, transfer);
     });
   }
@@ -32210,8 +32220,10 @@ var MatchWorkerPool = class _MatchWorkerPool {
     }
   }
   /** Run one request on an idle worker, transferring the given named
-   *  Uint8Array buffers zero-copy (non-exact views are copied first). */
-  async requestOnIdle(msg, buffers = {}) {
+   *  Uint8Array buffers zero-copy (non-exact views are copied first).
+   *  Progress messages the worker streams for this request are forwarded
+   *  to `onProgress`. */
+  async requestOnIdle(msg, buffers = {}, onProgress) {
     const exact = (view) => view.byteOffset === 0 && view.byteLength === view.buffer.byteLength ? view.buffer : view.slice().buffer;
     const transfer = [];
     const payload = { ...msg };
@@ -32222,7 +32234,7 @@ var MatchWorkerPool = class _MatchWorkerPool {
     }
     const worker = await this.acquire();
     try {
-      return await worker.request(payload, transfer);
+      return await worker.request(payload, transfer, onProgress);
     } finally {
       this.release(worker);
     }
@@ -32239,8 +32251,9 @@ var MatchWorkerPool = class _MatchWorkerPool {
   }
   /** Run one matchFilters call on an idle worker. The three data buffers
    *  are transferred (zero-copy where possible), so they must not be used
-   *  afterwards. */
-  async match(task) {
+   *  afterwards. `onBlocks` streams the number of blocks processed so far
+   *  while the match runs. */
+  async match(task, onBlocks) {
     const exact = (view) => view.byteOffset === 0 && view.byteLength === view.buffer.byteLength ? view.buffer : view.slice().buffer;
     const worker = await this.acquire();
     try {
@@ -32256,7 +32269,8 @@ var MatchWorkerPool = class _MatchWorkerPool {
           filterHeaders: fheaderBuf,
           prev: task.prev
         },
-        [filterBuf, headerBuf, fheaderBuf]
+        [filterBuf, headerBuf, fheaderBuf],
+        (msg) => onBlocks?.(msg.blocks)
       );
       return resp.matches;
     } finally {
@@ -32289,8 +32303,9 @@ var SpScanPool = class _SpScanPool {
   }
   /** Run one spScanBatch call on an idle worker. The four data buffers
    *  are transferred (zero-copy where possible), so they must not be used
-   *  afterwards. */
-  async scanBatch(task) {
+   *  afterwards. `onBlocks` streams the number of blocks processed so far
+   *  while the scan runs. */
+  async scanBatch(task, onBlocks) {
     const resp = await this.pool.requestOnIdle(
       {
         type: "spScanBatch",
@@ -32303,7 +32318,8 @@ var SpScanPool = class _SpScanPool {
         filterFile: task.filterFile,
         headers: task.headers,
         filterHeaders: task.filterHeaders
-      }
+      },
+      (msg) => onBlocks?.(msg.blocks)
     );
     return {
       matches: resp.matches,
@@ -32605,7 +32621,7 @@ function formatBytes(n) {
   return `${value.toFixed(1)} ${unit}`;
 }
 function formatScanStats(stats) {
-  return `${stats.blocksScanned.toLocaleString()} blocks scanned with ${stats.batches} batch${stats.batches === 1 ? "" : "es"} in ${stats.seconds.toFixed(1)} s (${stats.matchedBlocks} blocks matched, ${formatBytes(stats.bytesDownloaded)} downloaded, ${stats.filterType} filters)`;
+  return `${stats.blocksScanned.toLocaleString()} blocks scanned in ${stats.batches} range${stats.batches === 1 ? "" : "s"} in ${stats.seconds.toFixed(1)} s (${stats.matchedBlocks} blocks matched, ${formatBytes(stats.bytesDownloaded)} downloaded, ${stats.filterType} filters)`;
 }
 async function mapPool(items, limit, fn) {
   const results = new Array(items.length);
@@ -32639,7 +32655,7 @@ var WatchOnlyWallet = class _WatchOnlyWallet {
     wallet.storage = opts.storage;
     wallet.batchSize = Math.max(
       1,
-      Math.min(16, Math.floor(opts.batchSize ?? 4))
+      Math.min(16, Math.floor(opts.batchSize ?? 8))
     );
     wallet.wasmSource = opts.wasmSource;
     wallet.workerUrl = opts.workerUrl;
@@ -32808,14 +32824,22 @@ var WatchOnlyWallet = class _WatchOnlyWallet {
     for (const out of result.outputs) {
       const key = `${out.txid}:${out.vout}`;
       if (this.data.utxos[key] || this.data.spent[key]) continue;
+      const address2 = this.addressForScript(out.pkScript);
       this.data.utxos[key] = {
         value: out.value,
         height,
         blockHash,
         pkScript: toHex(out.pkScript),
-        address: this.addressForScript(out.pkScript)
+        address: address2
       };
       watch.addOutpoint(out.txid, out.vout);
+      this.onFound?.({
+        txid: out.txid,
+        vout: out.vout,
+        value: out.value,
+        address: address2,
+        height
+      });
     }
     for (const spend of result.spends) {
       const key = `${spend.prevTxid}:${spend.prevVout}`;
@@ -32828,6 +32852,14 @@ var WatchOnlyWallet = class _WatchOnlyWallet {
         spentAt: height
       };
       watch.removeOutpoint(spend.prevTxid, spend.prevVout);
+      this.onSpent?.({
+        txid: spend.prevTxid,
+        vout: spend.prevVout,
+        value: utxo.value,
+        address: utxo.address,
+        spentBy: spend.txid,
+        height
+      });
     }
   }
   addressForScript(script) {
@@ -32844,8 +32876,9 @@ var WatchOnlyWallet = class _WatchOnlyWallet {
    *  fails its commitment check usually means a truncated/corrupted file
    *  (possibly cached by a CDN), so the file is refetched once with a
    *  cache-busting parameter before giving up. */
-  async matchRange(pool, watch, { start, count }, from, filterType) {
+  async matchRange(pool, watch, { start, count }, from, filterType, onRange, onBlocks) {
     const attempt = async (fresh) => {
+      onRange?.(start, "fetch");
       const [filterFile, headers, filterHeaders] = await Promise.all([
         this.client.filters(start, { fresh, filterType }),
         this.storage.readHeaders(start, count),
@@ -32854,19 +32887,21 @@ var WatchOnlyWallet = class _WatchOnlyWallet {
       const prev = start === 0 ? "" : reverseHex(
         await this.storage.readFilterHeaders(start - 1, 1, filterType)
       );
+      onRange?.(start, "scan");
       const matches = pool ? await pool.match({
         startHeight: start,
         filterFile,
         headers,
         filterHeaders,
         prev
-      }) : this.lib.neutrino.matchFilters(
+      }, onBlocks) : this.lib.neutrino.matchFilters(
         watch,
         start,
         filterFile,
         headers,
         filterHeaders,
-        prev
+        prev,
+        onBlocks
       );
       return matches.filter((m) => m.height >= from);
     };
@@ -32882,16 +32917,25 @@ var WatchOnlyWallet = class _WatchOnlyWallet {
   /** Scan filters from the lowest unscanned birthday to the header tip,
    *  fetching and fully scanning blocks whose filter matches.
    *
-   *  Filter files are processed in batches of `batchSize`: each file of a
-   *  batch is downloaded and matched concurrently (matching runs on a pool
-   *  of worker threads where available, each with its own WASM instance),
-   *  then the batch completes as one unit (barrier) before the wallet
-   *  state is persisted and onProgress(height, target, foundCount) fires —
-   *  once per batch.
+   *  Filter files are processed on a sliding window of `batchSize`
+   *  parallel units (matching runs on a pool of worker threads where
+   *  available, each with its own WASM instance): a unit picks up the
+   *  next range as soon as it finishes its current one, so ranges
+   *  complete out of order. Matched blocks are applied — and the wallet
+   *  state persisted — strictly in ascending height order, since an
+   *  output found at height h must be outpoint-watched before a later
+   *  block spends it, and the scannedTo resume checkpoint must stay
+   *  contiguous.
+   *
+   *  onProgress(blocksDone, totalBlocks, foundCount) reports work done
+   *  (including in-scan partial credit), not a chain position. The
+   *  optional callbacks mirror the silent payment scanner's: `onRanges`
+   *  announces the scan plan, `onRange` streams per-range stage
+   *  transitions for a piece-map display.
    *
    *  Returns the wallet summary plus `stats` for the completed scan. */
   async scan(onProgress = () => {
-  }) {
+  }, callbacks = {}) {
     const from = this.scanStart();
     const tip = this.chain.tip().tipHeight;
     const stats = {
@@ -32910,56 +32954,114 @@ var WatchOnlyWallet = class _WatchOnlyWallet {
     const bytesBefore = this.client.bytesFetched;
     const status = await this.client.status();
     const perFile = status.entries_per_filter_file;
-    const batchSpan = perFile * this.batchSize;
+    const units = Math.max(1, Math.min(16, Math.floor(this.batchSize)));
     const filterType = this.selectType(status);
     stats.filterType = filterType;
     await this.syncFilterHeaders(status);
     const watch = this.buildWatchList();
-    const pool = this.batchSize > 1 ? await MatchWorkerPool.create(
-      this.batchSize,
+    const pool = units > 1 ? await MatchWorkerPool.create(
+      units,
       this.data.watches.flatMap((w) => w.scripts),
       { workerUrl: this.workerUrl, wasmUrl: this.wasmSource }
     ) : null;
     try {
       const firstFile = Math.floor(from / perFile) * perFile;
-      for (let batch = firstFile; batch <= tip; batch += batchSpan) {
-        const ranges = [];
-        for (let i = 0; i < this.batchSize; i++) {
-          const start = batch + i * perFile;
-          if (start > tip) break;
-          ranges.push({
-            start,
-            count: Math.min(perFile, tip - start + 1)
-          });
-        }
-        const matches = (await Promise.all(ranges.map(
-          (range) => this.matchRange(pool, watch, range, from, filterType)
-        ))).flat();
-        stats.matchedBlocks += matches.length;
-        const blocks = await mapPool(
-          matches,
-          this.batchSize * 2,
-          (m) => this.client.block(m.blockHash)
-        );
-        for (let i = 0; i < matches.length; i++) {
-          const result = this.lib.neutrino.scanBlock(watch, blocks[i]);
-          await this.applyBlock(
-            watch,
-            matches[i].height,
-            matches[i].blockHash,
-            result
-          );
-        }
-        const last = ranges[ranges.length - 1];
-        this.data.scannedTo = last.start + last.count - 1;
-        await this.storage.setWallet(this.data);
-        stats.batches++;
+      const ranges = [];
+      for (let start = firstFile; start <= tip; start += perFile) {
+        ranges.push({
+          start,
+          count: Math.min(perFile, tip - start + 1)
+        });
+      }
+      const totalBlocks = tip - from + 1;
+      callbacks.onRanges?.({
+        starts: ranges.map((r) => r.start),
+        blocksPerRange: perFile,
+        fromHeight: from,
+        toHeight: tip,
+        totalBlocks
+      });
+      let blocksDone = 0;
+      const partials = /* @__PURE__ */ new Map();
+      const report = () => {
+        let inflight = 0;
+        partials.forEach((blocks) => {
+          inflight += blocks;
+        });
         onProgress(
-          this.data.scannedTo,
-          tip,
+          Math.min(blocksDone + inflight, totalBlocks),
+          totalBlocks,
           Object.keys(this.data.utxos).length
         );
-      }
+      };
+      const parked = /* @__PURE__ */ new Map();
+      let nextApply = 0;
+      let applyChain = Promise.resolve();
+      const applyReady = async () => {
+        for (; ; ) {
+          if (nextApply >= ranges.length) return;
+          const range = ranges[nextApply];
+          const matches = parked.get(range.start);
+          if (!matches) return;
+          parked.delete(range.start);
+          const blocks = await mapPool(
+            matches,
+            8,
+            (m) => this.client.block(m.blockHash)
+          );
+          for (let i = 0; i < matches.length; i++) {
+            const result = this.lib.neutrino.scanBlock(
+              watch,
+              blocks[i]
+            );
+            await this.applyBlock(
+              watch,
+              matches[i].height,
+              matches[i].blockHash,
+              result
+            );
+          }
+          this.data.scannedTo = range.start + range.count - 1;
+          await this.storage.setWallet(this.data);
+          stats.batches++;
+          nextApply++;
+          callbacks.onRange?.(
+            range.start,
+            "done",
+            range.start + range.count - Math.max(from, range.start)
+          );
+          partials.delete(range.start);
+          blocksDone += range.start + range.count - Math.max(from, range.start);
+          report();
+        }
+      };
+      await mapPool(ranges, units, async (range) => {
+        const skipped = Math.max(from, range.start) - range.start;
+        const relevant = range.count - skipped;
+        const matches = await this.matchRange(
+          pool,
+          watch,
+          range,
+          from,
+          filterType,
+          callbacks.onRange,
+          (blocks) => {
+            partials.set(range.start, Math.min(
+              Math.max(0, blocks - skipped),
+              relevant
+            ));
+            callbacks.onRange?.(
+              range.start,
+              "scan",
+              partials.get(range.start)
+            );
+            report();
+          }
+        );
+        stats.matchedBlocks += matches.length;
+        parked.set(range.start, matches);
+        await (applyChain = applyChain.then(applyReady));
+      });
     } finally {
       watch.free();
       pool?.free();
@@ -33096,7 +33198,7 @@ var SilentPaymentScanner = class _SilentPaymentScanner {
     scanner.storage = opts.storage;
     scanner.batchSize = Math.max(
       1,
-      Math.min(16, Math.floor(opts.batchSize ?? 4))
+      Math.min(16, Math.floor(opts.batchSize ?? 8))
     );
     scanner.wasmSource = opts.wasmSource;
     scanner.workerUrl = opts.workerUrl;
@@ -33192,8 +33294,9 @@ var SilentPaymentScanner = class _SilentPaymentScanner {
     );
     this.address = scanner.address;
     this.changeAddress = scanner.changeAddress;
-    const pool = this.batchSize > 1 ? await SpScanPool.create(
-      this.batchSize,
+    const units = Math.max(1, Math.min(16, Math.floor(this.batchSize)));
+    const pool = units > 1 ? await SpScanPool.create(
+      units,
       run.scanPrivKey,
       run.spendPubKey,
       this.network,
@@ -33222,78 +33325,101 @@ var SilentPaymentScanner = class _SilentPaymentScanner {
     };
     try {
       const firstFile = Math.floor(from / perFile) * perFile;
-      const batchSpan = perFile * this.batchSize;
-      for (let batch = firstFile; batch <= tip; batch += batchSpan) {
-        const ranges = [];
-        for (let i = 0; i < this.batchSize; i++) {
-          const start = batch + i * perFile;
-          if (start > tip) break;
-          ranges.push({
-            start,
-            count: Math.min(perFile, tip - start + 1)
-          });
-        }
-        const rangeResults = await Promise.all(ranges.map(
-          (range) => this.scanRange(
-            pool,
-            scanner,
-            range,
-            from,
-            dustLimit,
-            run.onLog
-          )
-        ));
-        const b = stats.breakdown;
-        for (const rr of rangeResults) {
-          stats.txsScanned += rr.txsScanned;
-          stats.matchedBlocks += rr.matches.length;
-          stats.invalidTweaks += rr.skippedTweaks;
-          b.tweakFetchMs += rr.timing.tweakFetchMs;
-          b.filterFetchMs += rr.timing.filterFetchMs;
-          b.cacheReadMs += rr.timing.cacheReadMs;
-          b.scanMs += rr.timing.scanMs;
-          b.deriveMs += rr.timing.deriveMs;
-          b.verifyMs += rr.timing.verifyMs;
-          b.matchMs += rr.timing.matchMs;
-          b.wasmParseMs += rr.timing.wasmParseMs;
-        }
-        const blockStarted = Date.now();
-        const matches = rangeResults.flatMap((rr) => rr.matches);
-        const blocks = await mapPool(
-          matches,
-          this.batchSize * 2,
-          (m) => this.client.block(m.blockHash)
-        );
-        for (let i = 0; i < matches.length; i++) {
-          const m = matches[i];
-          const found = scanBlockSpSync(scanner, blocks[i], m.tweaks);
-          for (const out of found) {
-            const result = {
-              ...out,
-              height: m.height,
-              blockHash: m.blockHash,
-              unspent: await this.client.isUnspent(
-                out.txid,
-                out.vout
-              )
-            };
-            results.push(result);
-            stats.foundOutputs++;
-            run.onFound?.(result);
-          }
-        }
-        if (matches.length > 0) {
-          const blockMs = Date.now() - blockStarted;
-          stats.breakdown.blockMs += blockMs;
-          run.onLog?.(`matched blocks: fetched + identified ${matches.length} block(s) in ${formatMs(blockMs)}`);
-        }
-        const last = ranges[ranges.length - 1];
+      const ranges = [];
+      for (let start = firstFile; start <= tip; start += perFile) {
+        ranges.push({
+          start,
+          count: Math.min(perFile, tip - start + 1)
+        });
+      }
+      run.onRanges?.({
+        starts: ranges.map((r) => r.start),
+        blocksPerRange: perFile,
+        fromHeight: from,
+        toHeight: tip,
+        totalBlocks: stats.blocksScanned
+      });
+      let blocksDone = 0;
+      const partials = /* @__PURE__ */ new Map();
+      const report = () => {
+        let inflight = 0;
+        partials.forEach((blocks) => {
+          inflight += blocks;
+        });
         run.onProgress?.(
-          last.start + last.count - 1,
-          tip,
+          Math.min(blocksDone + inflight, stats.blocksScanned),
+          stats.blocksScanned,
           stats.foundOutputs
         );
-      }
+      };
+      await mapPool(ranges, units, async (range) => {
+        const skipped = Math.max(from, range.start) - range.start;
+        const relevant = range.count - skipped;
+        const rr = await this.scanRange(
+          pool,
+          scanner,
+          range,
+          from,
+          dustLimit,
+          run.onLog,
+          run.onRange,
+          (blocks) => {
+            const done = Math.min(
+              Math.max(0, blocks - skipped),
+              relevant
+            );
+            partials.set(range.start, done);
+            run.onRange?.(range.start, "scan", done);
+            report();
+          }
+        );
+        const b = stats.breakdown;
+        stats.txsScanned += rr.txsScanned;
+        stats.matchedBlocks += rr.matches.length;
+        stats.invalidTweaks += rr.skippedTweaks;
+        b.tweakFetchMs += rr.timing.tweakFetchMs;
+        b.filterFetchMs += rr.timing.filterFetchMs;
+        b.cacheReadMs += rr.timing.cacheReadMs;
+        b.scanMs += rr.timing.scanMs;
+        b.deriveMs += rr.timing.deriveMs;
+        b.verifyMs += rr.timing.verifyMs;
+        b.matchMs += rr.timing.matchMs;
+        b.wasmParseMs += rr.timing.wasmParseMs;
+        if (rr.matches.length > 0) {
+          const blockStarted = Date.now();
+          const blocks = await mapPool(
+            rr.matches,
+            4,
+            (m) => this.client.block(m.blockHash)
+          );
+          for (let i = 0; i < rr.matches.length; i++) {
+            const m = rr.matches[i];
+            const found = scanBlockSpSync(scanner, blocks[i], m.tweaks);
+            for (const out of found) {
+              const result = {
+                ...out,
+                height: m.height,
+                blockHash: m.blockHash,
+                unspent: await this.client.isUnspent(
+                  out.txid,
+                  out.vout
+                )
+              };
+              results.push(result);
+              stats.foundOutputs++;
+              run.onFound?.(result);
+            }
+          }
+          const blockMs = Date.now() - blockStarted;
+          b.blockMs += blockMs;
+          run.onLog?.(`[${range.start}] fetched + identified ${rr.matches.length} matched block(s) in ${formatMs(blockMs)}`);
+        }
+        run.onRange?.(range.start, "done", relevant);
+        partials.delete(range.start);
+        blocksDone += relevant;
+        report();
+      });
+      results.sort((a, c) => a.height - c.height || a.txid.localeCompare(c.txid) || a.vout - c.vout);
     } finally {
       scanner.free();
       pool?.free();
@@ -33306,8 +33432,9 @@ var SilentPaymentScanner = class _SilentPaymentScanner {
    *  from the network, header + filter-header slices from the cache. A
    *  commitment-check failure triggers one cache-busting refetch of the
    *  filter file. */
-  async scanRange(pool, scanner, { start, count }, from, dustLimit, onLog) {
+  async scanRange(pool, scanner, { start, count }, from, dustLimit, onLog, onRange, onBlocks) {
     const attempt = async (fresh) => {
+      onRange?.(start, "fetch");
       const timing = {
         tweakFetchMs: 0,
         filterFetchMs: 0,
@@ -33346,6 +33473,7 @@ var SilentPaymentScanner = class _SilentPaymentScanner {
       const prev = start === 0 ? "" : reverseHex2(
         await this.storage.readFilterHeaders(start - 1, 1, "p2tr")
       );
+      onRange?.(start, "scan");
       const scanStarted = Date.now();
       const batchResult = pool ? await pool.scanBatch({
         startHeight: start,
@@ -33355,7 +33483,7 @@ var SilentPaymentScanner = class _SilentPaymentScanner {
         filterHeaders,
         prev,
         dustLimit
-      }) : scanBatchSync(
+      }, onBlocks) : scanBatchSync(
         scanner,
         start,
         tweakData,
@@ -33363,7 +33491,8 @@ var SilentPaymentScanner = class _SilentPaymentScanner {
         headers,
         filterHeaders,
         prev,
-        dustLimit
+        dustLimit,
+        onBlocks
       );
       timing.scanMs = Date.now() - scanStarted;
       const wasm = batchResult.timings;
