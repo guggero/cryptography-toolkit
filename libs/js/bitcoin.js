@@ -31007,10 +31007,18 @@ var hdkeychain = {
     return unwrap(g().hdkeychain.newMaster(seed, network));
   },
   /** Parse an extended key string (xprv/xpub/tprv/tpub) and return info.
-   *  Calls Go: hdkeychain.NewKeyFromString() from btcutil/hdkeychain. */
-  async fromString(key) {
+   *
+   *  Parsing is lenient by default: the checksum and key material are
+   *  validated, but any version bytes are accepted. Pass `strict` to also
+   *  enforce the BIP-32 encoding rules — a depth-zero key must have a zero
+   *  parent fingerprint and child index, and the version must be registered
+   *  (the built-in networks plus the SLIP-0132 pairs) and agree with the
+   *  key's private/public kind.
+   *  Calls Go: hdkeychain.NewKeyFromString() / NewKeyFromStringStrict()
+   *  from btcutil/hdkeychain. */
+  async fromString(key, strict = false) {
     await init();
-    return unwrap(g().hdkeychain.fromString(key));
+    return unwrap(g().hdkeychain.fromString(key, strict));
   },
   /** Derive a child key at the given index. Use index >= 0x80000000 for hardened.
    *  Calls Go: hdkeychain.ExtendedKey.Derive() from btcutil/hdkeychain. */
@@ -31054,6 +31062,15 @@ var hdkeychain = {
   async address(key, network = "mainnet") {
     await init();
     return unwrap(g().hdkeychain.address(key, network));
+  },
+  /** Wrap an aggregated MuSig2 public key in the synthetic extended key
+   *  BIP-328 defines for it: the aggregate key with an all-zero chain code,
+   *  depth, fingerprint and child index. The result can be derived from like
+   *  any other extended public key.
+   *  Calls Go: hdkeychain.NewMuSig2Key() from btcutil/hdkeychain. */
+  async musig2Key(aggregateKey, network = "mainnet") {
+    await init();
+    return unwrap(g().hdkeychain.musig2Key(aggregateKey, network));
   }
 };
 
@@ -31745,6 +31762,19 @@ var txscript = {
   async rawTxInTaprootSignature(rawTx, inputIndex, merkleRoot, hashType, privKey, prevOuts) {
     await init();
     return unwrap(g().txscript.rawTxInTaprootSignature(rawTx, inputIndex, merkleRoot, hashType, privKey, prevOuts));
+  },
+  /** Execute the script pair of one input under the standard verification
+   *  flags, reporting whether it is a valid spend of its previous output.
+   *  The transaction must already carry the input's signature script and
+   *  witness; `prevOuts` supplies the previous output of every input, in
+   *  input order (taproot sighashes commit to all of them).
+   *
+   *  An invalid spend is reported as `{valid: false, error}`, not thrown:
+   *  only malformed arguments throw.
+   *  Calls Go: txscript.NewEngine() and Engine.Execute() from btcd/txscript. */
+  async verifyScript(rawTx, inputIndex, prevOuts) {
+    await init();
+    return unwrap(g().txscript.verifyScript(rawTx, inputIndex, prevOuts));
   }
 };
 
@@ -31967,11 +31997,15 @@ var block = {
 // src/musig2.ts
 var musig2 = {
   /** Aggregate the signers' public keys into the single MuSig2 key.
+   *
+   *  The keys are sorted first, per BIP-327, so the list may be passed in
+   *  any order. Pass `sortKeys: false` for protocols that aggregate in the
+   *  order the participants are listed instead, such as BIP-328.
    *  Calls Go: musig2.AggregateKeys() from btcd/btcec/schnorr/musig2. */
-  async aggregateKeys(pubKeys) {
+  async aggregateKeys(pubKeys, sortKeys = true) {
     await init();
     return unwrap(
-      g().musig2.aggregateKeys(pubKeys)
+      g().musig2.aggregateKeys(pubKeys, sortKeys)
     );
   },
   /** Generate one signer's secret/public nonce pair. The signer's public
