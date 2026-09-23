@@ -28,6 +28,9 @@ angular.module('app').run(['$templateCache', function($templateCache) {
     "            <li ng-class=\"{active: $root.isActive('/wallet-import')}\">\n" +
     "              <a href=\"#!/wallet-import\">Wallet Import helper</a>\n" +
     "            </li>\n" +
+    "            <li ng-class=\"{active: $root.isActive('/xpub-editor')}\">\n" +
+    "              <a href=\"#!/xpub-editor\">xpub editor</a>\n" +
+    "            </li>\n" +
     "            <li ng-class=\"{active: $root.isActive('/hd-wallet')}\">\n" +
     "              <a href=\"#!/hd-wallet\">BIP-32: Hierarchical Deterministic Wallet</a>\n" +
     "            </li>\n" +
@@ -72,12 +75,15 @@ angular.module('app').run(['$templateCache', function($templateCache) {
     "            Other <span class=\"caret\"></span>\n" +
     "          </a>\n" +
     "          <ul class=\"dropdown-menu\">\n" +
+    "            <li ng-class=\"{active: $root.isActive('/encoding-decoding')}\">\n" +
+    "              <a href=\"#!/encoding-decoding\">Encoding/Decoding</a>\n" +
+    "            </li>\n" +
+    "            <li ng-class=\"{active: $root.isActive('/hashing')}\">\n" +
+    "              <a href=\"#!/hashing\">Hashing</a>\n" +
+    "            </li>\n" +
     "            <li ng-class=\"{active: $root.isActive('/shamir-secret-sharing')}\">\n" +
     "              <a href=\"#!/shamir-secret-sharing\">Shamir's Secret Sharing\n" +
     "                Scheme</a>\n" +
-    "            </li>\n" +
-    "            <li ng-class=\"{active: $root.isActive('/encoding-decoding')}\">\n" +
-    "              <a href=\"#!/encoding-decoding\">Encoding/Decoding</a>\n" +
     "            </li>\n" +
     "          </ul>\n" +
     "        </li>\n" +
@@ -161,14 +167,16 @@ angular.module('app').run(['$templateCache', function($templateCache) {
     "  <script src=\"pages/ecc/ecc.js\"></script>\n" +
     "  <script src=\"pages/hd-wallet/hd-wallet.js\"></script>\n" +
     "  <script src=\"pages/bitcoin-block/bitcoin-block.js\"></script>\n" +
-    "  <script src=\"pages/shamir-secret-sharing/shamir-secret-sharing.js\"></script>\n" +
     "  <script src=\"pages/encoding-decoding/encoding-decoding.js\"></script>\n" +
+    "  <script src=\"pages/hashing/hashing.js\"></script>\n" +
+    "  <script src=\"pages/shamir-secret-sharing/shamir-secret-sharing.js\"></script>\n" +
     "  <script src=\"pages/mu-sig/mu-sig.js\"></script>\n" +
     "  <script src=\"pages/schnorr/schnorr.js\"></script>\n" +
     "  <script src=\"pages/transaction-creator/transaction-creator.js\"></script>\n" +
     "  <script src=\"pages/aezeed/aezeed.js\"></script>\n" +
     "  <script src=\"pages/macaroon/macaroon.js\"></script>\n" +
     "  <script src=\"pages/wallet-import/wallet-import.js\"></script>\n" +
+    "  <script src=\"pages/xpub-editor/xpub-editor.js\"></script>\n" +
     "  <script src=\"pages/bip322/bip322.js\"></script>\n" +
     "  <script src=\"pages/psbt-editor/psbt-editor.js\"></script>\n" +
     "  <script src=\"pages/descriptors/descriptors.js\"></script>\n" +
@@ -3577,6 +3585,76 @@ angular.module('app').run(['$templateCache', function($templateCache) {
   );
 
 
+  $templateCache.put('pages/hashing/hashing.html',
+    "<h1>Hashing</h1>\n" +
+    "\n" +
+    "<div class=\"alert alert-info\" ng-if=\"vm.loading\">\n" +
+    "  <strong>Loading...</strong> Initializing WebAssembly module...\n" +
+    "</div>\n" +
+    "<div class=\"alert alert-danger\" ng-if=\"vm.loadError\">{{vm.loadError}}</div>\n" +
+    "\n" +
+    "<div ng-if=\"vm.lib\">\n" +
+    "  <h3>SHA256</h3>\n" +
+    "  <div class=\"well\">\n" +
+    "    <form class=\"form-horizontal\">\n" +
+    "      <div class=\"form-group\">\n" +
+    "        <label class=\"col-sm-2 control-label\" for=\"sha-input\">Message (UTF-8):</label>\n" +
+    "        <div class=\"col-sm-10\">\n" +
+    "          <textarea id=\"sha-input\" rows=\"6\" class=\"form-control\"\n" +
+    "                    ng-model=\"vm.shaInput\" ng-change=\"vm.computeSha()\"></textarea>\n" +
+    "        </div>\n" +
+    "      </div>\n" +
+    "      <div class=\"form-group\">\n" +
+    "        <label class=\"col-sm-2 control-label\" for=\"sha-hash\">SHA256 hash (hex):</label>\n" +
+    "        <div class=\"col-sm-10\">\n" +
+    "          <input id=\"sha-hash\" class=\"form-control\" ng-model=\"vm.shaHash\" readonly>\n" +
+    "        </div>\n" +
+    "      </div>\n" +
+    "      <div class=\"alert alert-danger\" ng-if=\"vm.shaError\">{{vm.shaError}}</div>\n" +
+    "    </form>\n" +
+    "  </div>\n" +
+    "\n" +
+    "  <h3>NUMS</h3>\n" +
+    "  <div class=\"well\">\n" +
+    "    <p>\n" +
+    "      Nothing Up My Sleeve point, following the\n" +
+    "      <a href=\"https://github.com/lightninglabs/lightning-node-connect/blob/master/mailbox/numsgen/main.go\">Lightning Labs NUMS generator</a>:\n" +
+    "      try SHA256(8-byte big-endian index || trimmed UTF-8 message), starting at\n" +
+    "      index 0, until <code>02 || hash</code> is a valid compressed secp256k1 public key.\n" +
+    "    </p>\n" +
+    "    <form class=\"form-horizontal\">\n" +
+    "      <div class=\"form-group\">\n" +
+    "        <label class=\"col-sm-2 control-label\" for=\"nums-message\">Message:</label>\n" +
+    "        <div class=\"col-sm-10\">\n" +
+    "          <input id=\"nums-message\" class=\"form-control\"\n" +
+    "                 ng-model=\"vm.numsMessage\" ng-change=\"vm.computeNums()\">\n" +
+    "        </div>\n" +
+    "      </div>\n" +
+    "      <div class=\"form-group\">\n" +
+    "        <label class=\"col-sm-2 control-label\" for=\"nums-index\">Index used:</label>\n" +
+    "        <div class=\"col-sm-10\">\n" +
+    "          <input id=\"nums-index\" class=\"form-control\" ng-model=\"vm.numsIndex\" readonly>\n" +
+    "        </div>\n" +
+    "      </div>\n" +
+    "      <div class=\"form-group\">\n" +
+    "        <label class=\"col-sm-2 control-label\" for=\"nums-hash\">Resulting hash (hex):</label>\n" +
+    "        <div class=\"col-sm-10\">\n" +
+    "          <input id=\"nums-hash\" class=\"form-control\" ng-model=\"vm.numsHash\" readonly>\n" +
+    "        </div>\n" +
+    "      </div>\n" +
+    "      <div class=\"form-group\">\n" +
+    "        <label class=\"col-sm-2 control-label\" for=\"nums-public-key\">Public key (compressed hex):</label>\n" +
+    "        <div class=\"col-sm-10\">\n" +
+    "          <input id=\"nums-public-key\" class=\"form-control\" ng-model=\"vm.numsPublicKey\" readonly>\n" +
+    "        </div>\n" +
+    "      </div>\n" +
+    "      <div class=\"alert alert-danger\" ng-if=\"vm.numsError\">{{vm.numsError}}</div>\n" +
+    "    </form>\n" +
+    "  </div>\n" +
+    "</div>\n"
+  );
+
+
   $templateCache.put('pages/hd-wallet/hd-wallet.html',
     "<h1>Hierarchical Deterministic Wallet (BIP32/38/39/44/49/84)</h1>\n" +
     "\n" +
@@ -4063,6 +4141,7 @@ angular.module('app').run(['$templateCache', function($templateCache) {
     "      <li><a href=\"#!/bitcoin-block\">Bitcoin Block Parser</a></li>\n" +
     "      <li><a href=\"#!/transaction-creator\">Transaction Creator</a></li>\n" +
     "      <li><a href=\"#!/wallet-import\">Wallet Import helper</a></li>\n" +
+    "      <li><a href=\"#!/xpub-editor\">xpub editor</a></li>\n" +
     "      <li><a href=\"#!/hd-wallet\">BIP-32: Hierarchical Deterministic Wallet</a></li>\n" +
     "      <li><a href=\"#!/bip157\">BIP-157: Compact Filters</a></li>\n" +
     "      <li><a href=\"#!/psbt-editor\">BIP-174: PSBT Editor</a></li>\n" +
@@ -4083,8 +4162,9 @@ angular.module('app').run(['$templateCache', function($templateCache) {
     "  <li>\n" +
     "    Other<br/>\n" +
     "    <ul>\n" +
-    "      <li><a href=\"#!/shamir-secret-sharing\">Shamir's Secret Sharing Scheme</a></li>\n" +
     "      <li><a href=\"#!/encoding-decoding\">Encoding/Decoding</a></li>\n" +
+    "      <li><a href=\"#!/hashing\">Hashing</a></li>\n" +
+    "      <li><a href=\"#!/shamir-secret-sharing\">Shamir's Secret Sharing Scheme</a></li>\n" +
     "    </ul>\n" +
     "  </li>\n" +
     "</ul>\n" +
@@ -5909,6 +5989,104 @@ angular.module('app').run(['$templateCache', function($templateCache) {
     "  </form>\n" +
     "</div>\n" +
     "\n" +
+    "</div>\n"
+  );
+
+
+  $templateCache.put('pages/xpub-editor/xpub-editor.html',
+    "<h1>xpub editor</h1>\n" +
+    "\n" +
+    "<div class=\"panel panel-default\">\n" +
+    "  <div class=\"panel-heading\">\n" +
+    "    <h4 class=\"panel-title\">\n" +
+    "      <a ng-click=\"vm.showExplanation = !vm.showExplanation\">Explanation</a>\n" +
+    "    </h4>\n" +
+    "  </div>\n" +
+    "  <div class=\"panel-collapse collapse\" ng-class=\"{in: vm.showExplanation}\">\n" +
+    "    <div class=\"panel-body\">\n" +
+    "      An extended public key contains a version, depth, parent fingerprint,\n" +
+    "      child number, chain code, and compressed public key. Base58 encoding adds\n" +
+    "      a four-byte checksum. Paste an xpub to inspect it, or change a field to\n" +
+    "      update the encoded key. The checksum updates automatically when other\n" +
+    "      fields change; you can also edit it to see what an invalid checksum does.\n" +
+    "      <p><a href=\"https://github.com/bitcoin/bips/blob/master/bip-0032.mediawiki\">BIP-32 specification</a></p>\n" +
+    "    </div>\n" +
+    "  </div>\n" +
+    "</div>\n" +
+    "\n" +
+    "<div class=\"alert alert-info\" ng-if=\"vm.loading\">\n" +
+    "  <strong>Loading...</strong> Initializing WebAssembly module...\n" +
+    "</div>\n" +
+    "\n" +
+    "<div ng-if=\"!vm.loading && vm.lib\">\n" +
+    "  <div class=\"alert alert-warning\">\n" +
+    "    <strong>Warning:</strong> Generated keys are for demonstration only. Do not use them to hold funds.\n" +
+    "  </div>\n" +
+    "\n" +
+    "  <h4>Extended public key (Base58)</h4>\n" +
+    "  <div class=\"well\">\n" +
+    "    <div class=\"input-group\">\n" +
+    "      <input class=\"form-control\" aria-label=\"Extended public key (Base58)\"\n" +
+    "             ng-model=\"vm.xpub\" ng-change=\"vm.fromXpub()\"\n" +
+    "             ng-class=\"{'well-error': vm.decodeError}\">\n" +
+    "      <span class=\"input-group-btn\">\n" +
+    "        <button type=\"button\" class=\"btn btn-primary\" ng-click=\"vm.generateExample()\">Generate new example</button>\n" +
+    "      </span>\n" +
+    "    </div>\n" +
+    "    <div class=\"alert alert-danger\" ng-if=\"vm.decodeError\" style=\"margin-top:10px;\">\n" +
+    "      {{vm.decodeError}}\n" +
+    "    </div>\n" +
+    "  </div>\n" +
+    "\n" +
+    "  <h4>Fields</h4>\n" +
+    "  <div class=\"well\" ng-if=\"vm.fields\">\n" +
+    "    <div class=\"alert alert-danger\" ng-if=\"vm.encodeError\">{{vm.encodeError}}</div>\n" +
+    "    <div class=\"alert alert-warning\" ng-if=\"vm.checksumWarning\">{{vm.checksumWarning}}</div>\n" +
+    "    <form class=\"form-horizontal\" novalidate>\n" +
+    "      <div class=\"form-group\">\n" +
+    "        <label class=\"col-sm-3 control-label\" for=\"xpub-version\">Version (4 bytes):</label>\n" +
+    "        <div class=\"col-sm-9\">\n" +
+    "          <div class=\"row\">\n" +
+    "            <div class=\"col-sm-4\">\n" +
+    "              <input id=\"xpub-version\" class=\"form-control\" ng-model=\"vm.fields.version\" ng-change=\"vm.fromVersion()\">\n" +
+    "            </div>\n" +
+    "            <div class=\"col-sm-8\">\n" +
+    "              <select class=\"form-control\" aria-label=\"Version preset\"\n" +
+    "                      ng-model=\"vm.selectedNetwork\"\n" +
+    "                      ng-options=\"network.label for network in vm.networks\"\n" +
+    "                      ng-change=\"vm.fromNetwork()\">\n" +
+    "                <option value=\"\">Custom version</option>\n" +
+    "              </select>\n" +
+    "            </div>\n" +
+    "          </div>\n" +
+    "        </div>\n" +
+    "      </div>\n" +
+    "      <div class=\"form-group\">\n" +
+    "        <label class=\"col-sm-3 control-label\" for=\"xpub-depth\">Depth (1 byte):</label>\n" +
+    "        <div class=\"col-sm-9\"><input id=\"xpub-depth\" type=\"number\" min=\"0\" max=\"255\" class=\"form-control\" ng-model=\"vm.fields.depth\" ng-change=\"vm.fromFields()\"></div>\n" +
+    "      </div>\n" +
+    "      <div class=\"form-group\">\n" +
+    "        <label class=\"col-sm-3 control-label\" for=\"xpub-fingerprint\">Parent fingerprint (4 bytes):</label>\n" +
+    "        <div class=\"col-sm-9\"><input id=\"xpub-fingerprint\" class=\"form-control\" ng-model=\"vm.fields.parentFingerprint\" ng-change=\"vm.fromFields()\"></div>\n" +
+    "      </div>\n" +
+    "      <div class=\"form-group\">\n" +
+    "        <label class=\"col-sm-3 control-label\" for=\"xpub-child\">Child number (4 bytes):</label>\n" +
+    "        <div class=\"col-sm-9\"><input id=\"xpub-child\" type=\"number\" min=\"0\" max=\"4294967295\" class=\"form-control\" ng-model=\"vm.fields.childNumber\" ng-change=\"vm.fromFields()\"></div>\n" +
+    "      </div>\n" +
+    "      <div class=\"form-group\">\n" +
+    "        <label class=\"col-sm-3 control-label\" for=\"xpub-chain-code\">Chain code (32 bytes):</label>\n" +
+    "        <div class=\"col-sm-9\"><input id=\"xpub-chain-code\" class=\"form-control\" ng-model=\"vm.fields.chainCode\" ng-change=\"vm.fromFields()\"></div>\n" +
+    "      </div>\n" +
+    "      <div class=\"form-group\">\n" +
+    "        <label class=\"col-sm-3 control-label\" for=\"xpub-public-key\">Compressed public key (33 bytes):</label>\n" +
+    "        <div class=\"col-sm-9\"><input id=\"xpub-public-key\" class=\"form-control\" ng-model=\"vm.fields.publicKey\" ng-change=\"vm.fromFields()\"></div>\n" +
+    "      </div>\n" +
+    "      <div class=\"form-group\">\n" +
+    "        <label class=\"col-sm-3 control-label\" for=\"xpub-checksum\">Checksum (4 bytes):</label>\n" +
+    "        <div class=\"col-sm-9\"><input id=\"xpub-checksum\" class=\"form-control\" ng-model=\"vm.fields.checksum\" ng-change=\"vm.fromFields(true)\"></div>\n" +
+    "      </div>\n" +
+    "    </form>\n" +
+    "  </div>\n" +
     "</div>\n"
   );
 

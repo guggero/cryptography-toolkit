@@ -12,21 +12,31 @@ paste sensitive information into. So consider yourself warned.
 [Live version](https://guggero.github.io/cryptography-toolkit/)
 
 ## Tools
+
 * [Elliptic Curve Cryptography / Key Pair](https://guggero.github.io/cryptography-toolkit/#!/ecc)
-* [Hierarchical Deterministic Wallet](https://guggero.github.io/cryptography-toolkit/#!/hd-wallet)
-* [Bitcoin Block Parser](https://guggero.github.io/cryptography-toolkit/#!/bitcoin-block)
-* [Shamir's Secret Sharing Scheme](https://guggero.github.io/cryptography-toolkit/#!/shamir-secret-sharing)
-* [BIP Schnorr Signatures](https://guggero.github.io/cryptography-toolkit/#!/schnorr)
-* [MuSig: Key Aggregation for Schnorr Signatures](https://guggero.github.io/cryptography-toolkit/#!/mu-sig)
-* [Transaction Creator](https://guggero.github.io/cryptography-toolkit/#!/transaction-creator)
-* [aezeed Cipher Seed Scheme](https://guggero.github.io/cryptography-toolkit/#!/aezeed)
-* [Macaroons](https://guggero.github.io/cryptography-toolkit/#!/macaroon)
-* [Wallet Import helper](https://guggero.github.io/cryptography-toolkit/#!/wallet-import)
-* [BIP322: Generic Signed Message Format](https://guggero.github.io/cryptography-toolkit/#!/bip322)
-* [PSBT Editor](https://guggero.github.io/cryptography-toolkit/#!/psbt-editor)
-* [Encoding/Decoding](https://guggero.github.io/cryptography-toolkit/#!/encoding-decoding)
+* Bitcoin
+  * [Bitcoin Block Parser](https://guggero.github.io/cryptography-toolkit/#!/bitcoin-block)
+  * [Transaction Creator](https://guggero.github.io/cryptography-toolkit/#!/transaction-creator)
+  * [Wallet Import helper](https://guggero.github.io/cryptography-toolkit/#!/wallet-import)
+  * [xpub editor](https://guggero.github.io/cryptography-toolkit/#!/xpub-editor)
+  * [BIP-32: Hierarchical Deterministic Wallet](https://guggero.github.io/cryptography-toolkit/#!/hd-wallet)
+  * [BIP-157: Compact Filters](https://guggero.github.io/cryptography-toolkit/#!/bip157)
+  * [BIP-174: PSBT Editor](https://guggero.github.io/cryptography-toolkit/#!/psbt-editor)
+  * [BIP-322: Generic Signed Message Format](https://guggero.github.io/cryptography-toolkit/#!/bip322)
+  * [BIP-327: MuSig2 for BIP340-compatible Multi-Signatures](https://guggero.github.io/cryptography-toolkit/#!/mu-sig)
+  * [BIP-340: Schnorr Signatures](https://guggero.github.io/cryptography-toolkit/#!/schnorr)
+  * [BIP-352: Silent Payments](https://guggero.github.io/cryptography-toolkit/#!/silentpayments)
+  * [BIP-380: Output Script Descriptors](https://guggero.github.io/cryptography-toolkit/#!/descriptors)
+* LND
+  * [aezeed Cipher Seed Scheme](https://guggero.github.io/cryptography-toolkit/#!/aezeed)
+  * [Macaroons](https://guggero.github.io/cryptography-toolkit/#!/macaroon)
+* Other
+  * [Encoding/Decoding](https://guggero.github.io/cryptography-toolkit/#!/encoding-decoding)
+  * [Hashing](https://guggero.github.io/cryptography-toolkit/#!/hashing)
+  * [Shamir's Secret Sharing Scheme](https://guggero.github.io/cryptography-toolkit/#!/shamir-secret-sharing)
 
 ## Send Thanks
 
 Created by [Oliver Gugger](https://github.com/guggero):
+
 * BTC tip address: `bc1qfgua5vhwm6myajak9p4crhwmwm2k6mczf789eh`

@@ -24,6 +24,9 @@
             <li ng-class="{active: $root.isActive('/wallet-import')}">
               <a href="#!/wallet-import">Wallet Import helper</a>
             </li>
+            <li ng-class="{active: $root.isActive('/xpub-editor')}">
+              <a href="#!/xpub-editor">xpub editor</a>
+            </li>
             <li ng-class="{active: $root.isActive('/hd-wallet')}">
               <a href="#!/hd-wallet">BIP-32: Hierarchical Deterministic Wallet</a>
             </li>
@@ -68,12 +71,15 @@
             Other <span class="caret"></span>
           </a>
           <ul class="dropdown-menu">
+            <li ng-class="{active: $root.isActive('/encoding-decoding')}">
+              <a href="#!/encoding-decoding">Encoding/Decoding</a>
+            </li>
+            <li ng-class="{active: $root.isActive('/hashing')}">
+              <a href="#!/hashing">Hashing</a>
+            </li>
             <li ng-class="{active: $root.isActive('/shamir-secret-sharing')}">
               <a href="#!/shamir-secret-sharing">Shamir's Secret Sharing
                 Scheme</a>
-            </li>
-            <li ng-class="{active: $root.isActive('/encoding-decoding')}">
-              <a href="#!/encoding-decoding">Encoding/Decoding</a>
             </li>
           </ul>
         </li>

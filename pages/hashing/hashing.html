@@ -1,0 +1,66 @@
+<h1>Hashing</h1>
+
+<div class="alert alert-info" ng-if="vm.loading">
+  <strong>Loading...</strong> Initializing WebAssembly module...
+</div>
+<div class="alert alert-danger" ng-if="vm.loadError">{{vm.loadError}}</div>
+
+<div ng-if="vm.lib">
+  <h3>SHA256</h3>
+  <div class="well">
+    <form class="form-horizontal">
+      <div class="form-group">
+        <label class="col-sm-2 control-label" for="sha-input">Message (UTF-8):</label>
+        <div class="col-sm-10">
+          <textarea id="sha-input" rows="6" class="form-control"
+                    ng-model="vm.shaInput" ng-change="vm.computeSha()"></textarea>
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="col-sm-2 control-label" for="sha-hash">SHA256 hash (hex):</label>
+        <div class="col-sm-10">
+          <input id="sha-hash" class="form-control" ng-model="vm.shaHash" readonly>
+        </div>
+      </div>
+      <div class="alert alert-danger" ng-if="vm.shaError">{{vm.shaError}}</div>
+    </form>
+  </div>
+
+  <h3>NUMS</h3>
+  <div class="well">
+    <p>
+      Nothing Up My Sleeve point, following the
+      <a href="https://github.com/lightninglabs/lightning-node-connect/blob/master/mailbox/numsgen/main.go">Lightning Labs NUMS generator</a>:
+      try SHA256(8-byte big-endian index || trimmed UTF-8 message), starting at
+      index 0, until <code>02 || hash</code> is a valid compressed secp256k1 public key.
+    </p>
+    <form class="form-horizontal">
+      <div class="form-group">
+        <label class="col-sm-2 control-label" for="nums-message">Message:</label>
+        <div class="col-sm-10">
+          <input id="nums-message" class="form-control"
+                 ng-model="vm.numsMessage" ng-change="vm.computeNums()">
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="col-sm-2 control-label" for="nums-index">Index used:</label>
+        <div class="col-sm-10">
+          <input id="nums-index" class="form-control" ng-model="vm.numsIndex" readonly>
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="col-sm-2 control-label" for="nums-hash">Resulting hash (hex):</label>
+        <div class="col-sm-10">
+          <input id="nums-hash" class="form-control" ng-model="vm.numsHash" readonly>
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="col-sm-2 control-label" for="nums-public-key">Public key (compressed hex):</label>
+        <div class="col-sm-10">
+          <input id="nums-public-key" class="form-control" ng-model="vm.numsPublicKey" readonly>
+        </div>
+      </div>
+      <div class="alert alert-danger" ng-if="vm.numsError">{{vm.numsError}}</div>
+    </form>
+  </div>
+</div>

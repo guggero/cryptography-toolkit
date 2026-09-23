@@ -1,0 +1,94 @@
+<h1>xpub editor</h1>
+
+<div class="panel panel-default">
+  <div class="panel-heading">
+    <h4 class="panel-title">
+      <a ng-click="vm.showExplanation = !vm.showExplanation">Explanation</a>
+    </h4>
+  </div>
+  <div class="panel-collapse collapse" ng-class="{in: vm.showExplanation}">
+    <div class="panel-body">
+      An extended public key contains a version, depth, parent fingerprint,
+      child number, chain code, and compressed public key. Base58 encoding adds
+      a four-byte checksum. Paste an xpub to inspect it, or change a field to
+      update the encoded key. The checksum updates automatically when other
+      fields change; you can also edit it to see what an invalid checksum does.
+      <p><a href="https://github.com/bitcoin/bips/blob/master/bip-0032.mediawiki">BIP-32 specification</a></p>
+    </div>
+  </div>
+</div>
+
+<div class="alert alert-info" ng-if="vm.loading">
+  <strong>Loading...</strong> Initializing WebAssembly module...
+</div>
+
+<div ng-if="!vm.loading && vm.lib">
+  <div class="alert alert-warning">
+    <strong>Warning:</strong> Generated keys are for demonstration only. Do not use them to hold funds.
+  </div>
+
+  <h4>Extended public key (Base58)</h4>
+  <div class="well">
+    <div class="input-group">
+      <input class="form-control" aria-label="Extended public key (Base58)"
+             ng-model="vm.xpub" ng-change="vm.fromXpub()"
+             ng-class="{'well-error': vm.decodeError}">
+      <span class="input-group-btn">
+        <button type="button" class="btn btn-primary" ng-click="vm.generateExample()">Generate new example</button>
+      </span>
+    </div>
+    <div class="alert alert-danger" ng-if="vm.decodeError" style="margin-top:10px;">
+      {{vm.decodeError}}
+    </div>
+  </div>
+
+  <h4>Fields</h4>
+  <div class="well" ng-if="vm.fields">
+    <div class="alert alert-danger" ng-if="vm.encodeError">{{vm.encodeError}}</div>
+    <div class="alert alert-warning" ng-if="vm.checksumWarning">{{vm.checksumWarning}}</div>
+    <form class="form-horizontal" novalidate>
+      <div class="form-group">
+        <label class="col-sm-3 control-label" for="xpub-version">Version (4 bytes):</label>
+        <div class="col-sm-9">
+          <div class="row">
+            <div class="col-sm-4">
+              <input id="xpub-version" class="form-control" ng-model="vm.fields.version" ng-change="vm.fromVersion()">
+            </div>
+            <div class="col-sm-8">
+              <select class="form-control" aria-label="Version preset"
+                      ng-model="vm.selectedNetwork"
+                      ng-options="network.label for network in vm.networks"
+                      ng-change="vm.fromNetwork()">
+                <option value="">Custom version</option>
+              </select>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="col-sm-3 control-label" for="xpub-depth">Depth (1 byte):</label>
+        <div class="col-sm-9"><input id="xpub-depth" type="number" min="0" max="255" class="form-control" ng-model="vm.fields.depth" ng-change="vm.fromFields()"></div>
+      </div>
+      <div class="form-group">
+        <label class="col-sm-3 control-label" for="xpub-fingerprint">Parent fingerprint (4 bytes):</label>
+        <div class="col-sm-9"><input id="xpub-fingerprint" class="form-control" ng-model="vm.fields.parentFingerprint" ng-change="vm.fromFields()"></div>
+      </div>
+      <div class="form-group">
+        <label class="col-sm-3 control-label" for="xpub-child">Child number (4 bytes):</label>
+        <div class="col-sm-9"><input id="xpub-child" type="number" min="0" max="4294967295" class="form-control" ng-model="vm.fields.childNumber" ng-change="vm.fromFields()"></div>
+      </div>
+      <div class="form-group">
+        <label class="col-sm-3 control-label" for="xpub-chain-code">Chain code (32 bytes):</label>
+        <div class="col-sm-9"><input id="xpub-chain-code" class="form-control" ng-model="vm.fields.chainCode" ng-change="vm.fromFields()"></div>
+      </div>
+      <div class="form-group">
+        <label class="col-sm-3 control-label" for="xpub-public-key">Compressed public key (33 bytes):</label>
+        <div class="col-sm-9"><input id="xpub-public-key" class="form-control" ng-model="vm.fields.publicKey" ng-change="vm.fromFields()"></div>
+      </div>
+      <div class="form-group">
+        <label class="col-sm-3 control-label" for="xpub-checksum">Checksum (4 bytes):</label>
+        <div class="col-sm-9"><input id="xpub-checksum" class="form-control" ng-model="vm.fields.checksum" ng-change="vm.fromFields(true)"></div>
+      </div>
+    </form>
+  </div>
+</div>
