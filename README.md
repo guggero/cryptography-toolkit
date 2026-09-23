@@ -18,7 +18,7 @@ paste sensitive information into. So consider yourself warned.
   * [Bitcoin Block Parser](https://guggero.github.io/cryptography-toolkit/#!/bitcoin-block)
   * [Transaction Creator](https://guggero.github.io/cryptography-toolkit/#!/transaction-creator)
   * [Wallet Import helper](https://guggero.github.io/cryptography-toolkit/#!/wallet-import)
-  * [xpub editor](https://guggero.github.io/cryptography-toolkit/#!/xpub-editor)
+  * [xpub/xpriv editor](https://guggero.github.io/cryptography-toolkit/#!/xpub-xpriv-editor)
   * [BIP-32: Hierarchical Deterministic Wallet](https://guggero.github.io/cryptography-toolkit/#!/hd-wallet)
   * [BIP-157: Compact Filters](https://guggero.github.io/cryptography-toolkit/#!/bip157)
   * [BIP-174: PSBT Editor](https://guggero.github.io/cryptography-toolkit/#!/psbt-editor)

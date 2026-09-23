@@ -51,6 +51,24 @@ function XpubEditorController($scope, allNetworks) {
     return value;
   }
 
+  function validateKeyData(keyData) {
+    if (keyData[0] === 0) {
+      // BIP-32 private keys are encoded as 0x00 followed by a scalar in
+      // [1, n-1]. Keep the raw 33-byte field visible in the editor.
+      const scalar = BigInt('0x' + keyData.slice(1).toString('hex'));
+      const order = BigInt('0xfffffffffffffffffffffffffffffffebaaedce6af48a03bbfd25e8cd0364141');
+      if (scalar === 0n || scalar >= order) {
+        throw new Error('Private key scalar must be between 1 and the secp256k1 order minus 1.');
+      }
+      return true;
+    }
+    if (keyData[0] !== 2 && keyData[0] !== 3) {
+      throw new Error('Key data must start with 00 (private) or 02/03 (compressed public).');
+    }
+    vm.lib.btcec.pubKeyFromBytes(keyData);
+    return false;
+  }
+
   function payloadFromFields() {
     const fields = vm.fields;
     const payload = Buffer.alloc(78);
@@ -59,29 +77,34 @@ function XpubEditorController($scope, allNetworks) {
     hexBytes(fields.parentFingerprint, 4, 'Parent fingerprint').copy(payload, 5);
     payload.writeUInt32BE(uint32(fields.childNumber, 0xffffffff, 'Child number'), 9);
     hexBytes(fields.chainCode, 32, 'Chain code').copy(payload, 13);
-    const publicKey = hexBytes(fields.publicKey, 33, 'Public key');
-    if (publicKey[0] !== 2 && publicKey[0] !== 3) {
-      throw new Error('Public key must start with 02 or 03 (compressed key).');
+    const keyData = hexBytes(fields.isPrivate ? fields.privateKey : fields.publicKey,
+      33, fields.isPrivate ? 'Private key data' : 'Public key');
+    if (validateKeyData(keyData) !== fields.isPrivate) {
+      throw new Error('Key data does not match the selected key type.');
     }
-    vm.lib.btcec.pubKeyFromBytes(publicKey);
-    publicKey.copy(payload, 45);
+    keyData.copy(payload, 45);
     return payload;
   }
 
   function fieldsFromPayload(payload, check) {
+    const isPrivate = payload[45] === 0;
     return {
       version: payload.slice(0, 4).toString('hex'),
       depth: payload[4],
       parentFingerprint: payload.slice(5, 9).toString('hex'),
       childNumber: payload.readUInt32BE(9),
       chainCode: payload.slice(13, 45).toString('hex'),
-      publicKey: payload.slice(45, 78).toString('hex'),
+      isPrivate: isPrivate,
+      privateKey: isPrivate ? payload.slice(45, 78).toString('hex') : null,
+      publicKey: isPrivate ? null : payload.slice(45, 78).toString('hex'),
       checksum: check.toString('hex')
     };
   }
 
   function networkVersion(network) {
-    return network.config.bip32.public.toString(16).padStart(8, '0');
+    const version = vm.fields.isPrivate ? network.config.bip32.private :
+      network.config.bip32.public;
+    return version.toString(16).padStart(8, '0');
   }
 
   function syncNetwork() {
@@ -99,16 +122,13 @@ function XpubEditorController($scope, allNetworks) {
     try {
       const raw = Buffer.from(vm.lib.base58.decode(vm.xpub.trim()));
       if (raw.length !== 82) {
-        throw new Error('An extended public key must decode to 82 bytes.');
+        throw new Error('An extended key must decode to 82 bytes.');
       }
       const payload = raw.slice(0, 78);
       if (!raw.slice(78).equals(checksum(payload))) {
         throw new Error('Invalid checksum.');
       }
-      if (payload[45] !== 2 && payload[45] !== 3) {
-        throw new Error('This is not an extended public key (compressed public key expected).');
-      }
-      vm.lib.btcec.pubKeyFromBytes(payload.slice(45, 78));
+      validateKeyData(payload.slice(45, 78));
       vm.fields = fieldsFromPayload(payload, raw.slice(78));
       syncNetwork();
       vm.checksumWarning = null;
@@ -130,7 +150,7 @@ function XpubEditorController($scope, allNetworks) {
       vm.xpub = vm.lib.base58.encode(Buffer.concat([payload, supplied]));
       vm.checksumWarning = supplied.equals(expected) ? null :
         'Checksum mismatch. Expected ' + expected.toString('hex') +
-        '; this Base58 string will not be accepted as a valid xpub.';
+        '; this Base58 string will not be accepted as a valid extended key.';
       vm.decodeError = null;
     } catch (err) {
       vm.encodeError = err.message || String(err);

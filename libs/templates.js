@@ -28,8 +28,8 @@ angular.module('app').run(['$templateCache', function($templateCache) {
     "            <li ng-class=\"{active: $root.isActive('/wallet-import')}\">\n" +
     "              <a href=\"#!/wallet-import\">Wallet Import helper</a>\n" +
     "            </li>\n" +
-    "            <li ng-class=\"{active: $root.isActive('/xpub-editor')}\">\n" +
-    "              <a href=\"#!/xpub-editor\">xpub editor</a>\n" +
+    "            <li ng-class=\"{active: $root.isActive('/xpub-xpriv-editor')}\">\n" +
+    "              <a href=\"#!/xpub-xpriv-editor\">xpub/xpriv editor</a>\n" +
     "            </li>\n" +
     "            <li ng-class=\"{active: $root.isActive('/hd-wallet')}\">\n" +
     "              <a href=\"#!/hd-wallet\">BIP-32: Hierarchical Deterministic Wallet</a>\n" +
@@ -4141,7 +4141,7 @@ angular.module('app').run(['$templateCache', function($templateCache) {
     "      <li><a href=\"#!/bitcoin-block\">Bitcoin Block Parser</a></li>\n" +
     "      <li><a href=\"#!/transaction-creator\">Transaction Creator</a></li>\n" +
     "      <li><a href=\"#!/wallet-import\">Wallet Import helper</a></li>\n" +
-    "      <li><a href=\"#!/xpub-editor\">xpub editor</a></li>\n" +
+    "      <li><a href=\"#!/xpub-xpriv-editor\">xpub/xpriv editor</a></li>\n" +
     "      <li><a href=\"#!/hd-wallet\">BIP-32: Hierarchical Deterministic Wallet</a></li>\n" +
     "      <li><a href=\"#!/bip157\">BIP-157: Compact Filters</a></li>\n" +
     "      <li><a href=\"#!/psbt-editor\">BIP-174: PSBT Editor</a></li>\n" +
@@ -5994,7 +5994,7 @@ angular.module('app').run(['$templateCache', function($templateCache) {
 
 
   $templateCache.put('pages/xpub-editor/xpub-editor.html',
-    "<h1>xpub editor</h1>\n" +
+    "<h1>xpub/xpriv editor</h1>\n" +
     "\n" +
     "<div class=\"panel panel-default\">\n" +
     "  <div class=\"panel-heading\">\n" +
@@ -6004,9 +6004,10 @@ angular.module('app').run(['$templateCache', function($templateCache) {
     "  </div>\n" +
     "  <div class=\"panel-collapse collapse\" ng-class=\"{in: vm.showExplanation}\">\n" +
     "    <div class=\"panel-body\">\n" +
-    "      An extended public key contains a version, depth, parent fingerprint,\n" +
-    "      child number, chain code, and compressed public key. Base58 encoding adds\n" +
-    "      a four-byte checksum. Paste an xpub to inspect it, or change a field to\n" +
+    "      An extended key contains a version, depth, parent fingerprint,\n" +
+    "      child number, chain code, and either a compressed public key or private\n" +
+    "      key data (00 followed by a 32-byte scalar). Base58 encoding adds\n" +
+    "      a four-byte checksum. Paste an xpub or xprv to inspect it, or change a field to\n" +
     "      update the encoded key. The checksum updates automatically when other\n" +
     "      fields change; you can also edit it to see what an invalid checksum does.\n" +
     "      <p><a href=\"https://github.com/bitcoin/bips/blob/master/bip-0032.mediawiki\">BIP-32 specification</a></p>\n" +
@@ -6020,13 +6021,13 @@ angular.module('app').run(['$templateCache', function($templateCache) {
     "\n" +
     "<div ng-if=\"!vm.loading && vm.lib\">\n" +
     "  <div class=\"alert alert-warning\">\n" +
-    "    <strong>Warning:</strong> Generated keys are for demonstration only. Do not use them to hold funds.\n" +
+    "    <strong>Warning:</strong> Generated keys and pasted private keys are for demonstration only. Do not use live keys here.\n" +
     "  </div>\n" +
     "\n" +
-    "  <h4>Extended public key (Base58)</h4>\n" +
+    "  <h4>Extended key (Base58)</h4>\n" +
     "  <div class=\"well\">\n" +
     "    <div class=\"input-group\">\n" +
-    "      <input class=\"form-control\" aria-label=\"Extended public key (Base58)\"\n" +
+    "      <input class=\"form-control\" aria-label=\"Extended key (Base58)\"\n" +
     "             ng-model=\"vm.xpub\" ng-change=\"vm.fromXpub()\"\n" +
     "             ng-class=\"{'well-error': vm.decodeError}\">\n" +
     "      <span class=\"input-group-btn\">\n" +
@@ -6040,6 +6041,7 @@ angular.module('app').run(['$templateCache', function($templateCache) {
     "\n" +
     "  <h4>Fields</h4>\n" +
     "  <div class=\"well\" ng-if=\"vm.fields\">\n" +
+    "    <p><strong>Key type:</strong> {{vm.fields.isPrivate ? 'Extended private key' : 'Extended public key'}}</p>\n" +
     "    <div class=\"alert alert-danger\" ng-if=\"vm.encodeError\">{{vm.encodeError}}</div>\n" +
     "    <div class=\"alert alert-warning\" ng-if=\"vm.checksumWarning\">{{vm.checksumWarning}}</div>\n" +
     "    <form class=\"form-horizontal\" novalidate>\n" +
@@ -6077,9 +6079,13 @@ angular.module('app').run(['$templateCache', function($templateCache) {
     "        <label class=\"col-sm-3 control-label\" for=\"xpub-chain-code\">Chain code (32 bytes):</label>\n" +
     "        <div class=\"col-sm-9\"><input id=\"xpub-chain-code\" class=\"form-control\" ng-model=\"vm.fields.chainCode\" ng-change=\"vm.fromFields()\"></div>\n" +
     "      </div>\n" +
-    "      <div class=\"form-group\">\n" +
+    "      <div class=\"form-group\" ng-if=\"!vm.fields.isPrivate\">\n" +
     "        <label class=\"col-sm-3 control-label\" for=\"xpub-public-key\">Compressed public key (33 bytes):</label>\n" +
     "        <div class=\"col-sm-9\"><input id=\"xpub-public-key\" class=\"form-control\" ng-model=\"vm.fields.publicKey\" ng-change=\"vm.fromFields()\"></div>\n" +
+    "      </div>\n" +
+    "      <div class=\"form-group\" ng-if=\"vm.fields.isPrivate\">\n" +
+    "        <label class=\"col-sm-3 control-label\" for=\"xpub-private-key\">Private key data (00 + 32 bytes):</label>\n" +
+    "        <div class=\"col-sm-9\"><input id=\"xpub-private-key\" class=\"form-control\" ng-model=\"vm.fields.privateKey\" ng-change=\"vm.fromFields()\"></div>\n" +
     "      </div>\n" +
     "      <div class=\"form-group\">\n" +
     "        <label class=\"col-sm-3 control-label\" for=\"xpub-checksum\">Checksum (4 bytes):</label>\n" +
