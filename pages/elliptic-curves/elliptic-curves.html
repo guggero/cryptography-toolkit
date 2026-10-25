@@ -1,0 +1,390 @@
+<h1>Elliptic Curves</h1>
+
+<div class="panel panel-default">
+  <div class="panel-heading">
+    <h4 class="panel-title">
+      <a ng-click="vm.showExplanation = !vm.showExplanation">Explanation</a>
+    </h4>
+  </div>
+  <div class="panel-collapse collapse" ng-class="{in: vm.showExplanation}">
+    <div class="panel-body">
+      An elliptic curve is the set of all points (x, y) that satisfy the equation
+      <code>y&sup2; = x&sup3; + a&middot;x + b</code> (the "short Weierstrass form"), plus one extra point
+      <strong>O</strong> "at infinity". The numbers <em>a</em> and <em>b</em> are the coefficients of the curve;
+      Bitcoin's curve <strong>secp256k1</strong> uses <code>a = 0</code> and <code>b = 7</code>, so its equation is
+      simply <code>y&sup2; = x&sup3; + 7</code>. Because of the <code>y&sup2;</code>, the curve is symmetric around the
+      x-axis: if (x, y) is on the curve, so is (x, &minus;y).<br/><br/>
+
+      <strong>Adding points.</strong> What makes elliptic curves useful for cryptography is that their points can be
+      "added" with a geometric rule: draw the straight line through <strong>P</strong> and <strong>Q</strong>. It hits
+      the curve in exactly one more point. Mirror that third point across the x-axis and call the result
+      <strong>R = P + Q</strong>. To add a point to itself (<strong>2P = P + P</strong>) there is only one point, so
+      the tangent line at P is used instead. If the line is vertical (Q is the mirror image of P, written
+      <strong>Q = &minus;P</strong>) there is no third point: the result is the point at infinity <strong>O</strong>,
+      which plays the role of zero (<code>P + O = P</code>, <code>P + (&minus;P) = O</code>). The mirroring step is
+      what makes the rule behave like a proper addition (<code>(P + Q) + R = P + (Q + R)</code>), so the points of
+      the curve form a <em>group</em>. In formulas, with the slope <em>m</em> of the line:
+      <pre class="ec-formula">m = (y<sub>Q</sub> &minus; y<sub>P</sub>) / (x<sub>Q</sub> &minus; x<sub>P</sub>)        (P &ne; Q)
+m = (3&middot;x<sub>P</sub>&sup2; + a) / (2&middot;y<sub>P</sub>)             (P = Q, the tangent)
+x<sub>R</sub> = m&sup2; &minus; x<sub>P</sub> &minus; x<sub>Q</sub>
+y<sub>R</sub> = m&middot;(x<sub>P</sub> &minus; x<sub>R</sub>) &minus; y<sub>P</sub></pre>
+
+      <strong>Which numbers?</strong> The equation and the addition rule make sense in any number system that has
+      the four basic operations. The three buttons above the plot step through the abstraction:
+      <ul>
+        <li>
+          <strong>&#x211D;, the real numbers.</strong> Infinitely many points on a smooth curve. The geometry is
+          easiest to see here, but the arithmetic involves square roots and rounding, which is useless for
+          cryptography: two computers would never agree on the last digit.
+        </li>
+        <li>
+          <strong>&#x2124;, the integers.</strong> Only whole-number coordinates are allowed, so the curve becomes a
+          trail of dots on the grid: every grid point within half a step of the curve, the way a line is drawn
+          on a pixel screen. The line through P and Q still works, and the dot closest to where the line meets
+          the curve again becomes the third point. That last step is a cheat, and the table shows it: applied to
+          whole numbers, the formulas produce fractions (the slope <em>m</em> is a quotient), so the exact result
+          is almost never a grid point. The integers lack division; they are not closed under the rule. Genuine
+          integer solutions are rare: <code>y&sup2; = x&sup3; + 7</code> has none at all (V. A. Lebesgue, 1869),
+          while <code>y&sup2; = x&sup3; + 17</code> has (&minus;2, &plusmn;3), (&minus;1, &plusmn;4),
+          (2, &plusmn;5), (4, &plusmn;9) and a few more.
+        </li>
+        <li>
+          <strong>&#x1D53D;<sub>p</sub>, the integers modulo a prime p.</strong> Every coordinate is a whole number
+          between 0 and p&minus;1 (the box on the plot), and after every addition, subtraction or multiplication
+          the result is reduced to its remainder when divided by p. Such a number system is called a
+          <em>finite field</em>, and here division works again: instead of dividing by <em>d</em> you multiply by
+          its <em>modular inverse</em> <code>d<sup>&minus;1</sup></code>, the number with
+          <code>d &middot; d<sup>&minus;1</sup> &equiv; 1 (mod p)</code>. Such an inverse exists for every non-zero
+          <em>d</em> precisely because p is prime, which is why the exact same addition formulas keep working word
+          for word, with no rounding needed. The picture looks completely different though: the dots scatter
+          over the whole box, and the "line" through P and Q wraps around the edges like on a torus, yet still
+          hits exactly one more point of the curve. The faint curve in the background is the same equation over
+          &#x211D;, for reference: an integer point that lies on it exactly is also a point of every
+          &#x1D53D;<sub>p</sub> (reduce its coordinates modulo p), which is why such points survive a switch
+          of the number system.
+        </li>
+      </ul>
+
+      <strong>Scalar multiplication and keys.</strong> Adding P to itself repeatedly gives P, 2P, 3P, &hellip;,
+      <strong>kP</strong>. Over a finite field these multiples hop around seemingly at random. Computing kP
+      from k and P is fast (double-and-add), but given only P and kP there is no known efficient way to recover
+      k: the <em>elliptic curve discrete logarithm problem</em>. That asymmetry is exactly what ECC keys are
+      built on: the <strong>private key</strong> is a scalar k, the <strong>public key</strong> is the point
+      <code>k&middot;G</code> for a fixed, public generator point G. The <a href="#!/ecc">ECC/ECDSA page</a> does
+      this on the real secp256k1 curve, where <code>p = 2<sup>256</sup> &minus; 2<sup>32</sup> &minus; 977</code>
+      and the number of points <em>n</em> is itself prime, so every point except O generates the whole group.
+      The default toy curve with <code>p = 61</code> happens to share that property: it has exactly 61 points,
+      and 61 is prime.
+
+      <h3>Sources, tools and other useful information:</h3>
+      <ul>
+        <li>
+          <a href="https://andrea.corbellini.name/2015/05/17/elliptic-curve-cryptography-a-gentle-introduction/">
+            Elliptic Curve Cryptography: a gentle introduction (Andrea Corbellini)
+          </a>
+        </li>
+        <li><a href="https://www.secg.org/sec2-v2.pdf">SEC 2: Recommended Elliptic Curve Domain Parameters (secp256k1)</a></li>
+        <li>
+          <a href="https://en.wikipedia.org/wiki/Elliptic_curve_point_multiplication">
+            Elliptic curve point multiplication (Wikipedia)
+          </a>
+        </li>
+        <li><a href="https://en.wikipedia.org/wiki/Modular_multiplicative_inverse">Modular multiplicative inverse (Wikipedia)</a></li>
+        <li><a href="https://en.wikipedia.org/wiki/Mordell_curve">Mordell curves y&sup2; = x&sup3; + k (Wikipedia)</a></li>
+      </ul>
+    </div>
+  </div>
+</div>
+
+<div class="well">
+  <div class="row ec-domain">
+    <div class="col-md-6">
+      <label>Number system</label>
+      <div class="btn-group btn-group-justified" role="group" aria-label="Number system">
+        <div class="btn-group" role="group">
+          <button type="button" id="ec-domain-real" class="btn btn-default" ng-class="{active: vm.isReal()}"
+                  ng-click="vm.setDomain('real')">&#x211D; real numbers</button>
+        </div>
+        <div class="btn-group" role="group">
+          <button type="button" id="ec-domain-int" class="btn btn-default" ng-class="{active: vm.isInt()}"
+                  ng-click="vm.setDomain('int')">&#x2124; integers</button>
+        </div>
+        <div class="btn-group" role="group">
+          <button type="button" id="ec-domain-field" class="btn btn-default" ng-class="{active: vm.isField()}"
+                  ng-click="vm.setDomain('field')">&#x1D53D;<sub>p</sub> finite field</button>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-6" ng-if="vm.isField()">
+      <label for="ec-prime">prime p = <span id="ec-prime-val">{{vm.p}}</span></label>
+      <input id="ec-prime" type="range" min="0" max="{{vm.primes.length - 1}}" step="1" class="ec-slider"
+             ng-model="vm.primeIndex" ng-change="vm.primeChanged()">
+    </div>
+  </div>
+
+  <div class="row">
+    <div class="col-md-8">
+      <div class="ec-plot-wrap">
+        <canvas id="ecCanvas" class="ec-canvas" aria-label="Elliptic curve plot"></canvas>
+      </div>
+      <div class="ec-legend">
+        <span ng-if="vm.isReal()"><span class="ec-dot ec-curve"></span>curve</span>
+        <span ng-if="vm.isInt()"><span class="ec-dot ec-curve"></span>dots of the curve</span>
+        <span ng-if="vm.isField()"><span class="ec-dot ec-curve"></span>points of the curve</span>
+        <span ng-if="!vm.isReal()"><span class="ec-dot ec-ghost"></span>the curve over &#x211D;</span>
+        <span ng-if="vm.isField()"><span class="ec-dot ec-box"></span>0 &le; x, y &lt; p</span>
+        <span class="ec-dot ec-p"></span>P
+        <span class="ec-dot ec-q"></span>Q
+        <span class="ec-dot ec-third"></span>third intersection (&minus;R)
+        <span class="ec-dot ec-r"></span>result R = P + Q
+      </div>
+      <p id="ec-mode" class="ec-hint">{{vm.hint()}}</p>
+      <p class="ec-hint-small">
+        Pan the view by dragging with the middle mouse button, or hold Shift (or Alt) while dragging.
+      </p>
+    </div>
+    <div class="col-md-4">
+      <div class="ec-eq" id="ec-eq">{{vm.equation()}}</div>
+      <p ng-if="vm.isReal()">Infinitely many points.</p>
+      <p ng-if="vm.isInt()" id="ec-int-info">
+        <strong>{{vm.intDots.length}}</strong> dots in view, the grid points closest to the curve.
+        <span ng-if="vm.intExactDots.length">
+          Exactly on it: {{vm.intExactText()}}.
+        </span>
+        <span ng-if="!vm.intExactDots.length && vm.a === 0 && vm.b === 7">
+          None of them is exactly on it: y&sup2; = x&sup3; + 7 has no integer solutions at all.
+        </span>
+        <span ng-if="!vm.intExactDots.length && !(vm.a === 0 && vm.b === 7)">
+          None of them is exactly on it.
+        </span>
+      </p>
+      <p ng-if="vm.isField()">
+        This curve has <strong id="ec-count">{{vm.count}}</strong> points
+        ({{vm.points.length}} shown plus the point at infinity O).
+      </p>
+      <div class="alert alert-warning ec-alert" ng-if="vm.singular && !vm.isField()">
+        4a&sup3; + 27b&sup2; = 0: this curve is singular (it has a cusp or a crossing) and is not a valid
+        elliptic curve.
+      </div>
+      <div class="alert alert-warning ec-alert" ng-if="vm.singular && vm.isField()">
+        4a&sup3; + 27b&sup2; &equiv; 0 (mod p): this curve is singular and not a valid elliptic curve.
+      </div>
+      <form class="ec-controls">
+        <div class="form-group">
+          <label for="ec-a">coefficient a = {{vm.a}}</label>
+          <input id="ec-a" type="range" min="-10" max="10" step="1" class="ec-slider"
+                 ng-model="vm.a" ng-change="vm.paramsChanged()">
+        </div>
+        <div class="form-group">
+          <label for="ec-b">coefficient b = {{vm.b}}</label>
+          <input id="ec-b" type="range" min="-10" max="20" step="1" class="ec-slider"
+                 ng-model="vm.b" ng-change="vm.paramsChanged()">
+        </div>
+        <div class="form-group">
+          <label>view: x <span id="ec-x-range">{{vm.rangeText('x')}}</span>,
+            y <span id="ec-y-range">{{vm.rangeText('y')}}</span></label>
+          <input id="ec-scale" type="range" min="0" max="100" step="1" class="ec-slider" ng-if="!vm.isField()"
+                 aria-label="scale" ng-model="vm.scalePos" ng-change="vm.scaleChanged()">
+        </div>
+        <button type="button" class="btn btn-default btn-sm" ng-click="vm.reset()">
+          Reset to secp256k1 (a = 0, b = 7)
+        </button>
+        <button type="button" class="btn btn-default btn-sm" ng-click="vm.centerView()">
+          Center view
+        </button>
+      </form>
+    </div>
+  </div>
+
+  <div class="row ec-results">
+    <div class="col-md-7">
+      <table class="ec-readout">
+        <tr>
+          <th>P</th>
+          <td>
+            <code id="ec-p">{{vm.fmtPoint(vm.shownP)}}</code>
+            <small ng-if="vm.isField() && vm.shownP">
+              check: y&sup2; mod p = {{vm.check(vm.shownP).lhs}},
+              x&sup3; + a&middot;x + b mod p = {{vm.check(vm.shownP).rhs}}
+            </small>
+            <small ng-if="vm.isInt() && vm.shownP && vm.isExact(vm.shownP)">exactly on the curve</small>
+            <small ng-if="vm.isInt() && vm.shownP && !vm.isExact(vm.shownP)">
+              closest grid point (y&sup2; = {{vm.check(vm.shownP).lhs}},
+              x&sup3; + a&middot;x + b = {{vm.check(vm.shownP).rhs}})
+            </small>
+          </td>
+        </tr>
+        <tr>
+          <th>Q</th>
+          <td>
+            <code id="ec-q">{{vm.fmtPoint(vm.shownQ)}}</code>
+            <small ng-if="vm.op.kind === 'double'">= P, so the tangent at P is used</small>
+            <small ng-if="vm.op.kind === 'infinity' && !vm.op.doubling && !vm.isField()">
+              = &minus;P, the line is vertical
+            </small>
+            <small ng-if="vm.op.kind === 'infinity' && !vm.op.doubling && vm.isField()">
+              = &minus;P (y<sub>Q</sub> = p &minus; y<sub>P</sub>), the line is vertical
+            </small>
+          </td>
+        </tr>
+        <tr>
+          <th>slope m</th>
+          <td>
+            <code id="ec-m">{{vm.slope()}}</code>
+            <small ng-if="vm.op.exact && vm.op.exact.m.d != 1">&asymp; {{vm.fmt(vm.op.m)}}</small>
+            <small ng-if="vm.op.kind === 'add' && !vm.isField()">
+              = (y<sub>Q</sub> &minus; y<sub>P</sub>) / (x<sub>Q</sub> &minus; x<sub>P</sub>)
+            </small>
+            <small ng-if="vm.op.kind === 'double' && !vm.isField()">
+              = (3&middot;x<sub>P</sub>&sup2; + a) / (2&middot;y<sub>P</sub>)
+            </small>
+            <small ng-if="vm.op.kind === 'add' && vm.isField()">
+              = (y<sub>Q</sub> &minus; y<sub>P</sub>) &middot; (x<sub>Q</sub> &minus; x<sub>P</sub>)<sup>&minus;1</sup> mod p
+              = {{vm.op.num}} &middot; {{vm.op.den}}<sup>&minus;1</sup>
+              = {{vm.op.num}} &middot; <span id="ec-inv">{{vm.op.inv}}</span> mod {{vm.p}}
+              (because {{vm.op.den}} &middot; {{vm.op.inv}} &equiv; 1)
+            </small>
+            <small ng-if="vm.op.kind === 'double' && vm.isField()">
+              = (3&middot;x<sub>P</sub>&sup2; + a) &middot; (2&middot;y<sub>P</sub>)<sup>&minus;1</sup> mod p
+              = {{vm.op.num}} &middot; {{vm.op.den}}<sup>&minus;1</sup>
+              = {{vm.op.num}} &middot; <span id="ec-inv">{{vm.op.inv}}</span> mod {{vm.p}}
+              (because {{vm.op.den}} &middot; {{vm.op.inv}} &equiv; 1)
+            </small>
+            <small ng-if="vm.op.kind === 'infinity'">vertical, no slope</small>
+          </td>
+        </tr>
+        <tr>
+          <th>third intersection &minus;R</th>
+          <td>
+            <code id="ec-third">{{vm.fmtPoint(vm.op.third)}}</code>
+            <small ng-if="vm.op.third && vm.isReal()">x = m&sup2; &minus; x<sub>P</sub> &minus; x<sub>Q</sub>, on the line</small>
+            <small ng-if="vm.op.third && vm.isField()">x = m&sup2; &minus; x<sub>P</sub> &minus; x<sub>Q</sub> mod p</small>
+            <small ng-if="vm.op.exact && vm.op.rounded" id="ec-third-exact">
+              closest dot to the exact <span class="ec-exact">{{vm.fmtExact('third')}}</span>
+              = (m&sup2; &minus; x<sub>P</sub> &minus; x<sub>Q</sub>, on the line)
+            </small>
+            <small ng-if="vm.op.exact && !vm.op.rounded" id="ec-third-exact">
+              exact: x = m&sup2; &minus; x<sub>P</sub> &minus; x<sub>Q</sub>, on the line
+            </small>
+            <small ng-if="vm.op.kind === 'infinity'">none: the vertical line leaves the curve</small>
+          </td>
+        </tr>
+        <tr>
+          <th>result R = {{vm.op.kind === 'double' ? '2P' : 'P + Q'}}</th>
+          <td>
+            <code id="ec-r" ng-if="vm.op.kind !== 'infinity'">{{vm.fmtPoint(vm.op.R)}}</code>
+            <code id="ec-r" ng-if="vm.op.kind === 'infinity'">O (point at infinity)</code>
+            <small ng-if="vm.op.exact && vm.op.rounded">
+              exact: <span class="ec-exact">{{vm.fmtExact('R')}}</span>, mirrored
+            </small>
+            <small ng-if="vm.op.R && !(vm.op.exact && vm.op.rounded) && !vm.isField()">
+              mirrored: y<sub>R</sub> = &minus;y of the third intersection
+            </small>
+            <small ng-if="vm.op.R && vm.isField()">mirrored: y<sub>R</sub> = p &minus; y of the third intersection</small>
+          </td>
+        </tr>
+      </table>
+      <p class="ec-hint" id="ec-int-remark" ng-if="vm.isInt() && vm.op.exact && vm.op.rounded">
+        Rounded: with whole-number coordinates the formulas give fractions, because the slope is a quotient.
+        Strictly speaking &#x2124; is not closed under the addition rule. A finite field repairs exactly this:
+        there every division has an exact answer and no rounding is needed.
+      </p>
+      <p class="ec-hint" id="ec-int-remark" ng-if="vm.isInt() && vm.op.exact && !vm.op.rounded">
+        No rounding needed this time: the division in the slope came out even. Try other pairs, most of them
+        land between grid points.
+      </p>
+    </div>
+    <div class="col-md-5">
+      <div ng-if="vm.isReal()">
+        <h5>Or set the points by their x-coordinate</h5>
+        <form class="form-horizontal ec-point-form" novalidate>
+          <div class="form-group">
+            <label class="col-xs-3 control-label" for="ec-px">P: x =</label>
+            <div class="col-xs-5">
+              <input id="ec-px" type="number" step="any" class="form-control input-sm"
+                     ng-model="vm.pxInput" ng-change="vm.inputChanged()">
+            </div>
+            <div class="col-xs-4 checkbox">
+              <label><input type="checkbox" ng-model="vm.pNeg" ng-change="vm.inputChanged()"> y &lt; 0</label>
+            </div>
+          </div>
+          <div class="form-group">
+            <label class="col-xs-3 control-label" for="ec-qx">Q: x =</label>
+            <div class="col-xs-5">
+              <input id="ec-qx" type="number" step="any" class="form-control input-sm"
+                     ng-model="vm.qxInput" ng-change="vm.inputChanged()">
+            </div>
+            <div class="col-xs-4 checkbox">
+              <label><input type="checkbox" ng-model="vm.qNeg" ng-change="vm.inputChanged()"> y &lt; 0</label>
+            </div>
+          </div>
+        </form>
+      </div>
+      <div ng-if="!vm.isReal()">
+        <h5>Or set the points by their coordinates</h5>
+        <form class="form-horizontal ec-point-form" novalidate>
+          <div class="form-group">
+            <label class="col-xs-3 control-label" for="ec-gpx">P =</label>
+            <div class="col-xs-4">
+              <input id="ec-gpx" type="number" step="1" class="form-control input-sm"
+                     placeholder="x" aria-label="P x"
+                     ng-model="vm.pxInput" ng-change="vm.inputChanged()">
+            </div>
+            <div class="col-xs-4">
+              <input id="ec-gpy" type="number" step="1" class="form-control input-sm"
+                     placeholder="y" aria-label="P y"
+                     ng-model="vm.pyInput" ng-change="vm.inputChanged()">
+            </div>
+          </div>
+          <div class="form-group">
+            <label class="col-xs-3 control-label" for="ec-gqx">Q =</label>
+            <div class="col-xs-4">
+              <input id="ec-gqx" type="number" step="1" class="form-control input-sm"
+                     placeholder="x" aria-label="Q x"
+                     ng-model="vm.qxInput" ng-change="vm.inputChanged()">
+            </div>
+            <div class="col-xs-4">
+              <input id="ec-gqy" type="number" step="1" class="form-control input-sm"
+                     placeholder="y" aria-label="Q y"
+                     ng-model="vm.qyInput" ng-change="vm.inputChanged()">
+            </div>
+          </div>
+        </form>
+      </div>
+      <div class="alert alert-danger ec-alert" ng-if="vm.inputError">{{vm.inputError}}</div>
+      <button type="button" class="btn btn-default btn-sm" ng-click="vm.clear()">Clear points</button>
+      <button type="button" class="btn btn-default btn-sm"
+              ng-disabled="vm.mode !== 'locked' || !vm.op.R"
+              ng-click="vm.useResult()">Use R as new P</button>
+
+      <div ng-if="vm.isField()">
+        <h5>Scalar multiplication: k&middot;P = P + P + &hellip; + P</h5>
+        <div class="checkbox">
+          <label>
+            <input type="checkbox" ng-model="vm.showMultiples" ng-change="vm.multiplesChanged()">
+            show the multiples of P on the plot
+          </label>
+        </div>
+        <div ng-if="vm.P">
+          <label for="ec-k">k = {{vm.k}}</label>
+          <input id="ec-k" type="range" min="1" max="{{vm.multiples.length}}" step="1" class="ec-slider"
+                 ng-model="vm.k" ng-change="vm.multiplesChanged()">
+          <table class="ec-readout">
+            <tr>
+              <th>{{vm.k}}&middot;P</th>
+              <td><code id="ec-kp">{{vm.fmtPoint(vm.kP())}}</code></td>
+            </tr>
+            <tr>
+              <th>order of P</th>
+              <td>
+                <code id="ec-order">{{vm.order}}</code>
+                <small>the smallest k with k&middot;P = O; the multiples repeat from there on</small>
+              </td>
+            </tr>
+          </table>
+        </div>
+        <p class="ec-hint" ng-if="!vm.P">Fix a point P first to explore its multiples.</p>
+      </div>
+    </div>
+  </div>
+</div>

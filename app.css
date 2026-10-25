@@ -343,3 +343,161 @@ pre.sig-decoded {
   0% { background-color: #5cb85c; color: #fff; }
   100% { background-color: transparent; }
 }
+
+/* elliptic-curves: interactive plots */
+.ec-canvas {
+  display: block;
+  width: 100%;
+  cursor: crosshair;
+  background: #fff;
+  touch-action: none;
+}
+
+.ec-legend {
+  font-size: 13px;
+  margin-top: 6px;
+}
+
+.ec-legend .ec-dot {
+  display: inline-block;
+  width: 11px;
+  height: 11px;
+  border-radius: 50%;
+  margin: 0 4px 0 12px;
+  vertical-align: middle;
+  border: 2px solid transparent;
+}
+
+.ec-legend .ec-dot:first-child {
+  margin-left: 0;
+}
+
+.ec-dot.ec-curve { background: #5a4d45; }
+.ec-dot.ec-p { background: #2a78d6; }
+.ec-dot.ec-q { background: #eb6834; }
+.ec-dot.ec-r { background: #1baf7a; }
+.ec-dot.ec-third { background: #fff; border-color: #1baf7a; }
+
+.ec-hint {
+  margin-top: 8px;
+  font-size: 14px;
+  min-height: 36px;
+}
+
+.ec-eq {
+  font-family: monospace;
+  font-size: 18px;
+  color: #5a4d45;
+  margin-bottom: 10px;
+}
+
+.ec-controls .form-group {
+  margin-bottom: 8px;
+}
+
+.ec-controls label {
+  font-weight: 400;
+  margin-bottom: 0;
+}
+
+.ec-slider {
+  width: 100%;
+  margin: 0;
+}
+
+.ec-top-margin {
+  margin-top: 10px;
+}
+
+.ec-results {
+  margin-top: 15px;
+  border-top: 1px solid #e3e3e3;
+  padding-top: 15px;
+}
+
+.ec-readout {
+  width: 100%;
+  margin-bottom: 10px;
+}
+
+.ec-readout th {
+  width: 150px;
+  padding: 4px 8px 4px 0;
+  vertical-align: top;
+  font-weight: 700;
+  font-size: 13px;
+  color: #5a4d45;
+}
+
+.ec-readout td {
+  padding: 4px 0;
+  vertical-align: top;
+  font-size: 13px;
+}
+
+.ec-readout code {
+  font-size: 13px;
+}
+
+.ec-readout small {
+  display: inline-block;
+  padding-left: 6px;
+}
+
+.ec-point-form .form-group {
+  margin-bottom: 8px;
+}
+
+.ec-point-form .checkbox {
+  margin: 0;
+  padding-top: 5px;
+}
+
+.ec-alert {
+  margin-top: 10px;
+  margin-bottom: 10px;
+  padding: 8px 12px;
+  font-size: 13px;
+}
+
+pre.ec-formula {
+  font-size: 13px;
+  line-height: 20px;
+}
+
+.ec-domain {
+  margin-bottom: 14px;
+}
+
+.ec-domain label {
+  font-weight: 700;
+  font-size: 15px;
+  margin-bottom: 4px;
+}
+
+.ec-domain .btn-group-justified .btn {
+  font-size: 15px;
+}
+
+.ec-domain .btn-group-justified .btn.active,
+.ec-domain .btn-group-justified .btn.active:hover,
+.ec-domain .btn-group-justified .btn.active:focus {
+  font-weight: 700;
+  color: #fff;
+  background: #5a4d45;
+  border-color: #4a3f38;
+  box-shadow: inset 0 3px 6px rgba(0, 0, 0, 0.3);
+}
+
+.ec-exact {
+  font-family: monospace;
+}
+
+.ec-dot.ec-ghost { background: rgba(90, 77, 69, 0.3); }
+.ec-dot.ec-box { background: rgba(90, 77, 69, 0.06); border-color: #9a8f88; border-radius: 2px; }
+
+.ec-hint-small {
+  font-size: 12px;
+  color: #888;
+  margin: 0;
+}

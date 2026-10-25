@@ -30,6 +30,7 @@ function routeConfig($locationProvider, $routeProvider) {
 
   $routeProvider
     .when('/', {template: '<intro-page></intro-page>', containerClass: 'container'})
+    .when('/elliptic-curves', {template: '<elliptic-curves-page></elliptic-curves-page>', containerClass: 'container'})
     .when('/ecc', {template: '<ecc-page></ecc-page>', containerClass: 'container'})
     .when('/hd-wallet', {template: '<hd-wallet-page></hd-wallet-page>', containerClass: 'container'})
     .when('/bitcoin-block', {template: '<bitcoin-block-page></bitcoin-block-page>', containerClass: 'container'})

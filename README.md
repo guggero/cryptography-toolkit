@@ -13,6 +13,7 @@ paste sensitive information into. So consider yourself warned.
 
 ## Tools
 
+* [Elliptic Curves: visual explainer](https://guggero.github.io/cryptography-toolkit/#!/elliptic-curves)
 * [Elliptic Curve Cryptography / Key Pair](https://guggero.github.io/cryptography-toolkit/#!/ecc)
 * Bitcoin
   * [Bitcoin Block Parser](https://guggero.github.io/cryptography-toolkit/#!/bitcoin-block)

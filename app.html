@@ -6,6 +6,9 @@
 
     <div id="navbar" class="collapse navbar-collapse">
       <ul class="nav navbar-nav navbar-right">
+        <li ng-class="{active: $root.isActive('/elliptic-curves')}">
+          <a href="#!/elliptic-curves">Elliptic Curves</a>
+        </li>
         <li ng-class="{active: $root.isActive('/ecc')}">
           <a href="#!/ecc">ECC/ECDSA</a>
         </li>
