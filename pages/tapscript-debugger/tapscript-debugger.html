@@ -1,0 +1,452 @@
+<h1>Tapscript Debugger</h1>
+
+<div class="panel panel-default">
+  <div class="panel-heading">
+    <h4 class="panel-title">
+      <a ng-click="vm.showExplanation = !vm.showExplanation">Explanation</a>
+    </h4>
+  </div>
+  <div class="panel-collapse collapse" ng-class="{in: vm.showExplanation}">
+    <div class="panel-body">
+      This page executes a taproot script spend with the real script engine
+      of <a href="https://github.com/btcsuite/btcd">btcd</a> (compiled to
+      WebAssembly) and lets you step through it op code by op code.<br/><br/>
+      It knows the three tapscript op codes that
+      <a href="https://github.com/bitcoin/bips/blob/master/bip-0448.md">BIP 448</a>
+      proposes to add to Bitcoin with a soft fork:
+      <ul>
+        <li><code>OP_TEMPLATEHASH</code> pushes a hash of the spending
+          transaction that commits to its outputs, but not to the outputs
+          being spent.</li>
+        <li><code>OP_CHECKSIGFROMSTACK</code> checks a signature over a
+          message from the stack instead of the transaction.</li>
+        <li><code>OP_INTERNALKEY</code> pushes the taproot internal key of
+          the output being spent.</li>
+      </ul>
+      None of them is active on any Bitcoin network. Each one can be switched
+      between the three states a node can be in, to see what a soft fork
+      changes: before activation the op codes are <em>OP_SUCCESS</em> op
+      codes, which make a script valid without executing it.
+      <br/><br/>
+      <strong>This is experimental code for a proposal that may change. Do
+      not use it to build anything that holds real funds.</strong>
+
+      <h3>Sources, tools and other useful information:</h3>
+      <ul>
+        <li><a href="https://github.com/bitcoin/bips/blob/master/bip-0446.md">BIP 446: OP_TEMPLATEHASH</a></li>
+        <li><a href="https://github.com/bitcoin/bips/blob/master/bip-0348.md">BIP 348: OP_CHECKSIGFROMSTACK</a></li>
+        <li><a href="https://github.com/bitcoin/bips/blob/master/bip-0349.md">BIP 349: OP_INTERNALKEY</a></li>
+        <li><a href="https://github.com/bitcoin/bips/blob/master/bip-0342.mediawiki">BIP 342: Tapscript</a></li>
+        <li><a href="#!/template-hash">Template Hash explorer</a> and
+          <a href="#!/bip448-scenarios">BIP 448 scenarios</a> on this site</li>
+        <li><a href="https://github.com/guggero/btcutil-js">btcutil-js library</a></li>
+      </ul>
+    </div>
+  </div>
+</div>
+
+<div class="alert alert-info" ng-if="vm.loading">
+  <strong>Loading...</strong> Initializing WebAssembly module...
+</div>
+<div class="alert alert-danger" ng-if="vm.error">{{vm.error}}</div>
+
+<div ng-if="!vm.loading && !vm.error">
+
+<!-- soft fork states -->
+<h4>Soft fork state</h4>
+<div class="well">
+  <table class="table table-condensed dbg-forks">
+    <tr ng-repeat="upgrade in vm.upgrades">
+      <td class="dbg-fork-name">
+        <code>{{upgrade.opcode}}</code><br/>
+        <small>{{upgrade.bip}}</small>
+      </td>
+      <td>
+        <div class="btn-group btn-group-sm" role="group">
+          <button type="button" class="btn dbg-state-btn"
+                  ng-repeat="state in vm.stateOptions"
+                  ng-class="{active: vm.states[upgrade.flag] === state.id}"
+                  ng-click="vm.setState(upgrade.flag, state.id)"
+                  data-fork="{{upgrade.flag}}" data-state="{{state.id}}">
+            {{state.label}}
+          </button>
+        </div>
+      </td>
+      <td class="dbg-fork-description">
+        <small>{{vm.stateLabel(upgrade.flag).description}}</small>
+      </td>
+    </tr>
+  </table>
+  <a id="dbg-toggle-flags" ng-click="vm.showFlags = !vm.showFlags">
+    {{vm.showFlags ? 'Hide' : 'Show'}} the {{vm.flags.length}} script
+    verification flags this results in
+  </a>
+  <div ng-if="vm.showFlags" class="dbg-flags">
+    <span class="label label-default" ng-repeat="flag in vm.flags">{{flag}}</span>
+  </div>
+</div>
+
+<!-- source of the spend -->
+<h4>Spend</h4>
+<ul class="nav nav-tabs">
+  <li ng-class="{active: vm.mode === 'build'}">
+    <a ng-click="vm.setMode('build')">Build a script spend</a>
+  </li>
+  <li ng-class="{active: vm.mode === 'raw'}">
+    <a ng-click="vm.setMode('raw')">Raw transaction</a>
+  </li>
+</ul>
+
+<div class="well dbg-tab-body" ng-if="vm.mode === 'build'">
+  <form class="form-horizontal">
+
+    <!-- example -->
+    <div class="form-group">
+      <label class="col-sm-3 control-label">Example:</label>
+      <div class="col-sm-9 input-group">
+        <select class="form-control"
+                ng-model="vm.example"
+                ng-options="example.name for example in vm.examples"
+                ng-change="vm.selectExample()">
+        </select>
+      </div>
+    </div>
+    <div class="form-group">
+      <div class="col-sm-9 col-sm-offset-3 no-left-padding">
+        <small>{{vm.example.description}}</small>
+      </div>
+    </div>
+
+    <!-- keys -->
+    <div class="form-group">
+      <label class="col-sm-3 control-label">Keys:</label>
+      <div class="col-sm-9 input-group">
+        <div class="input-group" ng-repeat="name in ['A', 'B']">
+          <div class="input-group-addon">
+            Key {{name}}{{name === 'A' ? ' (internal key)' : ''}}
+          </div>
+          <input class="form-control"
+                 ng-model="vm.keys[name].priv"
+                 ng-change="vm.keysChanged()"
+                 ng-class="{'well-error': vm.keys[name].error}"
+                 title="Private key">
+          <div class="input-group-btn">
+            <button type="button" class="btn btn-default"
+                    ng-click="vm.newKey(name)">New</button>
+          </div>
+        </div>
+        <small>
+          Public keys (x-only): A = <code>{{vm.keys.A.pub}}</code>,
+          B = <code>{{vm.keys.B.pub}}</code>
+        </small>
+      </div>
+    </div>
+
+    <!-- script -->
+    <div class="form-group">
+      <label class="col-sm-3 control-label">Leaf script:</label>
+      <div class="col-sm-9 no-left-padding">
+        <textarea class="form-control" rows="3"
+                  ng-model="vm.asm" ng-change="vm.run()"></textarea>
+      </div>
+    </div>
+
+    <!-- witness -->
+    <div class="form-group">
+      <label class="col-sm-3 control-label">Witness stack:</label>
+      <div class="col-sm-9 no-left-padding">
+        <textarea class="form-control" rows="2"
+                  ng-model="vm.witness" ng-change="vm.run()"></textarea>
+        <small>
+          Items are separated by whitespace, the last one ends up on top of
+          the stack. The script and control block are added automatically.
+        </small>
+      </div>
+    </div>
+
+    <!-- token help -->
+    <div class="form-group">
+      <div class="col-sm-9 col-sm-offset-3 no-left-padding">
+        <a ng-click="vm.showTokens = !vm.showTokens">
+          {{vm.showTokens ? 'Hide' : 'Show'}} what can be written in the
+          script and the witness
+        </a>
+        <table class="table table-condensed dbg-tokens" ng-if="vm.showTokens">
+          <tr>
+            <td><code>OP_DUP</code>, <code>OP_TEMPLATEHASH</code>, ...</td>
+            <td>An op code (script only).</td>
+          </tr>
+          <tr>
+            <td><code>0</code> to <code>16</code>, <code>-1</code></td>
+            <td>A small number (script only).</td>
+          </tr>
+          <tr>
+            <td><code>a1b2c3</code>, <code>0x10</code></td>
+            <td>Data as hex. The <code>0x</code> prefix is needed in a
+              script where the data would read as a small number.</td>
+          </tr>
+          <tr>
+            <td><code>$keyA</code>, <code>$keyB</code></td>
+            <td>The x-only public key of key A or B.</td>
+          </tr>
+          <tr>
+            <td><code>$templatehash</code></td>
+            <td>The template hash of the transaction below.</td>
+          </tr>
+          <tr>
+            <td><code>text:hello</code></td>
+            <td>The bytes of a text without spaces.</td>
+          </tr>
+          <tr>
+            <td><code>sigA(templatehash)</code></td>
+            <td>Signature of key A (or <code>sigB</code> for key B) over
+              the template hash, for <code>OP_CHECKSIGFROMSTACK</code>
+              (witness only).</td>
+          </tr>
+          <tr>
+            <td><code>sigA(text:hello)</code>, <code>sigA($keyB)</code>,
+              <code>sigA(a1b2)</code></td>
+            <td>Signature over any other message (witness only).</td>
+          </tr>
+          <tr>
+            <td><code>sigA(checksig)</code></td>
+            <td>Signature over the transaction as
+              <code>OP_CHECKSIG</code> checks it (witness only).</td>
+          </tr>
+          <tr>
+            <td><code>empty</code></td>
+            <td>An empty item (witness only).</td>
+          </tr>
+        </table>
+      </div>
+    </div>
+
+    <!-- transaction -->
+    <div class="form-group">
+      <label class="col-sm-3 control-label">Spending transaction:</label>
+      <div class="col-sm-9 input-group">
+        <div class="input-group">
+          <div class="input-group-addon">Version</div>
+          <input class="form-control" type="number" min="0"
+                 ng-model="vm.tx.version" ng-change="vm.run()">
+          <div class="input-group-addon">Lock time</div>
+          <input class="form-control" type="number" min="0"
+                 ng-model="vm.tx.locktime" ng-change="vm.run()">
+          <div class="input-group-addon">Sequence</div>
+          <input class="form-control" type="number" min="0"
+                 ng-model="vm.tx.sequence" ng-change="vm.run()">
+        </div>
+        <div class="input-group">
+          <div class="input-group-addon">Spent output value (sat)</div>
+          <input class="form-control" type="number" min="0"
+                 ng-model="vm.tx.amount" ng-change="vm.run()">
+          <div class="input-group-addon">New output value (sat)</div>
+          <input class="form-control" type="number" min="0"
+                 ng-model="vm.tx.outputValue" ng-change="vm.run()">
+        </div>
+        <div class="input-group">
+          <div class="input-group-addon">New output script</div>
+          <input class="form-control"
+                 ng-model="vm.tx.outputScript" ng-change="vm.run()">
+        </div>
+        <div class="input-group">
+          <div class="input-group-addon">Annex (optional)</div>
+          <input class="form-control" placeholder="hex, starting with 50"
+                 ng-model="vm.tx.annex" ng-change="vm.run()">
+        </div>
+      </div>
+    </div>
+  </form>
+</div>
+
+<div class="well dbg-tab-body" ng-if="vm.mode === 'raw'">
+  <form class="form-horizontal">
+    <div class="form-group">
+      <label class="col-sm-3 control-label">Transaction:</label>
+      <div class="col-sm-9 no-left-padding">
+        <textarea class="form-control" rows="4" placeholder="raw transaction as hex, with witness"
+                  ng-model="vm.raw.tx" ng-change="vm.run()"></textarea>
+      </div>
+    </div>
+    <div class="form-group">
+      <label class="col-sm-3 control-label">Input index:</label>
+      <div class="col-sm-9 input-group">
+        <input class="form-control" type="number" min="0"
+               ng-model="vm.raw.idx" ng-change="vm.run()">
+      </div>
+    </div>
+    <div class="form-group">
+      <label class="col-sm-3 control-label">Previous outputs:</label>
+      <div class="col-sm-9 no-left-padding">
+        <textarea class="form-control" rows="2" placeholder="100000:5120..."
+                  ng-model="vm.raw.prevOuts" ng-change="vm.run()"></textarea>
+        <small>
+          One per input and in the order of the inputs, as
+          <code>&lt;amount in satoshis&gt;:&lt;output script as hex&gt;</code>.
+        </small>
+      </div>
+    </div>
+  </form>
+</div>
+
+<div class="alert alert-danger" ng-if="vm.buildError" id="dbg-build-error">
+  <strong>Cannot build the spend:</strong> {{vm.buildError}}
+</div>
+
+<div ng-if="vm.trace">
+
+<!-- result -->
+<h4>Result</h4>
+<div class="well" id="dbg-result"
+     ng-class="{'well-success': vm.trace.valid, 'well-error': !vm.trace.valid}">
+  <div ng-if="vm.trace.valid && !vm.trace.opSuccess">
+    <strong>Valid.</strong> The script was executed and left a true value on
+    the stack.
+  </div>
+  <div ng-if="vm.trace.valid && vm.trace.opSuccess">
+    <strong>Valid, but the script was not executed.</strong> It contains an
+    op code that is an <em>OP_SUCCESS</em> with these flags, which makes any
+    spend of the output valid, whatever is in the witness. This is what an
+    old node sees after a soft fork, and why the new op codes must not be
+    used before they are active.
+  </div>
+  <div ng-if="!vm.trace.valid">
+    <strong>Invalid:</strong> <code>{{vm.trace.errorCode}}</code><br/>
+    <span ng-if="vm.errorHint">{{vm.errorHint}}<br/></span>
+    <small>{{vm.trace.error}}</small>
+  </div>
+  <a id="dbg-toggle-details" ng-click="vm.showSpend = !vm.showSpend">
+    {{vm.showSpend ? 'Hide' : 'Show'}} the transaction details
+  </a>
+  <div ng-if="vm.showSpend" class="dbg-details">
+    <div class="hex-value" ng-if="vm.details.address">
+      Spent output (regtest address): <code>{{vm.details.address}}</code>
+    </div>
+    <div class="hex-value" ng-if="vm.details.pkScript">
+      Spent output script: <code>{{vm.details.pkScript}}</code>
+    </div>
+    <div class="hex-value" ng-if="vm.details.templateHash">
+      Template hash of the input: <code>{{vm.details.templateHash}}</code>
+    </div>
+    <div class="hex-value" ng-repeat="item in vm.details.witness track by $index">
+      Witness item {{$index}}: <code>{{item || '(empty)'}}</code>
+    </div>
+    <div class="hex-value">
+      Raw transaction: <code>{{vm.details.rawTx}}</code>
+    </div>
+  </div>
+</div>
+
+<!-- stepper -->
+<h4>Execution</h4>
+<div class="well" ng-if="vm.steps.length === 0">
+  The script engine did not execute a single op code.
+</div>
+<div class="well" ng-if="vm.steps.length > 0">
+  <div class="dbg-controls">
+    <div class="btn-group">
+      <button type="button" class="btn btn-default" id="dbg-first"
+              ng-disabled="vm.stepIndex === 0" ng-click="vm.goTo(0)">
+        <i class="fas fa-fast-backward"></i>
+      </button>
+      <button type="button" class="btn btn-default" id="dbg-prev"
+              ng-disabled="vm.stepIndex === 0"
+              ng-click="vm.goTo(vm.stepIndex - 1)">
+        <i class="fas fa-step-backward"></i> Back
+      </button>
+      <button type="button" class="btn btn-primary" id="dbg-next"
+              ng-disabled="vm.step.isLast"
+              ng-click="vm.goTo(vm.stepIndex + 1)">
+        Step <i class="fas fa-step-forward"></i>
+      </button>
+      <button type="button" class="btn btn-default" id="dbg-last"
+              ng-disabled="vm.step.isLast"
+              ng-click="vm.goTo(vm.steps.length - 1)">
+        <i class="fas fa-fast-forward"></i>
+      </button>
+    </div>
+    <span class="dbg-position" id="dbg-position">
+      Step {{vm.stepIndex + 1}} of {{vm.steps.length}}
+    </span>
+    <span class="dbg-status" id="dbg-status">
+      <span ng-if="vm.step.finished" class="text-success">
+        <i class="fas fa-check"></i> finished
+      </span>
+      <span ng-if="vm.step.failed && vm.step.opcode" class="text-danger">
+        <i class="fas fa-times"></i> <code>{{vm.step.opcode}}</code> fails
+        with {{vm.trace.errorCode}}
+      </span>
+      <span ng-if="vm.step.failed && !vm.step.opcode" class="text-danger">
+        <i class="fas fa-times"></i> the script ran to its end, but the
+        result is rejected with {{vm.trace.errorCode}}
+      </span>
+      <span ng-if="!vm.step.finished && !vm.step.failed">
+        next: <code>{{vm.step.opcode}}</code>
+      </span>
+    </span>
+    <span class="dbg-budget" id="dbg-budget"
+          ng-if="vm.step.sigOpsBudget !== undefined"
+          title="Every signature check with a non-empty signature costs 50. The budget is 50 plus the size of the witness.">
+      Signature operation budget: <strong>{{vm.step.sigOpsBudget}}</strong>
+      <span class="text-danger" ng-if="vm.step.sigOpsSpent > 0">
+        (-{{vm.step.sigOpsSpent}})
+      </span>
+    </span>
+  </div>
+
+  <div class="row">
+    <!-- scripts -->
+    <div class="col-sm-5">
+      <div ng-repeat="script in vm.scripts" class="dbg-script"
+           ng-class="{'dbg-script-active': vm.step.scriptIndex === script.index}">
+        <h5>{{script.name}}</h5>
+        <div class="dbg-empty" ng-if="script.ops.length === 0">(empty)</div>
+        <ol>
+          <li ng-repeat="op in script.ops track by $index"
+              ng-class="vm.opClass(script.index, $index)"
+              ng-click="vm.goToOp(script.index, $index)">
+            <span class="dbg-op">{{op}}</span>
+          </li>
+        </ol>
+      </div>
+      <div class="dbg-script" ng-if="vm.trace.opSuccess">
+        <h5>Tapscript</h5>
+        <div class="dbg-empty">
+          not executed: it contains an OP_SUCCESS op code
+        </div>
+      </div>
+    </div>
+
+    <!-- stacks -->
+    <div class="col-sm-7">
+      <h5>Stack <small>(top first)</small></h5>
+      <div class="dbg-empty" ng-if="vm.step.stack.length === 0">(empty)</div>
+      <table class="table table-condensed dbg-stack" id="dbg-stack"
+             ng-if="vm.step.stack.length > 0">
+        <tr ng-repeat="item in vm.step.stack track by $index">
+          <td class="dbg-stack-pos">{{item.position}}</td>
+          <td>
+            <code>{{item.hex || '(empty)'}}</code><br/>
+            <small>{{item.length}} bytes<span ng-if="item.note">, {{item.note}}</span></small>
+          </td>
+        </tr>
+      </table>
+
+      <div ng-if="vm.step.altStack.length > 0">
+        <h5>Alt stack <small>(top first)</small></h5>
+        <table class="table table-condensed dbg-stack" id="dbg-altstack">
+          <tr ng-repeat="item in vm.step.altStack track by $index">
+            <td class="dbg-stack-pos">{{item.position}}</td>
+            <td>
+              <code>{{item.hex || '(empty)'}}</code><br/>
+              <small>{{item.length}} bytes<span ng-if="item.note">, {{item.note}}</span></small>
+            </td>
+          </tr>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+
+</div>
+</div>

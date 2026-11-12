@@ -50,6 +50,9 @@ function routeConfig($locationProvider, $routeProvider) {
     .when('/descriptors', {template: '<descriptors-page></descriptors-page>', containerClass: 'container'})
     .when('/bip157', {template: '<bip157-page></bip157-page>', containerClass: 'container'})
     .when('/silentpayments', {template: '<silentpayments-page></silentpayments-page>', containerClass: 'container'})
+    .when('/tapscript-debugger', {template: '<tapscript-debugger-page></tapscript-debugger-page>', containerClass: 'container', reloadOnSearch: false})
+    .when('/template-hash', {template: '<template-hash-page></template-hash-page>', containerClass: 'container'})
+    .when('/bip448-scenarios', {template: '<bip448-scenarios-page></bip448-scenarios-page>', containerClass: 'container'})
     .otherwise({redirectTo: '/'})
 }
 

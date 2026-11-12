@@ -1,0 +1,152 @@
+<h1>BIP-448: Scenarios</h1>
+
+<div class="panel panel-default">
+  <div class="panel-heading">
+    <h4 class="panel-title">
+      <a ng-click="vm.showExplanation = !vm.showExplanation">Explanation</a>
+    </h4>
+  </div>
+  <div class="panel-collapse collapse" ng-class="{in: vm.showExplanation}">
+    <div class="panel-body">
+      <a href="https://github.com/bitcoin/bips/blob/master/bip-0448.md">BIP 448</a>
+      proposes to add three op codes to tapscript with one soft fork:
+      <ul>
+        <li><code>OP_TEMPLATEHASH</code>
+          (<a href="https://github.com/bitcoin/bips/blob/master/bip-0446.md">BIP 446</a>)
+          pushes a hash of the spending transaction that leaves out the
+          outputs being spent.</li>
+        <li><code>OP_CHECKSIGFROMSTACK</code>
+          (<a href="https://github.com/bitcoin/bips/blob/master/bip-0348.md">BIP 348</a>)
+          checks a signature over a message from the stack.</li>
+        <li><code>OP_INTERNALKEY</code>
+          (<a href="https://github.com/bitcoin/bips/blob/master/bip-0349.md">BIP 349</a>)
+          pushes the taproot internal key.</li>
+      </ul>
+      Each one is small. This page walks through what they make possible
+      when combined, one step at a time. Nothing here is mocked: every
+      transaction is built in your browser and every check mark is the
+      verdict of the script engine of
+      <a href="https://github.com/btcsuite/btcd">btcd</a>, with the three
+      op codes active. Any spend can be opened in the
+      <a href="#!/tapscript-debugger">Tapscript Debugger</a> to watch the
+      stack, or to see what an old node would do with it.<br/><br/>
+      The keys of Alice, Bob and Carol are fixed, public example keys.
+      <strong>The op codes are a proposal and not active on any Bitcoin
+      network.</strong>
+
+      <h3>Sources, tools and other useful information:</h3>
+      <ul>
+        <li><a href="https://github.com/bitcoin/bips/blob/master/bip-0448.md">BIP 448: Taproot-native (Re)bindable Transactions</a></li>
+        <li><a href="#!/template-hash">Template Hash explorer</a> and
+          <a href="#!/tapscript-debugger">Tapscript Debugger</a> on this site</li>
+        <li><a href="https://github.com/guggero/btcutil-js">btcutil-js library</a></li>
+      </ul>
+    </div>
+  </div>
+</div>
+
+<div class="alert alert-info" ng-if="vm.loading">
+  <strong>Loading...</strong> Initializing WebAssembly module...
+</div>
+<div class="alert alert-danger" ng-if="vm.error">{{vm.error}}</div>
+
+<div ng-if="!vm.loading && !vm.error">
+
+<!-- scenario picker -->
+<div class="row sc-picker">
+  <div class="col-sm-3" ng-repeat="scenario in vm.scenarioList">
+    <a class="sc-card" ng-click="vm.select(scenario)"
+       ng-class="{'sc-card-active': vm.selected.id === scenario.id}"
+       data-scenario="{{scenario.id}}">
+      <strong>{{scenario.title}}</strong>
+      <small>{{scenario.summary}}</small>
+      <code>{{scenario.opcodes}}</code>
+    </a>
+  </div>
+</div>
+
+<div class="alert alert-danger" ng-if="vm.buildError">{{vm.buildError}}</div>
+
+<div ng-if="vm.scenario">
+
+  <!-- step navigation -->
+  <ol class="sc-steps">
+    <li ng-repeat="step in vm.scenario.steps"
+        ng-class="{'sc-step-active': vm.stepIndex === $index, 'sc-step-done': vm.stepIndex > $index}"
+        ng-click="vm.goTo($index)">
+      {{step.title}}
+    </li>
+  </ol>
+
+  <div class="well sc-step" ng-repeat="step in vm.scenario.steps"
+       ng-if="vm.stepIndex === $index" id="sc-step">
+    <h4>
+      Step {{$index + 1}} of {{vm.scenario.steps.length}}:
+      {{step.title}}
+    </h4>
+
+    <p ng-repeat="paragraph in step.text">{{paragraph}}</p>
+
+    <!-- the choice of the oracle scenario -->
+    <div class="btn-group sc-outcome" ng-if="step.outcomeChoice">
+      <button type="button" class="btn dbg-state-btn" id="sc-outcome-yes"
+              ng-class="{active: vm.options.outcome === 'yes'}"
+              ng-click="vm.options.outcome = 'yes'; vm.optionsChanged()">
+        The price is above 100,000: "yes"
+      </button>
+      <button type="button" class="btn dbg-state-btn" id="sc-outcome-no"
+              ng-class="{active: vm.options.outcome === 'no'}"
+              ng-click="vm.options.outcome = 'no'; vm.optionsChanged()">
+        The price is not above 100,000: "no"
+      </button>
+    </div>
+
+    <table class="table table-condensed sc-facts" ng-if="step.facts">
+      <tr ng-repeat="fact in step.facts">
+        <td class="sc-fact-label">{{fact.label}}</td>
+        <td><code>{{fact.value}}</code></td>
+      </tr>
+    </table>
+
+    <div class="sc-check" ng-repeat="check in step.checks"
+         ng-class="{'sc-check-valid': check.valid, 'sc-check-invalid': !check.valid}">
+      <div class="sc-check-icon">
+        <i class="fas fa-check" ng-if="check.valid"></i>
+        <i class="fas fa-times" ng-if="!check.valid"></i>
+      </div>
+      <div class="sc-check-body">
+        <strong>{{check.label}}</strong><br/>
+        <span ng-if="check.valid" class="sc-check-result">
+          The script engine accepts this spend.
+        </span>
+        <span ng-if="!check.valid" class="sc-check-result">
+          The script engine rejects this spend:
+          <code>{{check.errorCode}}</code>.
+          <span ng-if="check.errorHint">{{check.errorHint}}</span>
+        </span>
+        <span ng-if="!check.asExpected" class="label label-warning">
+          unexpected
+        </span>
+        <div ng-if="check.note"><small>{{check.note}}</small></div>
+        <a ng-href="{{check.debuggerLink}}">
+          Step through it in the Tapscript Debugger
+        </a>
+      </div>
+    </div>
+
+    <div class="sc-nav">
+      <button type="button" class="btn btn-default" id="sc-back"
+              ng-disabled="vm.stepIndex === 0"
+              ng-click="vm.goTo(vm.stepIndex - 1)">
+        <i class="fas fa-arrow-left"></i> Back
+      </button>
+      <button type="button" class="btn btn-primary" id="sc-next"
+              ng-disabled="vm.stepIndex === vm.scenario.steps.length - 1"
+              ng-click="vm.goTo(vm.stepIndex + 1)">
+        Next <i class="fas fa-arrow-right"></i>
+      </button>
+    </div>
+  </div>
+</div>
+
+</div>

@@ -1,0 +1,271 @@
+<h1>BIP-446: Template Hash explorer</h1>
+
+<div class="panel panel-default">
+  <div class="panel-heading">
+    <h4 class="panel-title">
+      <a ng-click="vm.showExplanation = !vm.showExplanation">Explanation</a>
+    </h4>
+  </div>
+  <div class="panel-collapse collapse" ng-class="{in: vm.showExplanation}">
+    <div class="panel-body">
+      <a href="https://github.com/bitcoin/bips/blob/master/bip-0446.md">BIP 446</a>
+      proposes a new tapscript op code, <code>OP_TEMPLATEHASH</code>, that
+      pushes a hash of the transaction that spends an output onto the stack.
+      A script can compare that hash with a fixed value, or check a signature
+      over it, and so restrict <em>what the spending transaction looks
+      like</em>.<br/><br/>
+      The interesting part is what the hash leaves out. It commits to the
+      version, the lock time, the sequence numbers of all inputs, all outputs,
+      the index of the input and its annex. It does <strong>not</strong>
+      commit to the outputs being spent: neither which ones, nor their value,
+      nor their script. A normal signature commits to all of those.<br/><br/>
+      On this page you can edit a transaction and see which changes move the
+      template hash. An output is locked to the transaction with the script
+      <code>OP_TEMPLATEHASH &lt;hash&gt; OP_EQUAL</code>, and every edit is
+      checked by really spending that output with the script engine of
+      <a href="https://github.com/btcsuite/btcd">btcd</a>.<br/><br/>
+      <strong>The op code is a proposal and not active on any Bitcoin
+      network.</strong>
+
+      <h3>Sources, tools and other useful information:</h3>
+      <ul>
+        <li><a href="https://github.com/bitcoin/bips/blob/master/bip-0446.md">BIP 446: OP_TEMPLATEHASH</a></li>
+        <li><a href="https://github.com/bitcoin/bips/blob/master/bip-0448.md">BIP 448: Taproot-native (Re)bindable Transactions</a></li>
+        <li><a href="https://github.com/bitcoin/bips/blob/master/bip-0341.mediawiki">BIP 341: Taproot</a>, which defines the signature hash this is compared with</li>
+        <li><a href="#!/tapscript-debugger">Tapscript Debugger</a> and
+          <a href="#!/bip448-scenarios">BIP 448 scenarios</a> on this site</li>
+        <li><a href="https://github.com/guggero/btcutil-js">btcutil-js library</a></li>
+      </ul>
+    </div>
+  </div>
+</div>
+
+<div class="alert alert-info" ng-if="vm.loading">
+  <strong>Loading...</strong> Initializing WebAssembly module...
+</div>
+<div class="alert alert-danger" ng-if="vm.error">{{vm.error}}</div>
+
+<div ng-if="!vm.loading && !vm.error">
+
+<p class="th-legend">
+  <span class="th-lock th-committed"><i class="fas fa-lock"></i></span>
+  part of the template hash &nbsp;
+  <span class="th-lock th-free"><i class="fas fa-lock-open"></i></span>
+  not part of the template hash, free to change
+</p>
+
+<div class="row">
+
+  <!-- the transaction -->
+  <div class="col-md-6">
+    <h4>Spending transaction</h4>
+    <div class="well">
+      <div class="input-group th-field">
+        <div class="input-group-addon th-committed"><i class="fas fa-lock"></i> Version</div>
+        <input class="form-control" type="number" min="0"
+               ng-model="vm.tx.version" ng-change="vm.update()">
+        <div class="input-group-addon th-committed"><i class="fas fa-lock"></i> Lock time</div>
+        <input class="form-control" type="number" min="0"
+               ng-model="vm.tx.locktime" ng-change="vm.update()">
+      </div>
+
+      <h5>Inputs</h5>
+      <div class="th-item" ng-repeat="input in vm.tx.inputs track by $index"
+           ng-class="{'th-item-selected': vm.inputIndex === $index}">
+        <div class="th-item-head">
+          <label>
+            <input type="radio" name="inputIndex" ng-value="$index"
+                   ng-model="vm.inputIndex" ng-change="vm.update()">
+            Input {{$index}}
+            <span ng-if="vm.inputIndex === $index">
+              (spends the locked output)
+            </span>
+          </label>
+          <a class="pull-right" ng-click="vm.removeInput($index)"
+             ng-if="vm.tx.inputs.length > 1" title="Remove this input">
+            <i class="fas fa-times"></i>
+          </a>
+        </div>
+        <div class="input-group th-field">
+          <div class="input-group-addon th-free"><i class="fas fa-lock-open"></i> Spends</div>
+          <input class="form-control" title="Transaction ID of the output being spent"
+                 ng-model="input.txid" ng-change="vm.update()">
+          <div class="input-group-addon th-free">:</div>
+          <input class="form-control th-narrow" type="number" min="0"
+                 title="Index of the output being spent"
+                 ng-model="input.vout" ng-change="vm.update()">
+        </div>
+        <div class="input-group th-field">
+          <div class="input-group-addon th-free"><i class="fas fa-lock-open"></i> Value (sat)</div>
+          <input class="form-control" type="number" min="0"
+                 title="Value of the output being spent"
+                 ng-model="input.amount" ng-change="vm.update()">
+          <div class="input-group-addon th-committed"><i class="fas fa-lock"></i> Sequence</div>
+          <input class="form-control" type="number" min="0"
+                 ng-model="input.sequence" ng-change="vm.update()">
+        </div>
+      </div>
+      <button type="button" class="btn btn-default btn-sm" id="th-add-input"
+              ng-click="vm.addInput()">
+        <i class="fas fa-plus"></i> Add input
+      </button>
+
+      <h5>Outputs</h5>
+      <div class="th-item" ng-repeat="output in vm.tx.outputs track by $index">
+        <div class="th-item-head">
+          Output {{$index}}
+          <a class="pull-right" ng-click="vm.removeOutput($index)"
+             title="Remove this output">
+            <i class="fas fa-times"></i>
+          </a>
+        </div>
+        <div class="input-group th-field">
+          <div class="input-group-addon th-committed"><i class="fas fa-lock"></i> Value (sat)</div>
+          <input class="form-control" type="number" min="0"
+                 ng-model="output.value" ng-change="vm.update()">
+        </div>
+        <div class="input-group th-field">
+          <div class="input-group-addon th-committed"><i class="fas fa-lock"></i> Script</div>
+          <input class="form-control"
+                 ng-model="output.scriptPubKey" ng-change="vm.update()">
+        </div>
+      </div>
+      <button type="button" class="btn btn-default btn-sm" id="th-add-output"
+              ng-click="vm.addOutput()">
+        <i class="fas fa-plus"></i> Add output
+      </button>
+
+      <h5>Annex of input {{vm.inputIndex}}</h5>
+      <div class="input-group th-field">
+        <div class="input-group-addon th-committed"><i class="fas fa-lock"></i> Annex</div>
+        <input class="form-control" placeholder="none (hex, starting with 50)"
+               ng-model="vm.annex" ng-change="vm.update()">
+      </div>
+    </div>
+  </div>
+
+  <!-- the hash -->
+  <div class="col-md-6">
+    <h4>Template hash of input {{vm.inputIndex}}</h4>
+
+    <div class="alert alert-danger" ng-if="vm.inputError" id="th-input-error">
+      {{vm.inputError}}
+    </div>
+
+    <div class="well" ng-if="vm.current">
+      <p>
+        The hash is a BIP 340 tagged hash with the tag
+        <code>{{vm.current.tag}}</code> of these
+        {{vm.current.message.length / 2}} bytes:
+      </p>
+      <table class="table table-condensed th-message" id="th-message">
+        <tr ng-repeat="row in vm.current.rows"
+            ng-class="{'th-changed': row.changed}" data-row="{{row.id}}">
+          <td class="th-row-name">
+            {{row.name}}
+            <span class="label label-danger" ng-if="row.changed">changed</span>
+          </td>
+          <td>
+            <code>{{row.hex}}</code><br/>
+            <small>{{row.description}}</small>
+          </td>
+        </tr>
+      </table>
+      <div class="hex-value">
+        <strong>Template hash:</strong><br/>
+        <code id="th-hash">{{vm.current.hash}}</code>
+      </div>
+    </div>
+
+    <h4>Locked output</h4>
+    <div class="well" ng-if="vm.committed" id="th-check"
+         ng-class="{'well-success': vm.check.valid, 'well-error': vm.check && !vm.check.valid}">
+      <div class="hex-value">
+        Script: <code id="th-script">{{vm.committed.asm}}</code>
+      </div>
+      <div class="hex-value">
+        Address (regtest): <code>{{vm.committed.leaf.address}}</code>
+      </div>
+
+      <div ng-if="vm.check" class="th-verdict">
+        <div ng-if="vm.check.valid">
+          <strong><i class="fas fa-check"></i> This transaction can spend
+          the locked output.</strong>
+          <span ng-if="vm.check.sigHashChanged">
+            It is not the transaction the output was locked to, but only
+            parts that the template hash leaves out were changed.
+          </span>
+        </div>
+        <div ng-if="!vm.check.valid">
+          <strong><i class="fas fa-times"></i> This transaction cannot spend
+          the locked output</strong>
+          (<code>{{vm.check.errorCode}}</code>).
+          <span ng-if="vm.check.changed.length > 0">
+            Changed: <strong>{{vm.check.changed.join(', ')}}</strong>.
+          </span>
+        </div>
+
+        <table class="table table-condensed th-compare">
+          <tr>
+            <td>Template hash</td>
+            <td id="th-hash-state">
+              <span class="label label-success" ng-if="!vm.check.hashChanged">unchanged</span>
+              <span class="label label-danger" ng-if="vm.check.hashChanged">changed</span>
+            </td>
+            <td><small>what <code>OP_TEMPLATEHASH</code> pushes</small></td>
+          </tr>
+          <tr>
+            <td>Signature hash</td>
+            <td id="th-sighash-state">
+              <span class="label label-success" ng-if="!vm.check.sigHashChanged">unchanged</span>
+              <span class="label label-danger" ng-if="vm.check.sigHashChanged">changed</span>
+            </td>
+            <td><small>what a normal signature checked by
+              <code>OP_CHECKSIG</code> signs</small></td>
+          </tr>
+        </table>
+
+        <a ng-href="{{vm.check.debuggerLink}}" id="th-debugger-link">
+          Step through this spend in the Tapscript Debugger
+        </a>
+      </div>
+
+      <div class="th-commit">
+        <button type="button" class="btn btn-primary" id="th-commit"
+                ng-disabled="!vm.current || !vm.check.hashChanged"
+                ng-click="vm.commit()">
+          <i class="fas fa-lock"></i> Lock the output to the current
+          transaction
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<h4>What is committed to</h4>
+<table class="table table-condensed table-bordered th-coverage">
+  <thead>
+    <tr>
+      <th>Part of the transaction</th>
+      <th>Template hash</th>
+      <th>Normal signature (<code>SIGHASH_DEFAULT</code>)</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr><td>Version, lock time</td><td class="th-yes">yes</td><td class="th-yes">yes</td></tr>
+    <tr><td>Sequence numbers of all inputs</td><td class="th-yes">yes</td><td class="th-yes">yes</td></tr>
+    <tr><td>All outputs (value and script)</td><td class="th-yes">yes</td><td class="th-yes">yes</td></tr>
+    <tr><td>Index of the input, its annex</td><td class="th-yes">yes</td><td class="th-yes">yes</td></tr>
+    <tr><td>Which outputs are spent (transaction ID and index)</td><td class="th-no">no</td><td class="th-yes">yes</td></tr>
+    <tr><td>Value of the spent outputs</td><td class="th-no">no</td><td class="th-yes">yes</td></tr>
+    <tr><td>Script of the spent outputs</td><td class="th-no">no</td><td class="th-yes">yes</td></tr>
+    <tr><td>The script being executed (tapleaf hash)</td><td class="th-no">no</td><td class="th-yes">yes, in a script spend</td></tr>
+  </tbody>
+</table>
+<p>
+  Because the spent outputs are left out, the number of inputs is only
+  committed to through their sequence numbers: adding an input changes
+  <code>sha_sequences</code>.
+</p>
+
+</div>

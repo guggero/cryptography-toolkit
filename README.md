@@ -28,6 +28,9 @@ paste sensitive information into. So consider yourself warned.
   * [BIP-340: Schnorr Signatures](https://guggero.github.io/cryptography-toolkit/#!/schnorr)
   * [BIP-352: Silent Payments](https://guggero.github.io/cryptography-toolkit/#!/silentpayments)
   * [BIP-380: Output Script Descriptors](https://guggero.github.io/cryptography-toolkit/#!/descriptors)
+  * [BIP-446: Template Hash explorer](https://guggero.github.io/cryptography-toolkit/#!/template-hash)
+  * [BIP-448: Scenarios (OP_TEMPLATEHASH, OP_CHECKSIGFROMSTACK, OP_INTERNALKEY)](https://guggero.github.io/cryptography-toolkit/#!/bip448-scenarios)
+  * [Tapscript Debugger](https://guggero.github.io/cryptography-toolkit/#!/tapscript-debugger)
 * LND
   * [aezeed Cipher Seed Scheme](https://guggero.github.io/cryptography-toolkit/#!/aezeed)
   * [Macaroons](https://guggero.github.io/cryptography-toolkit/#!/macaroon)
