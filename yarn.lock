@@ -319,10 +319,10 @@ browserify@^17.0.0:
     vm-browserify "^1.0.0"
     xtend "^4.0.0"
 
-btcutil-js@^0.4.2:
-  version "0.4.2"
-  resolved "https://registry.npmjs.org/btcutil-js/-/btcutil-js-0.4.2.tgz"
-  integrity sha512-kqUYnYJ1yrC6e6Z2hjr9/WYLtDfzxXtpnDWugQL8TRdrUJydsnLfBHHTWvs9mpmUZGUV0gDpCLbrvftLfLDpTw==
+btcutil-js@^0.5.0:
+  version "0.5.0"
+  resolved "https://registry.yarnpkg.com/btcutil-js/-/btcutil-js-0.5.0.tgz#fd7630514e05f1b7ea4d31f24247833c8a477be5"
+  integrity sha512-P7WCGBS5ixx/Pqre1zRm7w/rx0JuUxXPHeKfFuBynTi46/+bsRO5dTNh4ZTg3tR96i4Nd6ZJHs8EQ0Uo+Q9jCw==
 
 buffer-from@^1.0.0:
   version "1.1.2"

@@ -118,7 +118,7 @@ function Bip322PageController($scope) {
     }
     if (tag === 'smp') {
       try {
-        var witness = lib.bip322.parseTxWitness(inner);
+        var witness = lib.psbt.parseTxWitness(inner);
         if (witness && witness.length > 0) {
           return {
             format: 'simple',

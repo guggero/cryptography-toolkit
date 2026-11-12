@@ -31194,17 +31194,6 @@ var bip322 = {
     return unwrap(
       g().bip322.signP2PKH(message, privateKey)
     );
-  },
-  /** Parse serialized witness bytes back into a witness stack.
-   *  Calls Go: bip322.ParseTxWitness() from btcutil/bip322.
-   *
-   *  @param rawWitness - Serialized witness data (hex string or Uint8Array).
-   *  @returns Array of witness stack items (Uint8Array[]). */
-  async parseTxWitness(rawWitness) {
-    await init();
-    return unwrap(
-      g().bip322.parseTxWitness(rawWitness)
-    );
   }
 };
 
@@ -31500,6 +31489,17 @@ var psbt = {
   async inPlaceSort(base64Psbt) {
     await init();
     return unwrap(g().psbt.inPlaceSort(base64Psbt));
+  },
+  // -- witness --
+  /** Parse the serialized witness of a transaction input, as found in the
+   *  final script witness field of a PSBT input, into its stack items.
+   *  Calls Go: psbt.ParseTxWitness() from btcd/psbt.
+   *
+   *  @param rawWitness - Serialized witness data (hex string or Uint8Array).
+   *  @returns Array of witness stack items (Uint8Array[]). */
+  async parseTxWitness(rawWitness) {
+    await init();
+    return unwrap(g().psbt.parseTxWitness(rawWitness));
   }
 };
 
@@ -31738,6 +31738,15 @@ var txscript = {
     await init();
     return unwrap(g().txscript.calcTaprootSignatureHash(hashType, rawTx, inputIndex, prevOuts));
   },
+  /** Compute the BIP-342 signature hash an OP_CHECKSIG in a tapscript leaf
+   *  checks. Requires prevOuts for all inputs and the script of the leaf
+   *  being spent. `annex` is the full annex of the input, including the 0x50
+   *  tag.
+   *  Calls Go: txscript.CalcTapscriptSignaturehash() from btcd/txscript. */
+  async calcTapscriptSignatureHash(hashType, rawTx, inputIndex, prevOuts, leafScript, annex) {
+    await init();
+    return unwrap(g().txscript.calcTapscriptSignatureHash(hashType, rawTx, inputIndex, prevOuts, leafScript, annex));
+  },
   // -- signing --
   /** Create a legacy input signature (DER-encoded + hashType byte).
    *  Calls Go: txscript.RawTxInSignature() from btcd/txscript. */
@@ -31763,18 +31772,79 @@ var txscript = {
     await init();
     return unwrap(g().txscript.rawTxInTaprootSignature(rawTx, inputIndex, merkleRoot, hashType, privKey, prevOuts));
   },
-  /** Execute the script pair of one input under the standard verification
-   *  flags, reporting whether it is a valid spend of its previous output.
-   *  The transaction must already carry the input's signature script and
-   *  witness; `prevOuts` supplies the previous output of every input, in
-   *  input order (taproot sighashes commit to all of them).
+  // -- script execution --
+  /** Execute the script pair of one input, reporting whether it is a valid
+   *  spend of its previous output. The transaction must already carry the
+   *  input's signature script and witness; `prevOuts` supplies the previous
+   *  output of every input, in input order (taproot sighashes commit to all
+   *  of them).
    *
-   *  An invalid spend is reported as `{valid: false, error}`, not thrown:
-   *  only malformed arguments throw.
+   *  `flags` selects the script verification flags by name. Without it the
+   *  standard flags are used (see `standardScriptFlags`); an empty array
+   *  means no flags at all.
+   *
+   *  An invalid spend is reported as `{valid: false, error, errorCode}`, not
+   *  thrown: only malformed arguments throw.
    *  Calls Go: txscript.NewEngine() and Engine.Execute() from btcd/txscript. */
-  async verifyScript(rawTx, inputIndex, prevOuts) {
+  async verifyScript(rawTx, inputIndex, prevOuts, flags) {
     await init();
-    return unwrap(g().txscript.verifyScript(rawTx, inputIndex, prevOuts));
+    return unwrap(g().txscript.verifyScript(rawTx, inputIndex, prevOuts, flags));
+  },
+  /** Execute the script pair of one input like `verifyScript` does, and
+   *  record the stack and alt stack before every op code, for stepping
+   *  through a script.
+   *  Calls Go: txscript.NewDebugEngine() and Engine.Execute() from btcd/txscript. */
+  async traceScript(rawTx, inputIndex, prevOuts, flags) {
+    await init();
+    return unwrap(g().txscript.traceScript(rawTx, inputIndex, prevOuts, flags));
+  },
+  /** The names of all script verification flags `verifyScript` and
+   *  `traceScript` accept. */
+  async scriptFlagNames() {
+    await init();
+    return unwrap(g().txscript.scriptFlagNames());
+  },
+  /** The names of the standard script verification flags: what a node
+   *  applies to transactions entering its mempool while none of the tapscript
+   *  op code upgrades (BIP 446, 348, 349) is active. With these,
+   *  OP_TEMPLATEHASH, OP_CHECKSIGFROMSTACK and OP_INTERNALKEY are rejected as
+   *  discouraged. Remove a `DISCOURAGE_*` flag to execute its op code, and
+   *  also the flag of the op code itself (plus `DISCOURAGE_OP_SUCCESS`) to
+   *  see the OP_SUCCESS behavior it has before activation.
+   *  Calls Go: txscript.StandardVerifyFlags from btcd/txscript. */
+  async standardScriptFlags() {
+    await init();
+    return unwrap(g().txscript.standardScriptFlags());
+  },
+  // -- script assembly --
+  /** Turn a human-readable script into its serialized form: the inverse of
+   *  `disasmString`. Tokens are separated by whitespace and are either an op
+   *  code name (`OP_DUP`, `OP_TEMPLATEHASH`, ...), one of the numbers `-1`
+   *  and `0` to `16`, or hex data, which becomes the smallest push of those
+   *  bytes. Prefix data with `0x` if it would otherwise be read as a number
+   *  (`0x10` is the byte 0x10, `10` is OP_10).
+   *  Calls Go: txscript.ScriptBuilder from btcd/txscript. */
+  async assembleScript(asm) {
+    await init();
+    return unwrap(g().txscript.assembleScript(asm));
+  },
+  // -- BIP 446 template hash --
+  /** Compute the BIP 446 template hash of an input: what OP_TEMPLATEHASH
+   *  pushes when that input is spent through a tapscript. It commits to the
+   *  version, lock time, all sequences and all outputs of the transaction,
+   *  the input index and the annex, but to none of the previous outputs.
+   *  `annex` is the full annex of the input, including the 0x50 tag.
+   *  Calls Go: txscript.CalcTemplateHash() from btcd/txscript. */
+  async calcTemplateHash(rawTx, inputIndex, annex) {
+    await init();
+    return unwrap(g().txscript.calcTemplateHash(rawTx, inputIndex, annex));
+  },
+  /** Compute the BIP 446 template hash of an input together with the fields
+   *  of the message that is hashed, for showing what the hash commits to.
+   *  Calls Go: txscript.CalcTemplateHash() from btcd/txscript. */
+  async templateHashPreimage(rawTx, inputIndex, annex) {
+    await init();
+    return unwrap(g().txscript.templateHashPreimage(rawTx, inputIndex, annex));
   }
 };
 
@@ -31884,6 +31954,23 @@ var btcec = {
   async schnorrVerify(pubKey, hash2, signature) {
     await init();
     return unwrap(g().btcec.schnorrVerify(pubKey, hash2, signature));
+  },
+  /** Sign a message of any length with Schnorr (BIP-340), as needed for
+   *  OP_CHECKSIGFROMSTACK (BIP 348). The message is used as is, it is not
+   *  hashed first. A 32-byte message is signed exactly as `schnorrSign` does.
+   *  Returns 64-byte signature.
+   *  Calls Go: schnorr.SignMessage() from btcd/btcec/v2/schnorr. */
+  async schnorrSignMessage(privKey, message) {
+    await init();
+    return unwrap(g().btcec.schnorrSignMessage(privKey, message));
+  },
+  /** Verify a BIP-340 Schnorr signature over a message of any length, as
+   *  OP_CHECKSIGFROMSTACK (BIP 348) does. The message is used as is, it is
+   *  not hashed first.
+   *  Calls Go: schnorr.Signature.VerifyMessage() from btcd/btcec/v2/schnorr. */
+  async schnorrVerifyMessage(pubKey, message, signature) {
+    await init();
+    return unwrap(g().btcec.schnorrVerifyMessage(pubKey, message, signature));
   },
   /** Parse a 32-byte x-only public key (BIP-340). Returns 33-byte compressed key.
    *  Calls Go: schnorr.ParsePubKey() from btcd/btcec/v2/schnorr. */
