@@ -705,6 +705,13 @@ pre.ec-formula {
 .th-verdict {
   margin-top: 12px;
 }
+.th-underfunded {
+  margin-top: 8px;
+  color: #8a6d3b;
+}
+.th-tradeoffs li {
+  margin-bottom: 8px;
+}
 .th-compare {
   margin: 10px 0;
   background: rgba(255, 255, 255, 0.5);

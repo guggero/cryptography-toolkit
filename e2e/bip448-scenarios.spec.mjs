@@ -52,6 +52,7 @@ test.describe('bip448-scenarios', () => {
       ['valid'],
       ['valid'],
       ['ErrTaprootSigInvalid', 'ErrTaprootSigInvalid'],
+      ['valid', 'valid'],
     ]);
   });
 
@@ -221,6 +222,7 @@ test.describe('bip448-scenarios', () => {
       ['A', 'B', 'sig', 'txA'],
       ['A', 'B', 'sig', 'txA', 'txB'],
       ['A', 'B', 'C', 'sig', 'txA', 'txB', 'txBob', 'txOther'],
+      ['A', 'B', 'D', 'loginSig', 'sig', 'txA', 'txB', 'txMallory', 'txSecond'],
     ];
     for (let i = 0; i < expected.length; i++) {
       await expect(step(page).locator('h4')).toContainText(`Step ${i + 1} of`);
@@ -231,7 +233,23 @@ test.describe('bip448-scenarios', () => {
       }
     }
 
-    // The last step: two rejected spends, using Alice's signature.
+    // The price of rebinding: both attacks are accepted by the script
+    // engine. The second payment is spent with the very same signature.
+    for (const id of ['txSecond', 'txMallory']) {
+      await expect(graphNode(page, id)).not.toHaveClass(/txg-rejected/);
+      await expect(graphNode(page, id)).toHaveClass(/txg-active/);
+    }
+    await expect(graphNode(page, 'D')).toContainText('120,000 sat');
+    await expect(graphNode(page, 'D')).toContainText('internal key Alice');
+    await expect(graphNode(page, 'txSecond')).toContainText('#0 90,000 sat');
+    await expect(page.locator('.txg-edge-sig.txg-active')).toHaveCount(2);
+    const challenge = (await step(page).locator('.sc-facts tr', {hasText: 'Mallory asked'})
+      .locator('code').innerText()).trim();
+    expect(challenge).toMatch(/^[0-9a-f]{64}$/);
+    await expect(graphNode(page, 'txMallory')).toContainText('P2WPKH to Mallory');
+
+    // The step before: two rejected spends, using Alice's signature.
+    await page.locator('.sc-steps li').nth(4).click();
     for (const id of ['txOther', 'txBob']) {
       await expect(graphNode(page, id)).toHaveClass(/txg-rejected/);
       await expect(graphNode(page, id)).toHaveClass(/txg-active/);
@@ -245,7 +263,7 @@ test.describe('bip448-scenarios', () => {
 
     // Clicking a node that is not part of this step goes to its step.
     await graphNode(page, 'txB').click();
-    await expect(step(page).locator('h4')).toContainText('Step 4 of 5');
+    await expect(step(page).locator('h4')).toContainText('Step 4 of 6');
     await expect(graphNode(page, 'txB')).toHaveClass(/txg-active/);
 
     // The transactions in the graph are the ones the step talks about.
@@ -412,9 +430,9 @@ test.describe('bip448-scenarios', () => {
 
   test('steps can be jumped to and switching scenarios starts over', async ({page}) => {
     await page.locator('.sc-steps li').nth(3).click();
-    await expect(step(page).locator('h4')).toContainText('Step 4 of 5');
+    await expect(step(page).locator('h4')).toContainText('Step 4 of 6');
     await page.locator('#sc-back').click();
-    await expect(step(page).locator('h4')).toContainText('Step 3 of 5');
+    await expect(step(page).locator('h4')).toContainText('Step 3 of 6');
 
     await scenario(page, 'payout').click();
     await expect(step(page).locator('h4')).toContainText('Step 1 of 4');

@@ -228,21 +228,66 @@ function Bip448ScenariosPageController($scope, bip448, txGraph) {
       'message than the one Alice signed.'
     );
 
+    // The price of rebinding: a second payment to the same address, and a
+    // signature over 32 bytes somebody else chose.
+    const SECOND = 120000;
+    const spendSecond = check(
+      'A stranger spends a second payment to the address of A', true,
+      {internalKey: alice, script: script, tx: update(outpoint('9', 0), 90000),
+        amount: SECOND, stack: [sig]},
+      'Alice never signed for this output. Carol is paid again, and the ' +
+      (SECOND - 90000).toLocaleString('en-US') + ' sat above her 90,000 go ' +
+      'to the miner as fee.'
+    );
+    const malloryKey = new Array(33).join('08');
+    const payMallory = bip448.p2wpkhScript(vm.lib, malloryKey);
+    graph.describe(payMallory, ['P2WPKH to Mallory']);
+    const malloryTx = {
+      version: 2,
+      locktime: 0,
+      inputs: [outpoint('a', 0)],
+      outputs: [{value: 99000, scriptPubKey: payMallory}]
+    };
+    const challenge = toHex(vm.lib.txscript.calcTemplateHash(
+      toHex(vm.lib.tx.encode({
+        version: 2, locktime: 0,
+        inputs: [{txid: malloryTx.inputs[0].txid, vout: 0, scriptSig: '',
+          sequence: malloryTx.inputs[0].sequence}],
+        outputs: malloryTx.outputs
+      })), 0
+    ));
+    const loginSig = toHex(vm.lib.btcec.schnorrSignMessage(
+      KEYS.alice, challenge
+    ));
+    const spendMallory = check(
+      'Mallory spends output A with Alice\'s "login" signature', true,
+      {internalKey: alice, script: script, tx: malloryTx, amount: 100000,
+        stack: [loginSig]},
+      'The 32 bytes Alice signed were the template hash of this ' +
+      'transaction.'
+    );
+
     const sigUser = ['Alice\'s signature'];
     graph
       .taproot(leaf.pkScript, alice, [{asm: asm}])
       .taproot(bobLeaf.pkScript, bob, [{asm: asm}])
       .output('A', {col: 0, row: 0, title: 'Output A', check: spendA,
-        active: [0, 2]})
+        active: [0, 2, 5]})
       .output('B', {col: 0, row: 1, title: 'Output B', check: spendB,
         active: [0, 3]})
       .sig('sig', {col: 0, row: 2, title: 'Alice\'s signature',
         lines: ['over the template hash ' + templateHash.slice(0, 8) + '…',
           'not over an input'],
-        value: sig, usedBy: ['txA', 'txB', 'txOther', 'txBob'],
-        active: [1, 2, 3, 4]})
+        value: sig, usedBy: ['txA', 'txB', 'txOther', 'txBob', 'txSecond'],
+        active: [1, 2, 3, 4, 5]})
       .output('C', {col: 0, row: 3, title: 'Output with Bob\'s key',
-        check: spendBob, active: [4]})
+        check: spendBob, active: [4], show: [4]})
+      .output('D', {col: 0, row: 4, title: 'Second payment to A\'s address',
+        check: spendSecond, active: [5]})
+      .sig('loginSig', {col: 0, row: 5, title: 'Alice\'s "login" signature',
+        lines: ['over 32 bytes Mallory chose:', 'the template hash of a',
+          'transaction paying Mallory'],
+        value: loginSig, usedBy: ['txMallory'], active: [5]})
       .tx('txA', {col: 1, row: 0, title: 'Spend output A', check: spendA,
         spends: 'A', witness: sigUser, active: [2]})
       .tx('txB', {col: 1, row: 1, title: 'Spend output B', check: spendB,
@@ -250,7 +295,12 @@ function Bip448ScenariosPageController($scope, bip448, txGraph) {
       .tx('txOther', {col: 1, row: 2, title: 'Spend A, pay 95,000',
         check: spendOther, spends: 'A', witness: sigUser, active: [4]})
       .tx('txBob', {col: 1, row: 3, title: 'Spend Bob\'s output',
-        check: spendBob, spends: 'C', witness: sigUser, active: [4]});
+        check: spendBob, spends: 'C', witness: sigUser, active: [4]})
+      .tx('txSecond', {col: 1, row: 4, title: 'Replay on the second payment',
+        check: spendSecond, spends: 'D', witness: sigUser, active: [5]})
+      .tx('txMallory', {col: 1, row: 5, title: 'Mallory spends A',
+        check: spendMallory, spends: 'A',
+        witness: ['Alice\'s "login" signature'], active: [5]});
 
     return {
       script: asm,
@@ -311,7 +361,8 @@ function Bip448ScenariosPageController($scope, bip448, txGraph) {
             'A normal signature could not do this: it commits to the ' +
             'outpoint and to the value and script of the output being ' +
             'spent. This is what "rebindable" means, and it is what lets a ' +
-            'later channel state spend any earlier one.'
+            'later channel state spend any earlier one. It is also its ' +
+            'main risk, as the last step shows.'
           ],
           facts: [
             {label: 'Transaction spending A', value: spendA.txid},
@@ -331,6 +382,48 @@ function Bip448ScenariosPageController($scope, bip448, txGraph) {
             {label: 'Address of the output with Bob\'s key', value: bobLeaf.address}
           ],
           checks: [spendBob, spendOther]
+        },
+        {
+          title: 'The price of rebinding',
+          text: [
+            'Alice\'s signature spends every output with her internal key ' +
+            'and this script, not only A and B. Suppose somebody pays to ' +
+            'her address again, ' + SECOND.toLocaleString('en-US') +
+            ' satoshis. Anybody who has seen the transaction that spent A ' +
+            'can publish it again with the new outpoint. No key is needed, ' +
+            'the witness is already public. Carol is paid a second time, ' +
+            'and since the value of the spent output is not signed, the ' +
+            'rest goes to the miner as fee. A payment of less than 90,000 ' +
+            'satoshis could not be spent by this transaction at all.',
+            'OP_CHECKSIGFROMSTACK verifies a signature over any 32 bytes. ' +
+            'If Alice ever uses the same key to sign a message somebody ' +
+            'else chose, for example a login challenge or an oracle ' +
+            'attestation, those 32 bytes can be the template hash of a ' +
+            'transaction that pays the attacker. Her "login" then spends ' +
+            'her output.',
+            'A normal signature covers the outpoint, the value and the ' +
+            'script of what it spends, so it is useless for any other ' +
+            'coin: reusing a key or an address only costs privacy. With ' +
+            'rebindable signatures it can authorize spending. ' +
+            'SIGHASH_ANYPREVOUT (BIP 118) has the same problem, but it ' +
+            'needs keys of a special type, so they are marked. A key used ' +
+            'with BIP 448 looks like any other key.',
+            'Protocols that use rebindable signatures have to rule this ' +
+            'out themselves: a fresh internal key for every contract, so ' +
+            'that only outputs meant to share a signature do; never using ' +
+            'such an output\'s address to receive; keys that sign nothing ' +
+            'but their own templates, and a protocol tag in every other ' +
+            'message signed with OP_CHECKSIGFROMSTACK; a state number in ' +
+            'the lock time where states must not be replayed out of order, ' +
+            'as in the LN-Symmetry channel; and moving any unexpected ' +
+            'payment away quickly through the key path.'
+          ],
+          facts: [
+            {label: 'The 32 bytes Mallory asked Alice to sign',
+              value: challenge},
+            {label: 'Alice\'s "login" signature', value: loginSig}
+          ],
+          checks: [spendSecond, spendMallory]
         }
       ]
     };

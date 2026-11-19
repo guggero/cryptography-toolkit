@@ -59,6 +59,36 @@ test.describe('template-hash', () => {
     await expect(changedRows(page)).toHaveCount(0);
   });
 
+  test('the fee is not covered and an underfunded spend is flagged', async ({page}) => {
+    // 100,000 + 50,000 spent, 90,000 + 55,000 paid out.
+    await expect(page.locator('#th-fee')).toHaveText('5,000 sat');
+    await expect(page.locator('#th-underfunded')).toHaveCount(0);
+    const before = await hash(page).innerText();
+
+    // More value in the spent output only raises the fee.
+    await first(page, 'input.amount').fill('1100000');
+    await expect(page.locator('#th-fee')).toHaveText('1,005,000 sat');
+    await expect(hash(page)).toHaveText(before);
+    await expect(check(page)).toHaveClass(/well-success/);
+
+    // Less value: the script still accepts it, but the transaction cannot
+    // be valid.
+    await first(page, 'input.amount').fill('1000');
+    await expect(page.locator('#th-fee')).toHaveText('-94,000 sat');
+    await expect(check(page)).toHaveClass(/well-success/);
+    await expect(page.locator('#th-underfunded'))
+      .toContainText('pays out 94,000 sat more than its inputs spend');
+  });
+
+  test('the security trade-offs are explained and sourced', async ({page}) => {
+    await expect(page.locator('#th-tradeoffs'))
+      .toContainText('Every output with the same script can be spent by the same transaction');
+    await expect(page.locator('#th-tradeoffs a[href="#!/bip448-scenarios"]')).toHaveCount(1);
+    await expect(page.locator(
+      'a[href="https://uncensoredtech.substack.com/p/when-one-signature-spends-multiple"]'
+    )).toHaveCount(1);
+  });
+
   test('every committed field changes the hash and breaks the spend', async ({page}) => {
     const cases = [
       ['vm.tx.version', '3', 'version'],

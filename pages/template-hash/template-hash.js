@@ -296,8 +296,24 @@ function TemplateHashPageController($scope, bip448) {
       bip448.flagsFor(vm.lib, states)
     );
 
+    // The template hash covers the outputs, but not the value of what the
+    // inputs spend. Whatever they hold above the outputs is the fee, and if
+    // they hold less, no script can make the transaction valid.
+    const sum = function (values) {
+      return values.reduce(function (total, value) {
+        return total + value;
+      }, 0);
+    };
+    const spent = sum(vm.current.amounts);
+    const paid = sum(vm.current.tx.outputs.map(function (output) {
+      return output.value;
+    }));
+
     const currentSigHash = sigHash();
     vm.check = {
+      spent: spent,
+      paid: paid,
+      fee: spent - paid,
       valid: result.valid,
       errorCode: result.errorCode,
       changed: changed,

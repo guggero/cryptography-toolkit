@@ -2789,6 +2789,9 @@ angular.module('app').run(['$templateCache', function($templateCache) {
     "          (Erk, the Ark variant BIP 448 refers to) and the\n" +
     "          <a href=\"https://ark-protocol.org/intro/connectors/index.html\">Ark protocol documentation</a>\n" +
     "          on forfeits and connectors</li>\n" +
+    "        <li><a href=\"https://uncensoredtech.substack.com/p/when-one-signature-spends-multiple\">When one signature spends multiple coins</a>,\n" +
+    "          on the risks of reusing keys and addresses with rebindable\n" +
+    "          signatures</li>\n" +
     "        <li><a href=\"#!/template-hash\">Template Hash explorer</a> and\n" +
     "          <a href=\"#!/tapscript-debugger\">Tapscript Debugger</a> on this site</li>\n" +
     "        <li><a href=\"https://github.com/guggero/btcutil-js\">btcutil-js library</a></li>\n" +
@@ -6735,6 +6738,8 @@ angular.module('app').run(['$templateCache', function($templateCache) {
     "      <code>OP_TEMPLATEHASH &lt;hash&gt; OP_EQUAL</code>, and every edit is\n" +
     "      checked by really spending that output with the script engine of\n" +
     "      <a href=\"https://github.com/btcsuite/btcd\">btcd</a>.<br/><br/>\n" +
+    "      Leaving out the spent outputs also has a price: see the security\n" +
+    "      trade-offs at the end of the page.<br/><br/>\n" +
     "      <strong>The op code is a proposal and not active on any Bitcoin\n" +
     "      network.</strong>\n" +
     "\n" +
@@ -6743,6 +6748,9 @@ angular.module('app').run(['$templateCache', function($templateCache) {
     "        <li><a href=\"https://github.com/bitcoin/bips/blob/master/bip-0446.md\">BIP 446: OP_TEMPLATEHASH</a></li>\n" +
     "        <li><a href=\"https://github.com/bitcoin/bips/blob/master/bip-0448.md\">BIP 448: Taproot-native (Re)bindable Transactions</a></li>\n" +
     "        <li><a href=\"https://github.com/bitcoin/bips/blob/master/bip-0341.mediawiki\">BIP 341: Taproot</a>, which defines the signature hash this is compared with</li>\n" +
+    "        <li><a href=\"https://uncensoredtech.substack.com/p/when-one-signature-spends-multiple\">When one signature spends multiple coins</a>,\n" +
+    "          on the risks of reusing keys and addresses with rebindable\n" +
+    "          signatures</li>\n" +
     "        <li><a href=\"#!/tapscript-debugger\">Tapscript Debugger</a> and\n" +
     "          <a href=\"#!/bip448-scenarios\">BIP 448 scenarios</a> on this site</li>\n" +
     "        <li><a href=\"https://github.com/guggero/btcutil-js\">btcutil-js library</a></li>\n" +
@@ -6923,7 +6931,29 @@ angular.module('app').run(['$templateCache', function($templateCache) {
     "          </span>\n" +
     "        </div>\n" +
     "\n" +
+    "        <div ng-if=\"vm.check.valid && vm.check.fee < 0\" class=\"th-underfunded\"\n" +
+    "             id=\"th-underfunded\">\n" +
+    "          <i class=\"fas fa-exclamation-triangle\"></i>\n" +
+    "          The script accepts it, but the transaction is still not valid: it\n" +
+    "          pays out {{-vm.check.fee | number}} sat more than its inputs spend.\n" +
+    "          The template hash does not cover the values of the spent outputs,\n" +
+    "          so it cannot prevent this. An output locked to a transaction that\n" +
+    "          pays out more than the output holds can never be spent.\n" +
+    "        </div>\n" +
+    "\n" +
     "        <table class=\"table table-condensed th-compare\">\n" +
+    "          <tr>\n" +
+    "            <td>Fee</td>\n" +
+    "            <td id=\"th-fee\">\n" +
+    "              <span ng-class=\"vm.check.fee < 0 ? 'label label-danger' : 'label label-default'\">\n" +
+    "                {{vm.check.fee | number}} sat\n" +
+    "              </span>\n" +
+    "            </td>\n" +
+    "            <td><small>value of the spent outputs\n" +
+    "              ({{vm.check.spent | number}} sat) minus the outputs\n" +
+    "              ({{vm.check.paid | number}} sat). Not covered by the template\n" +
+    "              hash: a spent output with more value pays more fee.</small></td>\n" +
+    "          </tr>\n" +
     "          <tr>\n" +
     "            <td>Template hash</td>\n" +
     "            <td id=\"th-hash-state\">\n" +
@@ -6985,6 +7015,51 @@ angular.module('app').run(['$templateCache', function($templateCache) {
     "  committed to through their sequence numbers: adding an input changes\n" +
     "  <code>sha_sequences</code>.\n" +
     "</p>\n" +
+    "\n" +
+    "<h4>Security trade-offs</h4>\n" +
+    "<div class=\"th-tradeoffs\" id=\"th-tradeoffs\">\n" +
+    "  <p>\n" +
+    "    Leaving out the spent outputs is what makes the template hash useful,\n" +
+    "    and it is also where its risks are:\n" +
+    "  </p>\n" +
+    "  <ul>\n" +
+    "    <li>\n" +
+    "      <strong>Every output with the same script can be spent by the same\n" +
+    "      transaction.</strong> The script only holds the hash, but once the\n" +
+    "      transaction is published, anybody knows it. If anyone pays to the\n" +
+    "      address of a locked output a second time, anybody can publish the\n" +
+    "      same transaction again with only the outpoint changed. No key is\n" +
+    "      needed, and the outputs are paid a second time. Try it above: change\n" +
+    "      the transaction ID or the index of the spent output, and the spend\n" +
+    "      stays valid. A locked address must never be used to receive, and\n" +
+    "      every output should get its own script.\n" +
+    "    </li>\n" +
+    "    <li>\n" +
+    "      <strong>The values of the spent outputs are not covered.</strong>\n" +
+    "      If a spent output holds more than planned, the difference goes to the\n" +
+    "      miner as fee (see <em>Fee</em> above). If it holds less, the\n" +
+    "      transaction is not valid at all. BIP 446 leaves out the amounts\n" +
+    "      partly so that such a mistake can be fixed: if the committed\n" +
+    "      transaction has more than one input, a new coin of the right value\n" +
+    "      can be spent alongside the stuck one. Adding an input does not help,\n" +
+    "      it changes the template hash. With a single input and no other way\n" +
+    "      to spend the output, the coins are stuck for good.\n" +
+    "    </li>\n" +
+    "    <li>\n" +
+    "      <strong>The same goes for signatures over the template hash.</strong>\n" +
+    "      A signature checked with <code>OP_CHECKSIGFROMSTACK</code> against\n" +
+    "      the template hash is rebindable: it is valid for every output with\n" +
+    "      the same key and script. Since that opcode verifies a signature over\n" +
+    "      any 32 bytes, a key that ever signs a message somebody else chose can\n" +
+    "      be tricked into signing a template hash. A normal signature covers\n" +
+    "      the outpoints, values and scripts of what it spends, so with normal\n" +
+    "      signatures reusing a key or an address only costs privacy. With\n" +
+    "      rebindable signatures it can authorize spending. See the\n" +
+    "      <a href=\"#!/bip448-scenarios\">rebindable signature scenario</a> for\n" +
+    "      both attacks, checked by the script engine.\n" +
+    "    </li>\n" +
+    "  </ul>\n" +
+    "</div>\n" +
     "\n" +
     "</div>\n"
   );
