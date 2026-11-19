@@ -132,6 +132,53 @@ test.describe('bip448-scenarios', () => {
     await expect(page.locator('#dbg-status')).toContainText('ran to its end');
   });
 
+  test('mining pool payout from a single coinbase output', async ({page}) => {
+    await scenario(page, 'pool').click();
+    await expect(scenario(page, 'pool')).toHaveClass(/sc-card-active/);
+    expect(await walk(page)).toEqual([
+      [],
+      [],
+      ['valid'],
+      ['ErrEvalFalse', 'valid'],
+    ]);
+
+    const fact = (label) => step(page)
+      .locator('.sc-facts tr', {hasText: label}).locator('code');
+
+    // The coinbase output holds exactly what the payout pays out, the
+    // anchor has no value.
+    await page.locator('.sc-steps li').nth(0).click();
+    await expect(fact('Sum of the payout outputs')).toHaveText('322,500,000 sat');
+    await expect(fact('Block reward')).toHaveText('322,500,000 sat');
+    await expect(fact('P2A anchor')).toHaveText('0 sat');
+    await expect(graphNode(page, 'payout')).toHaveClass(/txg-draft/);
+    await expect(graphNode(page, 'payout')).toContainText('P2A anchor');
+
+    await page.locator('.sc-steps li').nth(1).click();
+    await expect(fact('Value of the coinbase output')).toHaveText('322,500,000 sat');
+    await expect(fact('Sum of the payout outputs')).toHaveText('322,500,000 sat');
+    const hash = (await fact('Template hash of the payout').innerText()).trim();
+    expect(hash).toMatch(/^[0-9a-f]{64}$/);
+    await expect(fact('Script of the coinbase output'))
+      .toHaveText(`OP_TEMPLATEHASH ${hash} OP_EQUAL`);
+    const coinbaseTxid = (await fact('Coinbase transaction ID').innerText()).trim();
+    await expect(graphNode(page, 'coinbase')).toContainText(coinbaseTxid.slice(0, 8));
+    await expect(graphNode(page, 'coinbase')).toContainText('322,500,000 sat');
+    const size = parseInt(await fact('Size of this coinbase').innerText(), 10);
+    const direct = parseInt(await fact('pays the 5 recipients directly').innerText(), 10);
+    expect(size).toBeLessThan(direct);
+
+    await page.locator('.sc-steps li').nth(2).click();
+    await expect(graphNode(page, 'payout')).toHaveAttribute('data-txid',
+      (await fact('Payout transaction').innerText()).trim());
+    await expect(graphNode(page, 'payout')).not.toHaveClass(/txg-draft/);
+
+    await page.locator('.sc-steps li').nth(3).click();
+    expect((await graphIds(page)).sort()).toEqual(
+      ['bigger', 'coinbase', 'payout', 'samePayout', 'shortchange']);
+    await expect(graphNode(page, 'bigger')).toContainText('422,500,000 sat');
+  });
+
   test('channel: the latest state replaces an older one', async ({page}) => {
     await scenario(page, 'channel').click();
     await expect(scenario(page, 'channel')).toHaveClass(/sc-card-active/);

@@ -47,6 +47,13 @@ function Bip448ScenariosPageController($scope, bip448, txGraph) {
         'transaction, without anybody signing it.'
     },
     {
+      id: 'pool',
+      title: 'Mining pool payout',
+      opcodes: 'OP_TEMPLATEHASH',
+      summary: 'A coinbase with a single output that pays every miner ' +
+        'of a pool later, without a signature.'
+    },
+    {
       id: 'channel',
       title: 'LN-Symmetry channel',
       opcodes: 'OP_TEMPLATEHASH, OP_INTERNALKEY, OP_CHECKSIGFROMSTACK',
@@ -723,7 +730,240 @@ function Bip448ScenariosPageController($scope, bip448, txGraph) {
     };
   }
 
-  // ---- scenario 5: LN-Symmetry channel -----------------------------------
+  // ---- scenario 5: mining pool payout ------------------------------------
+
+  function buildPool() {
+    const lib = vm.lib;
+    const HEIGHT = 950000;
+    const SUBSIDY = 312500000;
+    const FEES = 10000000;
+    const REWARD = SUBSIDY + FEES;
+    const BTC = 100000000;
+    const ANCHOR = {value: 0, scriptPubKey: '51024e73'};
+
+    // Two more participants with fixed example keys, like the others.
+    const daveKey = new Array(33).join('04');
+    const poolKey = new Array(33).join('05');
+    const dave = bip448.p2wpkhScript(lib, daveKey);
+    const pool = bip448.p2wpkhScript(lib, poolKey);
+    graph
+      .describe(dave, ['P2WPKH to Dave'])
+      .describe(pool, ['P2WPKH to the pool'])
+      .describe(ANCHOR.scriptPubKey, ['P2A anchor, anyone can spend']);
+
+    // The pool keeps 2% and splits the rest by the shares of the miners.
+    const poolFee = REWARD * 2 / 100;
+    const split = REWARD - poolFee;
+    const recipients = [
+      {label: 'Pool fee (2%)', value: poolFee, script: pool},
+      {label: 'Alice (40% of the shares)', value: split * 40 / 100, script: payTo('alice')},
+      {label: 'Bob (30% of the shares)', value: split * 30 / 100, script: payTo('bob')},
+      {label: 'Carol (20% of the shares)', value: split * 20 / 100, script: payTo('carol')},
+      {label: 'Dave (10% of the shares)', value: split * 10 / 100, script: dave}
+    ];
+    const payoutOutputs = function (shift) {
+      // shift moves satoshis from Bob to the pool.
+      return recipients.map(function (r, i) {
+        return {
+          value: r.value + (i === 0 ? shift : 0) - (i === 2 ? shift : 0),
+          scriptPubKey: r.script
+        };
+      }).concat([ANCHOR]);
+    };
+    const sum = function (outputs) {
+      return outputs.reduce(function (total, output) {
+        return total + output.value;
+      }, 0);
+    };
+
+    const NO_SEQ = 4294967295;
+    // A coinbase with the given outputs. Its only input commits to the
+    // block height (BIP 34).
+    const coinbase = function (outputs) {
+      const raw = toHex(lib.tx.encode({
+        version: 2,
+        locktime: 0,
+        inputs: [{
+          txid: new Array(65).join('0'), vout: NO_SEQ,
+          scriptSig: '03' + scriptNum(HEIGHT), sequence: NO_SEQ
+        }],
+        outputs: outputs
+      }));
+      return {raw: raw, txid: lib.tx.hash(raw), size: raw.length / 2};
+    };
+
+    // The payout transaction. The input is only a placeholder when the
+    // template hash is computed, since the hash does not cover it.
+    const payout = function (txid, shift) {
+      return {
+        version: 3,
+        locktime: 0,
+        inputs: [{txid: txid, vout: 0, sequence: 4294967293}],
+        outputs: payoutOutputs(shift || 0)
+      };
+    };
+    const templateHash = toHex(lib.txscript.calcTemplateHash(
+      toHex(lib.tx.encode({
+        version: 3, locktime: 0,
+        inputs: [{txid: new Array(65).join('0'), vout: 0, scriptSig: '',
+          sequence: 4294967293}],
+        outputs: payoutOutputs(0)
+      })), 0
+    ));
+    const asm = 'OP_TEMPLATEHASH ' + templateHash + ' OP_EQUAL';
+    const script = assemble(asm);
+    const leaf = bip448.leafOutput(lib, bip448.NUMS_KEY, script);
+
+    const total = sum(payoutOutputs(0));
+    const cb = coinbase([{value: REWARD, scriptPubKey: leaf.pkScript}]);
+    const cbBigger = coinbase([
+      {value: REWARD + BTC, scriptPubKey: leaf.pkScript}
+    ]);
+    const cbDirect = coinbase(recipients.map(function (r) {
+      return {value: r.value, scriptPubKey: r.script};
+    }));
+
+    const spend = function (label, expectValid, txid, amount, shift, note) {
+      return check(label, expectValid, {
+        internalKey: bip448.NUMS_KEY,
+        script: script,
+        tx: payout(txid, shift),
+        amount: amount,
+        stack: []
+      }, note);
+    };
+    const payNow = spend('Pay out from the coinbase output', true,
+      cb.txid, REWARD);
+    const shortchange = spend(
+      'The pool moves 0.1 BTC from Bob to itself', false, cb.txid, REWARD,
+      BTC / 10,
+      'The outputs differ, so OP_EQUAL leaves false on the stack.');
+    const bigger = spend(
+      'The same payout from a coinbase output with 1 BTC more', true,
+      cbBigger.txid, REWARD + BTC, 0,
+      'Valid, and the extra 100,000,000 sat would go to whoever mines the ' +
+      'payout transaction, as its fee.');
+
+    const sats = function (value) {
+      return value.toLocaleString('en-US') + ' sat';
+    };
+    const noSig = ['no signature'];
+    graph
+      .name(templateHash, 'payout hash')
+      .taproot(leaf.pkScript, bip448.NUMS_KEY, [{asm: asm}])
+      .output('coinbase', {col: 0, row: 0, title: 'Coinbase output',
+        check: payNow, active: [1, 2, 3]})
+      .output('bigger', {col: 0, row: 2, title: 'Coinbase with 1 BTC more',
+        check: bigger, active: [3]})
+      .tx('payout', {col: 1, row: 0, title: 'Payout', check: payNow,
+        spends: 'coinbase', witness: noSig, notes: ['version 3, no fee'],
+        active: [0, 2], draft: [0, 1]})
+      .tx('shortchange', {col: 1, row: 1, title: 'Pool shortchanges Bob',
+        check: shortchange, spends: 'coinbase', witness: noSig,
+        notes: ['version 3, no fee'], active: [3]})
+      .tx('samePayout', {col: 1, row: 2, title: 'Same payout, bigger input',
+        check: bigger, spends: 'bigger', witness: noSig,
+        notes: ['version 3, fee 100,000,000 sat'], active: [3]});
+
+    return {
+      script: asm,
+      steps: [
+        {
+          title: 'The payouts of one block',
+          text: [
+            'A mining pool that pays its miners directly in the coinbase ' +
+            'needs one output per miner. Every output makes the coinbase ' +
+            'bigger, and every byte of the coinbase is a byte the block ' +
+            'cannot use for transactions that pay fees. A P2WPKH output ' +
+            'takes 31 bytes, so paying 500 miners takes about 15,500 bytes ' +
+            'of the block.',
+            'Instead, the pool prepares a payout transaction for the block ' +
+            'it is working on: one output per miner, split by their shares, ' +
+            'and a P2A anchor output with a value of zero. The outputs add ' +
+            'up to exactly the block reward, so the transaction pays no ' +
+            'fee. It does not spend anything yet.'
+          ],
+          facts: recipients.map(function (r) {
+            return {label: r.label, value: sats(r.value)};
+          }).concat([
+            {label: 'P2A anchor', value: sats(ANCHOR.value)},
+            {label: 'Sum of the payout outputs', value: sats(total)},
+            {label: 'Block reward (subsidy ' + sats(SUBSIDY) + ' + fees ' +
+              sats(FEES) + ')', value: sats(REWARD)}
+          ])
+        },
+        {
+          title: 'A coinbase with one output',
+          text: [
+            'The coinbase gets a single output: the whole block reward, ' +
+            'locked by a script that compares the template hash of ' +
+            'whatever spends it with the hash of the payout transaction. ' +
+            'The internal key is a point nobody knows the private key of, ' +
+            'so the pool cannot take the funds through the key path.',
+            'The value of the coinbase output is exactly the sum of the ' +
+            'payout outputs. The script does not check that: the template ' +
+            'hash does not cover the value of the output being spent. Any ' +
+            'value above the sum would go to whoever mines the payout ' +
+            'transaction, as its fee.',
+            'So before working on the block, every miner gets the full ' +
+            'list of payout outputs with the job, recomputes the template ' +
+            'hash, and checks that the coinbase output has this hash and ' +
+            'the right value. The list cannot be replaced by the hash: ' +
+            'without it nobody can check their payout, or publish the ' +
+            'payout transaction later.'
+          ],
+          facts: [
+            {label: 'Template hash of the payout', value: templateHash},
+            {label: 'Script of the coinbase output', value: asm},
+            {label: 'Value of the coinbase output', value: sats(REWARD)},
+            {label: 'Sum of the payout outputs', value: sats(total)},
+            {label: 'Coinbase transaction ID', value: cb.txid},
+            {label: 'Size of this coinbase', value: cb.size + ' bytes'},
+            {label: 'Size of a coinbase that pays the ' + recipients.length +
+              ' recipients directly', value: cbDirect.size + ' bytes'}
+          ]
+        },
+        {
+          title: '100 blocks later, anyone pays out',
+          text: [
+            'Consensus only allows spending a coinbase output 100 blocks ' +
+            'after it was mined. From then on, any miner of the pool can ' +
+            'publish the payout transaction. It needs no signature: the ' +
+            'witness is just the script and the control block.',
+            'The payout is a version 3 (TRUC) transaction without a fee. ' +
+            'Whoever publishes it adds a child transaction that spends the ' +
+            'anchor output and pays the fee for both, at the fee rate of ' +
+            'the moment. The template hash covers the version, so it has ' +
+            'to be chosen when the hash is computed.',
+            'A version 3 transaction may be at most 10,000 vbytes, which ' +
+            'is room for about 300 P2WPKH outputs. A bigger pool would ' +
+            'split its payout into a tree of such transactions, each ' +
+            'output locked to the next level by its template hash.'
+          ],
+          facts: [
+            {label: 'Payout transaction', value: payNow.txid}
+          ],
+          checks: [payNow]
+        },
+        {
+          title: 'What the template hash covers',
+          text: [
+            'Once the block is mined, the pool cannot change the split. ' +
+            'Any other set of outputs has a different template hash and ' +
+            'is rejected.',
+            'The value of the coinbase output is not covered. The very same ' +
+            'payout transaction can spend an output that holds one bitcoin ' +
+            'more, and that bitcoin becomes its fee. Checking that the ' +
+            'coinbase value matches the payout is the job of the miners, ' +
+            'not of the script.'
+          ],
+          checks: [shortchange, bigger]
+        }
+      ]
+    };
+  }
+
+  // ---- scenario 6: LN-Symmetry channel -----------------------------------
 
   // A number as a minimally encoded script number (hex), the way it has to
   // be pushed for OP_CHECKLOCKTIMEVERIFY.
@@ -1167,6 +1407,7 @@ function Bip448ScenariosPageController($scope, bip448, txGraph) {
     oracle: buildOracle,
     delegation: buildDelegation,
     payout: buildPayout,
+    pool: buildPool,
     channel: buildChannel
   };
 
