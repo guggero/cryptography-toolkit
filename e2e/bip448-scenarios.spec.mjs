@@ -322,9 +322,12 @@ test.describe('bip448-scenarios', () => {
       [await checks(page).nth(2).getByRole('link').getAttribute('href'), sig1],
     ];
     for (const [href, sig] of links) {
-      // The debugger only reads its link when it is opened, so load it fresh.
+      // The debugger only reads its link when it is opened: leave it first
+      // so that the next link opens a fresh one. A reload instead could cut
+      // off loading the WASM module, which Firefox reports as an error.
+      await page.goto('/index.html#!/');
+      await expect(page.locator('h1').first()).not.toContainText('Tapscript Debugger');
       await page.goto(`/index.html${href}`);
-      await page.reload();
       await expect(page.locator('h1')).toContainText('Tapscript Debugger');
       await expect(page.getByText('Initializing WebAssembly')).toHaveCount(0);
       await expect(page.locator('#dbg-result')).toHaveClass(/well-success/);
