@@ -860,6 +860,124 @@ pre.ec-formula {
 .sc-nav {
   margin-top: 15px;
 }
+
+/* BIP 448 scenarios: transaction graph */
+.sc-graph {
+  margin-bottom: 15px;
+}
+.sc-graph-head {
+  margin-bottom: 8px;
+}
+.sc-graph-head a {
+  cursor: pointer;
+  font-weight: 700;
+  margin-right: 10px;
+}
+.sc-graph-legend {
+  color: #777;
+}
+.sc-graph-bad {
+  color: #a94442;
+}
+.sc-graph-wrap {
+  overflow-x: auto;
+}
+.txg {
+  display: block;
+  max-width: 100%;
+  height: auto;
+}
+.txg-bg {
+  fill: #fff;
+}
+.txg-box {
+  fill: none;
+  stroke: #999;
+}
+.txg-head {
+  fill: #eee;
+}
+.txg-tx .txg-box {
+  stroke: #5d4e46;
+}
+.txg-tx .txg-head {
+  fill: #f7f4f2;
+}
+.txg-sig .txg-box {
+  stroke: #31708f;
+}
+.txg-sig .txg-head {
+  fill: #d9edf7;
+}
+.txg-rejected .txg-box {
+  stroke: #a94442;
+  stroke-dasharray: 5 3;
+}
+.txg-rejected .txg-head {
+  fill: #f9e2e2;
+}
+.txg-draft .txg-box {
+  stroke-dasharray: 5 3;
+}
+.txg-node.txg-active .txg-box {
+  stroke-width: 2;
+}
+.txg-faded {
+  opacity: 0.4;
+}
+.txg-node[data-step] {
+  cursor: pointer;
+}
+.txg-node[data-step]:hover {
+  opacity: 0.8;
+}
+.txg-title {
+  font: bold 12px "Helvetica Neue", Helvetica, Arial, sans-serif;
+  fill: #333;
+}
+.txg-line {
+  font-family: Menlo, Monaco, Consolas, "Courier New", monospace;
+  font-size: 11px;
+  fill: #555;
+}
+.txg-value {
+  fill: #333;
+  font-weight: 700;
+}
+.txg-section {
+  fill: #333;
+}
+.txg-muted {
+  fill: #999;
+}
+.txg-ok {
+  fill: #3c763d;
+}
+.txg-bad {
+  fill: #a94442;
+}
+.txg-edge {
+  fill: none;
+  stroke: #5d4e46;
+  stroke-width: 1.5;
+}
+.txg-edge-sig {
+  stroke: #31708f;
+  stroke-dasharray: 2 3;
+}
+.txg-edge.txg-edge-rejected {
+  stroke: #a94442;
+  stroke-dasharray: 5 3;
+}
+.txg-arrow {
+  fill: #5d4e46;
+}
+.txg-arrow-sig {
+  fill: #31708f;
+}
+.txg-arrow-rejected {
+  fill: #a94442;
+}
 .dbg-forks .btn-group {
   display: flex;
   flex-wrap: nowrap;

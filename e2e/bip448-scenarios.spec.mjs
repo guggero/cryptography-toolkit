@@ -4,6 +4,9 @@ const scenario = (page, id) => page.locator(`[data-scenario="${id}"]`);
 const step = (page) => page.locator('#sc-step');
 const checks = (page) => page.locator('.sc-check');
 const next = (page) => page.locator('#sc-next');
+const graphNode = (page, id) => page.locator(`.txg-node[data-node="${id}"]`);
+const graphIds = (page) => page.locator('.txg-node')
+  .evaluateAll((nodes) => nodes.map((node) => node.dataset.node));
 
 // The verdicts of the script engine for every step of a scenario: one list
 // per step, 'valid' or the error code of each check.
@@ -161,6 +164,104 @@ test.describe('bip448-scenarios', () => {
     await expect(page.locator('#dbg-result')).toHaveClass(/well-success/);
     await page.locator('#dbg-toggle-details').click();
     await expect(page.locator('.dbg-details')).toContainText(sig);
+  });
+
+  test('the transaction graph follows the steps of the scenario', async ({page}) => {
+    const expected = [
+      ['A', 'B'],
+      ['A', 'B', 'sig'],
+      ['A', 'B', 'sig', 'txA'],
+      ['A', 'B', 'sig', 'txA', 'txB'],
+      ['A', 'B', 'C', 'sig', 'txA', 'txB', 'txBob', 'txOther'],
+    ];
+    for (let i = 0; i < expected.length; i++) {
+      await expect(step(page).locator('h4')).toContainText(`Step ${i + 1} of`);
+      expect((await graphIds(page)).sort(), `step ${i + 1}`)
+        .toEqual(expected[i]);
+      if (i < expected.length - 1) {
+        await next(page).click();
+      }
+    }
+
+    // The last step: two rejected spends, using Alice's signature.
+    for (const id of ['txOther', 'txBob']) {
+      await expect(graphNode(page, id)).toHaveClass(/txg-rejected/);
+      await expect(graphNode(page, id)).toHaveClass(/txg-active/);
+      await expect(graphNode(page, id)).toContainText('ErrTaprootSigInvalid');
+    }
+    await expect(graphNode(page, 'txA')).toHaveClass(/txg-faded/);
+    await expect(graphNode(page, 'C')).toContainText('internal key Bob');
+    // A, B and C spent once each, the signature used four times.
+    await expect(page.locator('.txg-edge-spend')).toHaveCount(4);
+    await expect(page.locator('.txg-edge-sig')).toHaveCount(4);
+
+    // Clicking a node that is not part of this step goes to its step.
+    await graphNode(page, 'txB').click();
+    await expect(step(page).locator('h4')).toContainText('Step 4 of 5');
+    await expect(graphNode(page, 'txB')).toHaveClass(/txg-active/);
+
+    // The transactions in the graph are the ones the step talks about.
+    const txids = await step(page).locator('.sc-facts code').allInnerTexts();
+    await expect(graphNode(page, 'txA')).toHaveAttribute('data-txid', txids[0].trim());
+    await expect(graphNode(page, 'txB')).toHaveAttribute('data-txid', txids[1].trim());
+
+    await page.locator('#sc-graph-toggle').click();
+    await expect(page.locator('.txg')).toHaveCount(0);
+    await page.locator('#sc-graph-toggle').click();
+    await expect(page.locator('.txg')).toHaveCount(1);
+  });
+
+  test('the channel graph shows each history separately', async ({page}) => {
+    await scenario(page, 'channel').click();
+    const expected = [
+      ['funding'],
+      ['funding', 'settle1', 'update1'],
+      ['funding', 'settle1', 'settle2', 'update1', 'update2'],
+      ['funding', 'settle2', 'settle2Early', 'update2'],
+      ['funding', 'replace1', 'settle1', 'settle2Again', 'update1'],
+      ['downgrade', 'funding', 'settleWrong', 'update2'],
+    ];
+    for (let i = 0; i < expected.length; i++) {
+      await page.locator('.sc-steps li').nth(i).click();
+      await expect(step(page).locator('h4')).toContainText(`Step ${i + 1} of`);
+      expect((await graphIds(page)).sort(), `step ${i + 1}`)
+        .toEqual(expected[i]);
+    }
+
+    // The old state is replaced: update 1, then update 2 spending its
+    // state output, then settlement 2. Settlement 1 is never published.
+    await page.locator('.sc-steps li').nth(4).click();
+    await expect(page.locator('.txg-edge-spend')).toHaveCount(4);
+    await expect(graphNode(page, 'settle1')).toHaveClass(/txg-draft/);
+    await expect(graphNode(page, 'replace1')).toContainText('spends Update 1 #0');
+    await expect(graphNode(page, 'replace1')).toContainText('via update leaf');
+    await expect(graphNode(page, 'update1')).toContainText('settlement leaf');
+    const fact = (label) => step(page)
+      .locator('.sc-facts tr', {hasText: label}).locator('code');
+    await expect(graphNode(page, 'update1')).toHaveAttribute('data-txid',
+      (await fact('Update 1 spending the funding output').innerText()).trim());
+    await expect(graphNode(page, 'replace1')).toHaveAttribute('data-txid',
+      (await fact('Update 2 spending state output 1').innerText()).trim());
+
+    await page.locator('.sc-steps li').nth(5).click();
+    await expect(graphNode(page, 'downgrade')).toContainText('ErrUnsatisfiedLockTime');
+    await expect(graphNode(page, 'settleWrong')).toContainText('ErrEvalFalse');
+    await expect(page.locator('.txg-edge-rejected')).toHaveCount(2);
+  });
+
+  test('the oracle graph follows the outcome', async ({page}) => {
+    await scenario(page, 'oracle').click();
+    await page.locator('.sc-steps li').nth(2).click();
+    await expect(graphNode(page, 'alice')).not.toHaveClass(/txg-rejected/);
+    await expect(graphNode(page, 'bob')).toHaveClass(/txg-rejected/);
+    await expect(graphNode(page, 'bet')).toContainText('yes leaf: <"BTC>100k:yes">');
+
+    await page.locator('.sc-steps li').nth(1).click();
+    await page.locator('#sc-outcome-no').click();
+    await expect(graphNode(page, 'oracleSig')).toContainText('"BTC>100k:no"');
+    await page.locator('.sc-steps li').nth(2).click();
+    await expect(graphNode(page, 'alice')).toHaveClass(/txg-rejected/);
+    await expect(graphNode(page, 'bob')).not.toHaveClass(/txg-rejected/);
   });
 
   test('steps can be jumped to and switching scenarios starts over', async ({page}) => {

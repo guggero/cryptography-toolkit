@@ -198,6 +198,7 @@ angular.module('app').run(['$templateCache', function($templateCache) {
     "  <script src=\"pages/bip448/bip448-service.js\"></script>\n" +
     "  <script src=\"pages/tapscript-debugger/tapscript-debugger.js\"></script>\n" +
     "  <script src=\"pages/template-hash/template-hash.js\"></script>\n" +
+    "  <script src=\"pages/bip448-scenarios/tx-graph.js\"></script>\n" +
     "  <script src=\"pages/bip448-scenarios/bip448-scenarios.js\"></script>\n" +
     "\n" +
     "  <title>Cryptography Toolkit</title>\n" +
@@ -2824,6 +2825,26 @@ angular.module('app').run(['$templateCache', function($templateCache) {
     "      {{step.title}}\n" +
     "    </li>\n" +
     "  </ol>\n" +
+    "\n" +
+    "  <div class=\"sc-graph\" ng-if=\"vm.scenario.graph\">\n" +
+    "    <div class=\"sc-graph-head\">\n" +
+    "      <a ng-click=\"vm.showGraph = !vm.showGraph\" id=\"sc-graph-toggle\">\n" +
+    "        <i class=\"fas\" ng-class=\"vm.showGraph ? 'fa-caret-down' : 'fa-caret-right'\"></i>\n" +
+    "        Transaction graph\n" +
+    "      </a>\n" +
+    "      <small ng-if=\"vm.showGraph\" class=\"sc-graph-legend\">\n" +
+    "        solid arrow: spends an output &middot;\n" +
+    "        dotted arrow: signature used in the witness &middot;\n" +
+    "        <span class=\"sc-graph-bad\">red, dashed: rejected by the script engine</span> &middot;\n" +
+    "        dashed box: prepared, not published &middot;\n" +
+    "        faded: not part of this step, click to go there\n" +
+    "      </small>\n" +
+    "    </div>\n" +
+    "    <div class=\"sc-graph-wrap\" ng-if=\"vm.showGraph\">\n" +
+    "      <tx-graph graph=\"vm.scenario.graph\" step=\"vm.stepIndex\"\n" +
+    "                on-select=\"vm.goTo(step)\"></tx-graph>\n" +
+    "    </div>\n" +
+    "  </div>\n" +
     "\n" +
     "  <div class=\"well sc-step\" ng-repeat=\"step in vm.scenario.steps\"\n" +
     "       ng-if=\"vm.stepIndex === $index\" id=\"sc-step\">\n" +

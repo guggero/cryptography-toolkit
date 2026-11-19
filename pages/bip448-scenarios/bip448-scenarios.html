@@ -78,6 +78,26 @@
     </li>
   </ol>
 
+  <div class="sc-graph" ng-if="vm.scenario.graph">
+    <div class="sc-graph-head">
+      <a ng-click="vm.showGraph = !vm.showGraph" id="sc-graph-toggle">
+        <i class="fas" ng-class="vm.showGraph ? 'fa-caret-down' : 'fa-caret-right'"></i>
+        Transaction graph
+      </a>
+      <small ng-if="vm.showGraph" class="sc-graph-legend">
+        solid arrow: spends an output &middot;
+        dotted arrow: signature used in the witness &middot;
+        <span class="sc-graph-bad">red, dashed: rejected by the script engine</span> &middot;
+        dashed box: prepared, not published &middot;
+        faded: not part of this step, click to go there
+      </small>
+    </div>
+    <div class="sc-graph-wrap" ng-if="vm.showGraph">
+      <tx-graph graph="vm.scenario.graph" step="vm.stepIndex"
+                on-select="vm.goTo(step)"></tx-graph>
+    </div>
+  </div>
+
   <div class="well sc-step" ng-repeat="step in vm.scenario.steps"
        ng-if="vm.stepIndex === $index" id="sc-step">
     <h4>

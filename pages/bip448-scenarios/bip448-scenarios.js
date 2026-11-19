@@ -7,7 +7,7 @@ angular
     bindings: {}
   });
 
-function Bip448ScenariosPageController($scope, bip448) {
+function Bip448ScenariosPageController($scope, bip448, txGraph) {
   const vm = this;
   const toHex = bip448.toHex;
 
@@ -56,6 +56,7 @@ function Bip448ScenariosPageController($scope, bip448) {
   ];
   vm.selected = vm.scenarioList[0];
   vm.stepIndex = 0;
+  vm.showGraph = true;
 
   vm.$onInit = function () {
     bitcoin.btcutil.init('libs/wasm/btcutil.wasm').then(function (lib) {
@@ -92,6 +93,9 @@ function Bip448ScenariosPageController($scope, bip448) {
   const KEYS = bip448.EXAMPLE_KEYS;
   const STATES = bip448.defaultStates();
 
+  // The transaction graph of the scenario that is being built.
+  let graph = null;
+
   function pub(name) {
     return bip448.xOnlyPubKey(vm.lib, KEYS[name]);
   }
@@ -101,7 +105,11 @@ function Bip448ScenariosPageController($scope, bip448) {
   }
 
   function payTo(name) {
-    return bip448.p2wpkhScript(vm.lib, KEYS[name]);
+    const script = bip448.p2wpkhScript(vm.lib, KEYS[name]);
+    graph.describe(script, [
+      'P2WPKH to ' + name.charAt(0).toUpperCase() + name.slice(1)
+    ]);
+    return script;
   }
 
   function outpoint(digit, vout) {
@@ -125,6 +133,8 @@ function Bip448ScenariosPageController($scope, bip448) {
       errorHint: bip448.errorHint(result.errorCode),
       asExpected: result.valid === expectValid,
       txid: vm.lib.tx.hash(spend.rawTx),
+      tx: spendOpts.tx,
+      amount: spendOpts.amount,
       spend: spend,
       debuggerLink: bip448.debuggerLink(spend, STATES)
     };
@@ -198,6 +208,30 @@ function Bip448ScenariosPageController($scope, bip448) {
       'The outputs are part of the template hash, so this is a different ' +
       'message than the one Alice signed.'
     );
+
+    const sigUser = ['Alice\'s signature'];
+    graph
+      .taproot(leaf.pkScript, alice, [{asm: asm}])
+      .taproot(bobLeaf.pkScript, bob, [{asm: asm}])
+      .output('A', {col: 0, row: 0, title: 'Output A', check: spendA,
+        active: [0, 2]})
+      .output('B', {col: 0, row: 1, title: 'Output B', check: spendB,
+        active: [0, 3]})
+      .sig('sig', {col: 0, row: 2, title: 'Alice\'s signature',
+        lines: ['over the template hash ' + templateHash.slice(0, 8) + '…',
+          'not over an input'],
+        value: sig, usedBy: ['txA', 'txB', 'txOther', 'txBob'],
+        active: [1, 2, 3, 4]})
+      .output('C', {col: 0, row: 3, title: 'Output with Bob\'s key',
+        check: spendBob, active: [4]})
+      .tx('txA', {col: 1, row: 0, title: 'Spend output A', check: spendA,
+        spends: 'A', witness: sigUser, active: [2]})
+      .tx('txB', {col: 1, row: 1, title: 'Spend output B', check: spendB,
+        spends: 'B', witness: sigUser, active: [3]})
+      .tx('txOther', {col: 1, row: 2, title: 'Spend A, pay 95,000',
+        check: spendOther, spends: 'A', witness: sigUser, active: [4]})
+      .tx('txBob', {col: 1, row: 3, title: 'Spend Bob\'s output',
+        check: spendBob, spends: 'C', witness: sigUser, active: [4]});
 
     return {
       script: asm,
@@ -336,6 +370,41 @@ function Bip448ScenariosPageController($scope, bip448) {
       KEYS.alice, hexYes
     ));
 
+    const aliceClaim = claim('Alice claims with the oracle\'s signature',
+      outcome === 'yes', 'alice', oracleSig);
+    const bobClaim = claim('Bob claims with the oracle\'s signature',
+      outcome === 'no', 'bob', oracleSig);
+    const forgedClaim = claim(
+      'Alice claims with a signature she made herself', false,
+      'alice', forged,
+      'OP_CHECKSIGFROMSTACK checks against the oracle key that is ' +
+      'fixed in the script.');
+
+    graph
+      .name(oracle, 'Oracle')
+      .name(hexYes, '"BTC>100k:yes"')
+      .name(hexNo, '"BTC>100k:no"')
+      .taproot(leaf.pkScript, bip448.NUMS_KEY, [
+        {name: 'yes', asm: aliceAsm}, {name: 'no', asm: bobAsm}
+      ])
+      .output('bet', {col: 0, row: 0, title: 'The bet', check: aliceClaim,
+        active: [0, 2, 3]})
+      .sig('oracleSig', {col: 0, row: 1, title: 'Oracle\'s signature',
+        lines: ['over "BTC>100k:' + outcome + '"'], value: oracleSig,
+        usedBy: ['alice', 'bob'], active: [1, 2]})
+      .sig('forgedSig', {col: 0, row: 2, title: 'Alice\'s own signature',
+        lines: ['over "BTC>100k:yes"', 'not made by the oracle'],
+        value: forged, usedBy: ['forged'], active: [3]})
+      .tx('alice', {col: 1, row: 0, title: 'Alice claims',
+        check: aliceClaim, spends: 'bet', via: 'yes leaf',
+        witness: ['Alice\'s signature', 'oracle\'s signature'], active: [2]})
+      .tx('bob', {col: 1, row: 1, title: 'Bob claims', check: bobClaim,
+        spends: 'bet', via: 'no leaf',
+        witness: ['Bob\'s signature', 'oracle\'s signature'], active: [2]})
+      .tx('forged', {col: 1, row: 2, title: 'Alice claims, own signature',
+        check: forgedClaim, spends: 'bet', via: 'yes leaf',
+        witness: ['Alice\'s signature', 'her own signature'], active: [3]});
+
     return {
       script: aliceAsm,
       steps: [
@@ -383,12 +452,7 @@ function Bip448ScenariosPageController($scope, bip448) {
             'oracle\'s signature and a signature of their own. Only the ' +
             'leaf whose message matches what the oracle signed accepts it.'
           ],
-          checks: [
-            claim('Alice claims with the oracle\'s signature',
-              outcome === 'yes', 'alice', oracleSig),
-            claim('Bob claims with the oracle\'s signature',
-              outcome === 'no', 'bob', oracleSig)
-          ]
+          checks: [aliceClaim, bobClaim]
         },
         {
           title: 'Trying to cheat',
@@ -400,12 +464,7 @@ function Bip448ScenariosPageController($scope, bip448) {
           facts: [
             {label: 'Alice\'s own signature over "BTC>100k:yes"', value: forged}
           ],
-          checks: [
-            claim('Alice claims with a signature she made herself', false,
-              'alice', forged,
-              'OP_CHECKSIGFROMSTACK checks against the oracle key that is ' +
-              'fixed in the script.')
-          ]
+          checks: [forgedClaim]
         }
       ]
     };
@@ -444,6 +503,41 @@ function Bip448ScenariosPageController($scope, bip448) {
         }
       }, note);
     };
+
+    const bobSpend = spend(
+      'Bob spends with his signature and the delegation', true,
+      'bob', bob, delegation);
+    const carolSelf = spend(
+      'Carol spends with a delegation she signed herself', false,
+      'carol', carol, selfMade,
+      'The delegation is not a signature of the internal key.');
+    const carolBob = spend('Carol spends with Bob\'s delegation', false,
+      'carol', bob, delegation,
+      'The delegation is fine, but the transaction signature is ' +
+      'not from Bob\'s key.');
+
+    graph
+      .taproot(leaf.pkScript, alice, [{asm: asm}])
+      .output('out', {col: 0, row: 0, title: 'Alice\'s output',
+        check: bobSpend, active: [0, 2, 3]})
+      .sig('delegation', {col: 0, row: 1, title: 'Delegation to Bob',
+        lines: ['Alice\'s signature over Bob\'s key'], value: delegation,
+        usedBy: ['bob', 'carolBob'], active: [1, 2, 3]})
+      .sig('selfMade', {col: 0, row: 2, title: 'Carol\'s own delegation',
+        lines: ['Carol\'s signature over her own key'], value: selfMade,
+        usedBy: ['carolSelf'], active: [3]})
+      .tx('bob', {col: 1, row: 0, title: 'Bob spends', check: bobSpend,
+        spends: 'out',
+        witness: ['Bob\'s signature', 'delegation', 'Bob\'s key'],
+        active: [2]})
+      .tx('carolBob', {col: 1, row: 1, title: 'Carol uses Bob\'s delegation',
+        check: carolBob, spends: 'out',
+        witness: ['Carol\'s signature', 'Bob\'s delegation', 'Bob\'s key'],
+        active: [3]})
+      .tx('carolSelf', {col: 1, row: 2, title: 'Carol uses her own',
+        check: carolSelf, spends: 'out',
+        witness: ['Carol\'s signature', 'her own delegation', 'Carol\'s key'],
+        active: [3]});
 
     return {
       script: asm,
@@ -485,10 +579,7 @@ function Bip448ScenariosPageController($scope, bip448) {
             'Bob signs a transaction with his own key and adds the ' +
             'delegation. Alice\'s key is not needed again.'
           ],
-          checks: [
-            spend('Bob spends with his signature and the delegation', true,
-              'bob', bob, delegation)
-          ]
+          checks: [bobSpend]
         },
         {
           title: 'Without a delegation',
@@ -502,15 +593,7 @@ function Bip448ScenariosPageController($scope, bip448) {
             'design would sign more than the bare key, for example an ' +
             'expiry.'
           ],
-          checks: [
-            spend('Carol spends with a delegation she signed herself', false,
-              'carol', carol, selfMade,
-              'The delegation is not a signature of the internal key.'),
-            spend('Carol spends with Bob\'s delegation', false,
-              'carol', bob, delegation,
-              'The delegation is fine, but the transaction signature is ' +
-              'not from Bob\'s key.')
-          ]
+          checks: [carolSelf, carolBob]
         }
       ]
     };
@@ -555,6 +638,29 @@ function Bip448ScenariosPageController($scope, bip448) {
         stack: []
       }, note);
     };
+
+    const payNow = spend('Pay out from the locked output', true, tx);
+    const payLater = spend(
+      'Pay out from another output with the same script', true, txLater,
+      'A different transaction ID and output index.');
+    const payGreedy = spend('Alice takes 10,000 satoshis from Bob', false,
+      txGreedy,
+      'The outputs differ, so OP_EQUAL leaves false on the stack.');
+
+    const noSig = ['no signature'];
+    graph
+      .name(templateHash, 'payout hash')
+      .taproot(leaf.pkScript, bip448.NUMS_KEY, [{asm: asm}])
+      .output('locked', {col: 0, row: 0, title: 'Locked output',
+        check: payNow, active: [1, 2, 3]})
+      .output('other', {col: 0, row: 1, title: 'Another output, same script',
+        check: payLater, active: [2]})
+      .tx('payout', {col: 1, row: 0, title: 'Payout', check: payNow,
+        spends: 'locked', witness: noSig, active: [0, 2], draft: [0, 1]})
+      .tx('later', {col: 1, row: 1, title: 'Payout from the other output',
+        check: payLater, spends: 'other', witness: noSig, active: [2]})
+      .tx('greedy', {col: 1, row: 2, title: 'Alice takes more',
+        check: payGreedy, spends: 'locked', witness: noSig, active: [3]});
 
     return {
       script: asm,
@@ -602,12 +708,7 @@ function Bip448ScenariosPageController($scope, bip448) {
             'The same payout works if the funding transaction had a ' +
             'different ID.'
           ],
-          checks: [
-            spend('Pay out from the locked output', true, tx),
-            spend('Pay out from another output with the same script', true,
-              txLater,
-              'A different transaction ID and output index.')
-          ]
+          checks: [payNow, payLater]
         },
         {
           title: 'Nothing else can spend it',
@@ -616,10 +717,7 @@ function Bip448ScenariosPageController($scope, bip448) {
             'is rejected. Since there is no key path and no other leaf, ' +
             'not even the exchange can change its mind.'
           ],
-          checks: [
-            spend('Alice takes 10,000 satoshis from Bob', false, txGreedy,
-              'The outputs differ, so OP_EQUAL leaves false on the stack.')
-          ]
+          checks: [payGreedy]
         }
       ]
     };
@@ -852,6 +950,71 @@ function Bip448ScenariosPageController($scope, bip448) {
       'state 2.'
     );
 
+    // Only shown in the graph: the settlement Bob races against when Alice
+    // publishes the old state.
+    const settle1 = settle(
+      'Settlement 1 spends state output 1', true, state1, state1, close1,
+      DELAY
+    );
+
+    graph
+      .name(channelKey, 'Alice+Bob')
+      .describe(ANCHOR.scriptPubKey, ['P2A anchor, anyone can spend'])
+      .taproot(funding.pkScript, channelKey, [{asm: rebindAsm}]);
+    [state1, state2].forEach(function (state) {
+      graph
+        .name(state.settleHash, 'settlement ' + state.n + ' hash')
+        .name(scriptNum(STATE_BASE + state.n + 1),
+          String(STATE_BASE + state.n + 1))
+        .taproot(state.output.pkScript, channelKey, [
+          {name: 'update', asm: state.updateAsm},
+          {name: 'settlement', asm: state.settleAsm}
+        ]);
+    });
+    const updateWitness = function (n) {
+      return ['state ' + n + ' signature', 'annex'];
+    };
+    const lockTime = function (state) {
+      return 'lock time ' + (STATE_BASE + state.n);
+    };
+    const delayed = 'sequence ' + DELAY + ': waits ' + DELAY + ' blocks';
+    graph
+      .output('funding', {col: 0, row: 0, title: 'Funding output',
+        check: close2, active: [0, 3, 4]})
+      .tx('update2', {col: 1, row: 0, title: 'Update 2', check: close2,
+        spends: 'funding', witness: updateWitness(2),
+        notes: [lockTime(state2)],
+        active: [2, 3, 5], show: [2, 3, 5], draft: [2]})
+      .tx('settle2', {col: 2, row: 0, title: 'Settlement 2', check: settle2,
+        spends: 'update2:0', via: 'settlement leaf',
+        witness: ['no signature'], notes: [delayed],
+        active: [2, 3], show: [2, 3], draft: [2]})
+      .tx('settle2Early', {col: 2, row: 1, title: 'Settlement 2, no delay',
+        check: settle2Early, spends: 'update2:0', via: 'settlement leaf',
+        witness: ['no signature'], notes: ['sequence ' + NO_DELAY],
+        active: [3]})
+      .tx('downgrade', {col: 2, row: 2, title: 'Update 1 on state 2',
+        check: downgrade, spends: 'update2:0', via: 'update leaf',
+        witness: updateWitness(1), notes: [lockTime(state1)], active: [5]})
+      .tx('settleWrong', {col: 2, row: 3, title: 'Settlement 1 on state 2',
+        check: settleWrong, spends: 'update2:0', via: 'settlement leaf',
+        witness: ['no signature'], notes: [delayed], active: [5]})
+      .tx('update1', {col: 1, row: 4, title: 'Update 1', check: close1,
+        spends: 'funding', witness: updateWitness(1),
+        notes: [lockTime(state1)],
+        active: [1, 4], show: [1, 2, 4], draft: [1, 2]})
+      .tx('settle1', {col: 2, row: 4, title: 'Settlement 1', check: settle1,
+        spends: 'update1:0', via: 'settlement leaf',
+        witness: ['no signature'], notes: [delayed],
+        active: [1], show: [1, 2, 4], draft: [1, 2, 4]})
+      .tx('replace1', {col: 2, row: 5, title: 'Update 2 on state 1',
+        check: replace1, spends: 'update1:0', via: 'update leaf',
+        witness: ['state 2 signature (the same)', 'annex'],
+        notes: [lockTime(state2)], active: [4], show: [4]})
+      .tx('settle2Again', {col: 3, row: 5, title: 'Settlement 2',
+        check: settle2Again, spends: 'replace1:0', via: 'settlement leaf',
+        witness: ['no signature'], notes: [delayed], active: [4], show: [4]});
+
     const sats = function (value) {
       return value.toLocaleString('en-US') + ' sat';
     };
@@ -1014,7 +1177,13 @@ function Bip448ScenariosPageController($scope, bip448) {
 
     vm.buildError = null;
     try {
+      graph = txGraph.create()
+        .name(pub('alice'), 'Alice')
+        .name(pub('bob'), 'Bob')
+        .name(pub('carol'), 'Carol')
+        .name(bip448.NUMS_KEY, 'NUMS, no key path');
       vm.scenario = BUILDERS[vm.selected.id]();
+      vm.scenario.graph = graph.done(vm.scenario.steps.length);
     } catch (e) {
       vm.scenario = null;
       vm.buildError = e.message || String(e);
