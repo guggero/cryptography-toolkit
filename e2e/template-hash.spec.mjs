@@ -26,6 +26,24 @@ test.describe('template-hash', () => {
     await expect(page.locator('#th-commit')).toBeDisabled();
   });
 
+  test('the hash is shown as a tagged hash that the Hashing page verifies', async ({page}) => {
+    const expected = await hash(page).innerText();
+    const formula = page.locator('#th-hash-formula');
+    await expect(formula).toHaveText(/^hash_TemplateHash\([0-9a-f]+\)$/);
+
+    // The bytes in the formula are the rows of the message, in order.
+    const rows = await page.locator('#th-message tr td:nth-child(2) code')
+      .allInnerTexts();
+    await expect(formula).toHaveText(`hash_TemplateHash(${rows.join('')})`);
+
+    await page.locator('#th-verify-link').click();
+    await expect(page.locator('h1')).toHaveText('Hashing');
+    await expect(byModel(page, 'vm.taggedTag')).toHaveValue('TemplateHash');
+    await expect(byModel(page, 'vm.taggedInput')).toHaveValue(rows.join(''));
+    await expect(page.locator('#tagged-input-hex')).toBeChecked();
+    await expect(byModel(page, 'vm.taggedHash')).toHaveValue(expected);
+  });
+
   test('the spent outputs are not part of the template hash', async ({page}) => {
     const before = await hash(page).innerText();
 

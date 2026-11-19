@@ -10,10 +10,19 @@
   <div class="well">
     <form class="form-horizontal">
       <div class="form-group">
-        <label class="col-sm-2 control-label" for="sha-input">Message (UTF-8):</label>
+        <label class="col-sm-2 control-label" for="sha-input">
+          Message ({{vm.shaInputHex ? 'hex' : 'UTF-8'}}):
+        </label>
         <div class="col-sm-10">
           <textarea id="sha-input" rows="6" class="form-control"
                     ng-model="vm.shaInput" ng-change="vm.computeSha()"></textarea>
+          <div class="checkbox">
+            <label>
+              <input type="checkbox" id="sha-input-hex"
+                     ng-model="vm.shaInputHex" ng-change="vm.computeSha()">
+              Message is hex
+            </label>
+          </div>
         </div>
       </div>
       <div class="form-group">
@@ -23,6 +32,47 @@
         </div>
       </div>
       <div class="alert alert-danger" ng-if="vm.shaError">{{vm.shaError}}</div>
+    </form>
+  </div>
+
+  <h3>Tagged hash</h3>
+  <div class="well">
+    <p>
+      A <a href="https://github.com/bitcoin/bips/blob/master/bip-0340.mediawiki#design">BIP 340</a>
+      tagged hash: <code>hash_tag(message) = SHA256(SHA256(tag) || SHA256(tag) || message)</code>.
+      The tag is always UTF-8.
+    </p>
+    <form class="form-horizontal">
+      <div class="form-group">
+        <label class="col-sm-2 control-label" for="tagged-tag">Tag (UTF-8):</label>
+        <div class="col-sm-10">
+          <input id="tagged-tag" class="form-control"
+                 ng-model="vm.taggedTag" ng-change="vm.computeTagged()">
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="col-sm-2 control-label" for="tagged-input">
+          Message ({{vm.taggedInputHex ? 'hex' : 'UTF-8'}}):
+        </label>
+        <div class="col-sm-10">
+          <textarea id="tagged-input" rows="6" class="form-control"
+                    ng-model="vm.taggedInput" ng-change="vm.computeTagged()"></textarea>
+          <div class="checkbox">
+            <label>
+              <input type="checkbox" id="tagged-input-hex"
+                     ng-model="vm.taggedInputHex" ng-change="vm.computeTagged()">
+              Message is hex
+            </label>
+          </div>
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="col-sm-2 control-label" for="tagged-hash">Tagged hash (hex):</label>
+        <div class="col-sm-10">
+          <input id="tagged-hash" class="form-control" ng-model="vm.taggedHash" readonly>
+        </div>
+      </div>
+      <div class="alert alert-danger" ng-if="vm.taggedError">{{vm.taggedError}}</div>
     </form>
   </div>
 

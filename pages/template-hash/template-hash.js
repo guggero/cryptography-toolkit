@@ -198,6 +198,8 @@ function TemplateHashPageController($scope, bip448) {
         hash: toHex(pre.hash),
         tag: pre.tag,
         message: toHex(pre.message),
+        verifyLink: '#!/hashing?tag=' + encodeURIComponent(pre.tag) +
+          '&msg=' + toHex(pre.message),
         rows: messageRows(pre),
         amounts: vm.tx.inputs.map(function (input, i) {
           return number(input.amount, 'The value spent by input ' + i);

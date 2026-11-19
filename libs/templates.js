@@ -4165,10 +4165,19 @@ angular.module('app').run(['$templateCache', function($templateCache) {
     "  <div class=\"well\">\n" +
     "    <form class=\"form-horizontal\">\n" +
     "      <div class=\"form-group\">\n" +
-    "        <label class=\"col-sm-2 control-label\" for=\"sha-input\">Message (UTF-8):</label>\n" +
+    "        <label class=\"col-sm-2 control-label\" for=\"sha-input\">\n" +
+    "          Message ({{vm.shaInputHex ? 'hex' : 'UTF-8'}}):\n" +
+    "        </label>\n" +
     "        <div class=\"col-sm-10\">\n" +
     "          <textarea id=\"sha-input\" rows=\"6\" class=\"form-control\"\n" +
     "                    ng-model=\"vm.shaInput\" ng-change=\"vm.computeSha()\"></textarea>\n" +
+    "          <div class=\"checkbox\">\n" +
+    "            <label>\n" +
+    "              <input type=\"checkbox\" id=\"sha-input-hex\"\n" +
+    "                     ng-model=\"vm.shaInputHex\" ng-change=\"vm.computeSha()\">\n" +
+    "              Message is hex\n" +
+    "            </label>\n" +
+    "          </div>\n" +
     "        </div>\n" +
     "      </div>\n" +
     "      <div class=\"form-group\">\n" +
@@ -4178,6 +4187,47 @@ angular.module('app').run(['$templateCache', function($templateCache) {
     "        </div>\n" +
     "      </div>\n" +
     "      <div class=\"alert alert-danger\" ng-if=\"vm.shaError\">{{vm.shaError}}</div>\n" +
+    "    </form>\n" +
+    "  </div>\n" +
+    "\n" +
+    "  <h3>Tagged hash</h3>\n" +
+    "  <div class=\"well\">\n" +
+    "    <p>\n" +
+    "      A <a href=\"https://github.com/bitcoin/bips/blob/master/bip-0340.mediawiki#design\">BIP 340</a>\n" +
+    "      tagged hash: <code>hash_tag(message) = SHA256(SHA256(tag) || SHA256(tag) || message)</code>.\n" +
+    "      The tag is always UTF-8.\n" +
+    "    </p>\n" +
+    "    <form class=\"form-horizontal\">\n" +
+    "      <div class=\"form-group\">\n" +
+    "        <label class=\"col-sm-2 control-label\" for=\"tagged-tag\">Tag (UTF-8):</label>\n" +
+    "        <div class=\"col-sm-10\">\n" +
+    "          <input id=\"tagged-tag\" class=\"form-control\"\n" +
+    "                 ng-model=\"vm.taggedTag\" ng-change=\"vm.computeTagged()\">\n" +
+    "        </div>\n" +
+    "      </div>\n" +
+    "      <div class=\"form-group\">\n" +
+    "        <label class=\"col-sm-2 control-label\" for=\"tagged-input\">\n" +
+    "          Message ({{vm.taggedInputHex ? 'hex' : 'UTF-8'}}):\n" +
+    "        </label>\n" +
+    "        <div class=\"col-sm-10\">\n" +
+    "          <textarea id=\"tagged-input\" rows=\"6\" class=\"form-control\"\n" +
+    "                    ng-model=\"vm.taggedInput\" ng-change=\"vm.computeTagged()\"></textarea>\n" +
+    "          <div class=\"checkbox\">\n" +
+    "            <label>\n" +
+    "              <input type=\"checkbox\" id=\"tagged-input-hex\"\n" +
+    "                     ng-model=\"vm.taggedInputHex\" ng-change=\"vm.computeTagged()\">\n" +
+    "              Message is hex\n" +
+    "            </label>\n" +
+    "          </div>\n" +
+    "        </div>\n" +
+    "      </div>\n" +
+    "      <div class=\"form-group\">\n" +
+    "        <label class=\"col-sm-2 control-label\" for=\"tagged-hash\">Tagged hash (hex):</label>\n" +
+    "        <div class=\"col-sm-10\">\n" +
+    "          <input id=\"tagged-hash\" class=\"form-control\" ng-model=\"vm.taggedHash\" readonly>\n" +
+    "        </div>\n" +
+    "      </div>\n" +
+    "      <div class=\"alert alert-danger\" ng-if=\"vm.taggedError\">{{vm.taggedError}}</div>\n" +
     "    </form>\n" +
     "  </div>\n" +
     "\n" +
@@ -6809,7 +6859,14 @@ angular.module('app').run(['$templateCache', function($templateCache) {
     "      </table>\n" +
     "      <div class=\"hex-value\">\n" +
     "        <strong>Template hash:</strong><br/>\n" +
-    "        <code id=\"th-hash\">{{vm.current.hash}}</code>\n" +
+    "        <code id=\"th-hash-formula\">hash_{{vm.current.tag}}({{vm.current.message}})</code>\n" +
+    "        =<br/>\n" +
+    "        <code id=\"th-hash\">{{vm.current.hash}}</code><br/>\n" +
+    "        <small>\n" +
+    "          <a ng-href=\"{{vm.current.verifyLink}}\" id=\"th-verify-link\">\n" +
+    "            Verify this tagged hash on the Hashing page\n" +
+    "          </a>\n" +
+    "        </small>\n" +
     "      </div>\n" +
     "    </div>\n" +
     "\n" +

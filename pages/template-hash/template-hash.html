@@ -173,7 +173,14 @@
       </table>
       <div class="hex-value">
         <strong>Template hash:</strong><br/>
-        <code id="th-hash">{{vm.current.hash}}</code>
+        <code id="th-hash-formula">hash_{{vm.current.tag}}({{vm.current.message}})</code>
+        =<br/>
+        <code id="th-hash">{{vm.current.hash}}</code><br/>
+        <small>
+          <a ng-href="{{vm.current.verifyLink}}" id="th-verify-link">
+            Verify this tagged hash on the Hashing page
+          </a>
+        </small>
       </div>
     </div>
 
