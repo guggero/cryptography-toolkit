@@ -259,6 +259,80 @@ test.describe('bip448-scenarios', () => {
     await expect(page.locator('.txg')).toHaveCount(1);
   });
 
+  test('ark: a refresh signed before the new round exists', async ({page}) => {
+    await scenario(page, 'ark').click();
+    await expect(scenario(page, 'ark')).toHaveClass(/sc-card-active/);
+    expect(await walk(page)).toEqual([
+      ['valid'],
+      [],
+      [],
+      ['valid'],
+      ['valid', 'valid', 'valid'],
+      ['valid', 'ErrUnsatisfiedLockTime'],
+    ]);
+
+    const fact = (label) => step(page)
+      .locator('.sc-facts tr', {hasText: label}).locator('code');
+    const goTo = (i) => page.locator('.sc-steps li').nth(i).click();
+    const expected = [
+      ['round1', 'tree1'],
+      ['round1', 'tree1'],
+      ['refund', 'refundSigs', 'round1', 'tree1'],
+      ['refund', 'refundSigs', 'round1', 'round2', 'tree1', 'tree2'],
+      ['aliceExit', 'refund', 'refundSigs', 'round1', 'round2', 'tree1', 'tree2'],
+      ['round1', 'round2', 'sweep', 'sweepEarly', 'tree2'],
+    ];
+    for (let i = 0; i < expected.length; i++) {
+      await goTo(i);
+      await expect(step(page).locator('h4')).toContainText(`Step ${i + 1} of`);
+      expect((await graphIds(page)).sort(), `step ${i + 1}`)
+        .toEqual(expected[i]);
+    }
+
+    // The VTXO's joint spend is the rebindable signature check.
+    await goTo(0);
+    await expect(fact('spend leaf')).toHaveText(
+      'OP_TEMPLATEHASH OP_INTERNALKEY OP_CHECKSIGFROMSTACK');
+    await expect(graphNode(page, 'tree1')).toContainText('internal key Alice+Server');
+
+    // Alice signs before round 2 exists: the refund cannot point at the new
+    // VTXO yet.
+    await goTo(2);
+    await expect(graphNode(page, 'refund')).toHaveClass(/txg-draft/);
+    await expect(graphNode(page, 'refund')).toContainText('in #1: spends: does not exist yet');
+    const sig0 = (await fact('Signature of Alice+Server').innerText()).trim();
+    const sig1 = (await fact('Signature of Alice\'+Server').innerText()).trim();
+    expect(sig0).toMatch(/^[0-9a-f]{128}$/);
+    expect(sig1).toMatch(/^[0-9a-f]{128}$/);
+    await expect(fact('Refund output #0')).toHaveText('99,000 sat');
+    await expect(fact('Refund output #1')).toHaveText('100,000 sat');
+
+    // The very same signatures spend both VTXOs once they exist.
+    await goTo(4);
+    await expect(graphNode(page, 'refund')).not.toHaveClass(/txg-draft/);
+    await expect(graphNode(page, 'refund')).toContainText('in #1: spends Round 2 tree #0');
+    await expect(graphNode(page, 'refund')).toHaveAttribute('data-txid',
+      (await fact('Refund transaction').innerText()).trim());
+    await expect(graphNode(page, 'aliceExit')).toHaveClass(/txg-draft/);
+    await expect(page.locator('.txg-edge-spend')).toHaveCount(5);
+    // The signatures are MuSig2 signatures with random nonces, so both
+    // spends are opened from this one build of the scenario.
+    const links = [
+      [await checks(page).nth(1).getByRole('link').getAttribute('href'), sig0],
+      [await checks(page).nth(2).getByRole('link').getAttribute('href'), sig1],
+    ];
+    for (const [href, sig] of links) {
+      // The debugger only reads its link when it is opened, so load it fresh.
+      await page.goto(`/index.html${href}`);
+      await page.reload();
+      await expect(page.locator('h1')).toContainText('Tapscript Debugger');
+      await expect(page.getByText('Initializing WebAssembly')).toHaveCount(0);
+      await expect(page.locator('#dbg-result')).toHaveClass(/well-success/);
+      await page.locator('#dbg-toggle-details').click();
+      await expect(page.locator('.dbg-details')).toContainText(sig);
+    }
+  });
+
   test('the channel graph shows each history separately', async ({page}) => {
     await scenario(page, 'channel').click();
     const expected = [

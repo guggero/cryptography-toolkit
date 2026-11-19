@@ -2785,6 +2785,10 @@ angular.module('app').run(['$templateCache', function($templateCache) {
     "      <h3>Sources, tools and other useful information:</h3>\n" +
     "      <ul>\n" +
     "        <li><a href=\"https://github.com/bitcoin/bips/blob/master/bip-0448.md\">BIP 448: Taproot-native (Re)bindable Transactions</a></li>\n" +
+    "        <li><a href=\"https://delvingbitcoin.org/t/evolving-the-ark-protocol-using-ctv-and-csfs/1602\">Evolving the Ark protocol using CTV and CSFS</a>\n" +
+    "          (Erk, the Ark variant BIP 448 refers to) and the\n" +
+    "          <a href=\"https://ark-protocol.org/intro/connectors/index.html\">Ark protocol documentation</a>\n" +
+    "          on forfeits and connectors</li>\n" +
     "        <li><a href=\"#!/template-hash\">Template Hash explorer</a> and\n" +
     "          <a href=\"#!/tapscript-debugger\">Tapscript Debugger</a> on this site</li>\n" +
     "        <li><a href=\"https://github.com/guggero/btcutil-js\">btcutil-js library</a></li>\n" +

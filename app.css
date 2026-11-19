@@ -727,16 +727,17 @@ pre.ec-formula {
 
 /* BIP 448 scenarios */
 .sc-picker {
-  margin-bottom: 15px;
+  margin: 0 -6px 15px -6px;
   display: flex;
   flex-wrap: wrap;
 }
-/* Five cards don't fit the twelve column grid: let them share the row. */
+/* Seven cards don't fit the twelve column grid: let them share the row. */
 .sc-picker > div {
   display: flex;
-  flex: 1 1 190px;
+  flex: 1 1 140px;
   float: none;
   width: auto;
+  padding: 0 6px;
 }
 .sc-picker:before,
 .sc-picker:after {
@@ -770,7 +771,7 @@ pre.ec-formula {
   color: #5d4e46;
 }
 .sc-card code {
-  font-size: 11px;
+  font-size: 10px;
   white-space: normal;
   background: none;
   padding: 0;

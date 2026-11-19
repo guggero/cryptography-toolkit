@@ -59,6 +59,13 @@ function Bip448ScenariosPageController($scope, bip448, txGraph) {
       opcodes: 'OP_TEMPLATEHASH, OP_INTERNALKEY, OP_CHECKSIGFROMSTACK',
       summary: 'A payment channel from funding to settlement, in which ' +
         'the latest state replaces any earlier one without a penalty.'
+    },
+    {
+      id: 'ark',
+      title: 'Ark refresh',
+      opcodes: 'OP_TEMPLATEHASH, OP_INTERNALKEY, OP_CHECKSIGFROMSTACK',
+      summary: 'Moving a VTXO into a new Ark round with a signature made ' +
+        'before the round exists, so the user can be offline.'
     }
   ];
   vm.selected = vm.scenarioList[0];
@@ -147,11 +154,16 @@ function Bip448ScenariosPageController($scope, bip448, txGraph) {
     };
   }
 
+  // The private key of one of the example keys, or the given private key.
+  function privKey(nameOrKey) {
+    return KEYS[nameOrKey] || nameOrKey;
+  }
+
   // The signature a tapscript OP_CHECKSIG expects from the given key.
   function checkSig(name) {
     return function (ctx) {
       return toHex(vm.lib.btcec.schnorrSign(
-        KEYS[name],
+        privKey(name),
         vm.lib.txscript.calcTapscriptSignatureHash(
           0, ctx.unsignedTx, ctx.inputIndex, ctx.prevOuts, ctx.script
         )
@@ -999,10 +1011,10 @@ function Bip448ScenariosPageController($scope, bip448, txGraph) {
   function musigSign(names, msg) {
     const lib = vm.lib;
     const pubKeys = names.map(function (name) {
-      return lib.btcec.privKeyFromBytes(KEYS[name]).publicKey;
+      return lib.btcec.privKeyFromBytes(privKey(name)).publicKey;
     });
     const nonces = names.map(function (name, i) {
-      return lib.musig2.genNonces(pubKeys[i], KEYS[name]);
+      return lib.musig2.genNonces(pubKeys[i], privKey(name));
     });
     const combinedNonce = lib.musig2.aggregateNonces(
       nonces.map(function (nonce) {
@@ -1011,7 +1023,7 @@ function Bip448ScenariosPageController($scope, bip448, txGraph) {
     );
     const partials = names.map(function (name, i) {
       return lib.musig2.partialSign(
-        nonces[i].secNonce, KEYS[name], combinedNonce, pubKeys, msg
+        nonces[i].secNonce, privKey(name), combinedNonce, pubKeys, msg
       );
     });
     return toHex(lib.musig2.combineSigs(
@@ -1019,6 +1031,14 @@ function Bip448ScenariosPageController($scope, bip448, txGraph) {
         return partial.s;
       })
     ));
+  }
+
+  // The MuSig2 aggregate (x-only) of the keys, in the same order as
+  // musigSign expects them.
+  function musigKey(names) {
+    return toHex(vm.lib.musig2.aggregateKeys(names.map(function (name) {
+      return vm.lib.btcec.privKeyFromBytes(privKey(name)).publicKey;
+    })).xOnlyKey);
   }
 
   function buildChannel() {
@@ -1474,13 +1494,438 @@ function Bip448ScenariosPageController($scope, bip448, txGraph) {
     };
   }
 
+  // ---- scenario 7: Ark refresh -------------------------------------------
+
+  // The template hash of input idx of a transaction, which may still have
+  // placeholders for the outputs it spends.
+  function templateHashOf(tx, idx) {
+    return toHex(vm.lib.txscript.calcTemplateHash(toHex(vm.lib.tx.encode({
+      version: tx.version,
+      locktime: tx.locktime,
+      inputs: tx.inputs.map(function (input) {
+        return {
+          txid: input.txid, vout: input.vout, scriptSig: '',
+          sequence: input.sequence
+        };
+      }),
+      outputs: tx.outputs
+    })), idx));
+  }
+
+  function buildArk() {
+    const lib = vm.lib;
+    const SERVER = new Array(33).join('06');
+    // Alice's key for her new VTXO.
+    const ALICE_NEW = new Array(33).join('07');
+    const DELAY = 144;
+    const EXPIRY1 = 950000;
+    const EXPIRY2 = 955000;
+    const NO_DELAY = 4294967293;
+    const FEE = 1000;
+    const ANCHOR = {value: 0, scriptPubKey: '51024e73'};
+    const NUMS = bip448.NUMS_KEY;
+    const zeros = new Array(65).join('0');
+
+    const xOnly = function (name) {
+      return bip448.xOnlyPubKey(lib, privKey(name));
+    };
+    const server = xOnly(SERVER);
+    const aliceNew = xOnly(ALICE_NEW);
+    const payServer = bip448.p2wpkhScript(lib, SERVER);
+    graph
+      .name(server, 'Server')
+      .name(aliceNew, 'Alice\'')
+      .name(scriptNum(DELAY), String(DELAY))
+      .describe(payServer, ['P2WPKH to the server'])
+      .describe(ANCHOR.scriptPubKey, ['P2A anchor, anyone can spend']);
+
+    // A VTXO: the owner and the server together can spend it at any time
+    // with a rebindable signature of their aggregated key, the owner alone
+    // after a delay.
+    const rebindAsm = 'OP_TEMPLATEHASH OP_INTERNALKEY OP_CHECKSIGFROMSTACK';
+    const rebindScript = assemble(rebindAsm);
+    const vtxo = function (owner, ownerName) {
+      const internal = musigKey([owner, SERVER]);
+      const exitAsm = '0x' + scriptNum(DELAY) + ' OP_CHECKSEQUENCEVERIFY ' +
+        'OP_DROP 0x' + xOnly(owner) + ' OP_CHECKSIG';
+      const exitScript = assemble(exitAsm);
+      const output = bip448.leafOutput(lib, internal, rebindScript,
+        [exitScript]);
+      graph
+        .name(internal, ownerName + '+Server')
+        .taproot(output.pkScript, internal, [
+          {name: 'spend', asm: rebindAsm}, {name: 'exit', asm: exitAsm}
+        ]);
+      return {
+        owner: owner, internal: internal, exitAsm: exitAsm,
+        exitScript: exitScript, pkScript: output.pkScript
+      };
+    };
+    const vtxoAlice = vtxo('alice', 'Alice');
+    const vtxoBob = vtxo('bob', 'Bob');
+    const vtxoNew = vtxo(ALICE_NEW, 'Alice\'');
+    const vtxoCarol = vtxo('carol', 'Carol');
+
+    // A round: an output on chain that commits to the transaction creating
+    // the VTXOs (a tree with a single level), and that the server can sweep
+    // once the round expired.
+    const round = function (n, digit, expiry, vtxos) {
+      const tree = {
+        version: 3,
+        locktime: 0,
+        inputs: [{txid: new Array(65).join(digit), vout: 0,
+          sequence: NO_DELAY}],
+        outputs: vtxos.concat([ANCHOR])
+      };
+      const hash = templateHashOf(tree, 0);
+      const unrollAsm = 'OP_TEMPLATEHASH ' + hash + ' OP_EQUAL';
+      const sweepAsm = '0x' + scriptNum(expiry) +
+        ' OP_CHECKLOCKTIMEVERIFY OP_DROP 0x' + server + ' OP_CHECKSIG';
+      const unrollScript = assemble(unrollAsm);
+      const sweepScript = assemble(sweepAsm);
+      const root = bip448.leafOutput(lib, NUMS, unrollScript, [sweepScript]);
+      graph
+        .name(hash, 'round ' + n + ' tree hash')
+        .name(scriptNum(expiry), String(expiry))
+        .taproot(root.pkScript, NUMS, [
+          {name: 'unroll', asm: unrollAsm}, {name: 'sweep', asm: sweepAsm}
+        ]);
+      return {
+        tree: tree, hash: hash, unrollAsm: unrollAsm, sweepAsm: sweepAsm,
+        unrollScript: unrollScript, sweepScript: sweepScript,
+        value: vtxos.reduce(function (total, output) {
+          return total + output.value;
+        }, 0)
+      };
+    };
+    const round1 = round(1, '1', EXPIRY1, [
+      {value: 100000, scriptPubKey: vtxoAlice.pkScript},
+      {value: 50000, scriptPubKey: vtxoBob.pkScript}
+    ]);
+    const round2 = round(2, '2', EXPIRY2, [
+      {value: 100000 - FEE, scriptPubKey: vtxoNew.pkScript},
+      {value: 70000, scriptPubKey: vtxoCarol.pkScript}
+    ]);
+    const unroll = function (label, r) {
+      return check(label, true, {
+        internalKey: NUMS,
+        script: r.unrollScript,
+        siblings: [r.sweepScript],
+        tx: r.tree,
+        amount: r.value,
+        stack: []
+      }, 'No signature in the witness, only the script and the control ' +
+        'block.');
+    };
+    const unroll1 = unroll('Unroll the tree of round 1', round1);
+    const unroll2 = unroll('Unroll the tree of round 2', round2);
+
+    // The refund transaction spends the old and the new VTXO together. It
+    // pays Alice the value of her new VTXO, with the same policy, and the
+    // server what it put into the new VTXO plus the fee.
+    const refundTx = function (newTxid) {
+      return {
+        version: 3,
+        locktime: 0,
+        inputs: [
+          {txid: unroll1.txid, vout: 0, sequence: NO_DELAY},
+          {txid: newTxid, vout: 0, sequence: NO_DELAY}
+        ],
+        outputs: [
+          {value: 100000 - FEE, scriptPubKey: vtxoNew.pkScript},
+          {value: 100000, scriptPubKey: payServer},
+          ANCHOR
+        ]
+      };
+    };
+    // Alice signs before round 2 exists: the new VTXO's outpoint is only a
+    // placeholder, which the template hash does not cover.
+    const signedTx = refundTx(zeros);
+    const refundHash0 = templateHashOf(signedTx, 0);
+    const refundHash1 = templateHashOf(signedTx, 1);
+    const refundSig0 = musigSign(['alice', SERVER], refundHash0);
+    const refundSig1 = musigSign([ALICE_NEW, SERVER], refundHash1);
+
+    const refund = refundTx(unroll2.txid);
+    const refund0 = check(
+      'Refund input #0 spends the old VTXO', true, {
+        internalKey: vtxoAlice.internal,
+        script: rebindScript,
+        siblings: [vtxoAlice.exitScript],
+        tx: refund,
+        inputIndex: 0,
+        amount: 100000,
+        otherAmount: 100000 - FEE,
+        stack: [refundSig0]
+      },
+      'With the signature of Alice and the server, made before round 2 ' +
+      'existed.'
+    );
+    const refund1 = check(
+      'Refund input #1 spends the new VTXO', true, {
+        internalKey: vtxoNew.internal,
+        script: rebindScript,
+        siblings: [vtxoNew.exitScript],
+        tx: refund,
+        inputIndex: 1,
+        amount: 100000 - FEE,
+        otherAmount: 100000,
+        stack: [refundSig1]
+      },
+      'With the signature of Alice\'s new key and the server, made before ' +
+      'this output existed.'
+    );
+
+    const aliceExit = check(
+      'Alice exits the old VTXO on her own', true, {
+        internalKey: vtxoAlice.internal,
+        script: vtxoAlice.exitScript,
+        siblings: [rebindScript],
+        tx: {
+          version: 3,
+          locktime: 0,
+          inputs: [{txid: unroll1.txid, vout: 0, sequence: DELAY}],
+          outputs: [{value: 100000, scriptPubKey: payTo('alice')}, ANCHOR]
+        },
+        amount: 100000,
+        stack: function (ctx) {
+          return [checkSig('alice')(ctx)];
+        }
+      },
+      'Valid, but only ' + DELAY + ' blocks after the old VTXO was ' +
+      'confirmed. Before that, the refund transaction spends it.'
+    );
+
+    const sweep = function (label, expectValid, locktime, note) {
+      return check(label, expectValid, {
+        internalKey: NUMS,
+        script: round1.sweepScript,
+        siblings: [round1.unrollScript],
+        tx: {
+          version: 2,
+          locktime: locktime,
+          inputs: [{txid: new Array(65).join('1'), vout: 0,
+            sequence: NO_DELAY}],
+          outputs: [{value: round1.value, scriptPubKey: payServer}]
+        },
+        amount: round1.value,
+        stack: function (ctx) {
+          return [checkSig(SERVER)(ctx)];
+        }
+      }, note);
+    };
+    const sweepLate = sweep('The server sweeps round 1 after it expired',
+      true, EXPIRY1);
+    const sweepEarly = sweep('The server sweeps round 1 one block early',
+      false, EXPIRY1 - 1,
+      'OP_CHECKLOCKTIMEVERIFY: the lock time is below ' + EXPIRY1 + '.');
+
+    const sats = function (value) {
+      return value.toLocaleString('en-US') + ' sat';
+    };
+    const truc = 'version 3, no fee';
+    graph
+      .output('round1', {col: 0, row: 0, title: 'Round 1 output',
+        check: unroll1, active: [0, 5]})
+      .tx('tree1', {col: 1, row: 0, title: 'Round 1 tree', check: unroll1,
+        spends: 'round1', via: 'unroll leaf', witness: ['no signature'],
+        notes: [truc], active: [0, 4], show: [0, 1, 2, 3, 4]})
+      .sig('refundSigs', {col: 1, row: 1, title: 'Refund signatures',
+        lines: ['Alice+Server for input #0,', 'Alice\'+Server for input #1,',
+          'over the template hashes,', 'made before round 2 exists'],
+        value: refundSig0 + '\n' + refundSig1, usedBy: ['refund'],
+        active: [2, 4], show: [2, 3, 4]})
+      .tx('refund', {col: 2, row: 1, title: 'Refund', inputs: [
+        {spends: 'tree1:0', via: 'spend leaf',
+          witness: ['Alice+Server signature'], check: refund0},
+        {spends: 'tree2:0', via: 'spend leaf',
+          witness: ['Alice\'+Server signature'], check: refund1}
+      ], notes: [truc], active: [2, 4], show: [2, 3, 4], draft: [2, 3]})
+      .output('round2', {col: 0, row: 2, title: 'Round 2 output',
+        check: unroll2, active: [3], show: [3, 4, 5]})
+      .tx('tree2', {col: 1, row: 2, title: 'Round 2 tree', check: unroll2,
+        spends: 'round2', via: 'unroll leaf', witness: ['no signature'],
+        notes: [truc], active: [3, 4], show: [3, 4, 5]})
+      .tx('aliceExit', {col: 2, row: 0, title: 'Alice\'s exit',
+        check: aliceExit, spends: 'tree1:0', via: 'exit leaf',
+        witness: ['Alice\'s signature'],
+        notes: ['sequence ' + DELAY + ': waits ' + DELAY + ' blocks'],
+        active: [4], show: [4], draft: [4]})
+      .tx('sweep', {col: 1, row: 0, title: 'Server sweeps round 1',
+        check: sweepLate, spends: 'round1', via: 'sweep leaf',
+        witness: ['server\'s signature'], notes: ['lock time ' + EXPIRY1],
+        active: [5], show: [5]})
+      .tx('sweepEarly', {col: 1, row: 1, title: 'Sweep one block early',
+        check: sweepEarly, spends: 'round1', via: 'sweep leaf',
+        witness: ['server\'s signature'],
+        notes: ['lock time ' + (EXPIRY1 - 1)], active: [5]});
+
+    return {
+      script: rebindAsm,
+      steps: [
+        {
+          title: 'A VTXO in round 1',
+          text: [
+            'An Ark server batches the payments of its users into rounds. ' +
+            'Each round puts a single output on chain: the root of a tree ' +
+            'of transactions that ends in one output per user, a virtual ' +
+            'UTXO or VTXO. The users keep the tree off chain. Anyone can ' +
+            'publish it to get their VTXO on chain.',
+            'Here the tree has a single level. The root output has two ' +
+            'leaves: OP_TEMPLATEHASH fixes the transaction that unrolls it, ' +
+            'and once the round expires at block ' + EXPIRY1 + ' the server ' +
+            'can sweep the whole output. Without a covenant like this, in ' +
+            'the covenant-less "clArk", every node of the tree is pre-signed ' +
+            'with MuSig2 by the server and every user below it, and the ' +
+            'round fails if one of them does not sign.',
+            'Alice\'s VTXO has the usual Ark policy: Alice and the server ' +
+            'together can spend it at any time, Alice alone ' + DELAY +
+            ' blocks after it was confirmed. The joint spend is a ' +
+            'rebindable signature of the aggregated key Alice+Server, ' +
+            'checked with OP_INTERNALKEY and OP_CHECKSIGFROMSTACK against ' +
+            'the template hash, like the LN-Symmetry channel.'
+          ],
+          facts: [
+            {label: 'Server key', value: server},
+            {label: 'Round 1 tree, unroll leaf', value: round1.unrollAsm},
+            {label: 'Round 1 tree, sweep leaf', value: round1.sweepAsm},
+            {label: 'Alice+Server (MuSig2), internal key of her VTXO',
+              value: vtxoAlice.internal},
+            {label: 'Alice\'s VTXO, spend leaf', value: rebindAsm},
+            {label: 'Alice\'s VTXO, exit leaf', value: vtxoAlice.exitAsm},
+            {label: 'Alice\'s VTXO', value: sats(100000)}
+          ],
+          checks: [unroll1]
+        },
+        {
+          title: 'Refreshing without BIP 448',
+          text: [
+            'A VTXO only lives until its round expires, after that the ' +
+            'server can sweep it. To keep her money, Alice has to refresh ' +
+            'before block ' + EXPIRY1 + ': move it into a VTXO of a newer ' +
+            'round.',
+            'In Ark today, the server pays for the new VTXO with its own ' +
+            'money, and Alice gives up the old one with a forfeit ' +
+            'transaction, a normal signature of Alice and the server that ' +
+            'pays the old VTXO to the server. So that Alice cannot lose ' +
+            'the old VTXO without getting the new one, the forfeit also ' +
+            'spends a connector output of the new round transaction: it ' +
+            'only becomes valid once that round is confirmed.',
+            'A normal signature commits to the outpoints of all inputs. ' +
+            'Alice can only sign her forfeit once the new round ' +
+            'transaction and its connectors are fixed, so everybody who ' +
+            'refreshes has to be online at that moment, and in clArk also ' +
+            'to sign the new tree. If one of them drops out, the round has ' +
+            'to start over.'
+          ]
+        },
+        {
+          title: 'Alice signs the refund first',
+          text: [
+            'Erk, the Ark variant BIP 448 refers to, has no forfeits and no ' +
+            'connectors. To refresh, Alice picks a new key, Alice\', and ' +
+            'signs a refund transaction before the server builds the new ' +
+            'round. It spends two inputs, her old VTXO and the new VTXO the ' +
+            'server will create for her. It pays Alice the value of the new ' +
+            'VTXO, to an output with the same policy, and the server what ' +
+            'it put into the new VTXO plus a fee of ' + sats(FEE) + '.',
+            'The new VTXO does not exist yet, nobody knows its outpoint. A ' +
+            'rebindable signature does not need it: it signs the template ' +
+            'hash, which commits to the outputs, the number of inputs and ' +
+            'the input index, but not to what the inputs spend. Alice and ' +
+            'the server sign input #0 with their aggregated key, Alice\' ' +
+            'and the server input #1. The signatures here were made with ' +
+            'a placeholder of zeros for the outpoint of the new VTXO.',
+            'Signing this is safe for Alice at any time: if it is ever ' +
+            'used, it pays her the value of her VTXO.'
+          ],
+          facts: [
+            {label: 'Alice\'s new key', value: aliceNew},
+            {label: 'Template hash of input #0', value: refundHash0},
+            {label: 'Template hash of input #1', value: refundHash1},
+            {label: 'Signature of Alice+Server for input #0',
+              value: refundSig0},
+            {label: 'Signature of Alice\'+Server for input #1',
+              value: refundSig1},
+            {label: 'Refund output #0, to Alice\'s new VTXO policy',
+              value: sats(100000 - FEE)},
+            {label: 'Refund output #1, to the server', value: sats(100000)}
+          ]
+        },
+        {
+          title: 'Round 2, without Alice',
+          text: [
+            'With the refund signatures, the server can safely put a VTXO ' +
+            'for Alice\' into the next round, worth ' +
+            sats(100000 - FEE) + '. Alice does not have to be online for ' +
+            'this: no transaction of the round needs her signature, and ' +
+            'the round does not wait for her.',
+            'She can even sign the refund for her next refresh right away, ' +
+            'with Alice\' and another new key, and go offline. The server ' +
+            'can then keep refreshing her VTXO round after round. The Erk ' +
+            'proposal gives each refund an absolute lock time, so the ' +
+            'server cannot use a whole series of them at once.'
+          ],
+          facts: [
+            {label: 'Round 2 tree, unroll leaf', value: round2.unrollAsm},
+            {label: 'Round 2 expires at block', value: String(EXPIRY2)},
+            {label: 'Alice\'s new VTXO', value: sats(100000 - FEE)}
+          ],
+          checks: [unroll2]
+        },
+        {
+          title: 'If Alice also exits the old VTXO',
+          text: [
+            'After the refresh, Alice has a VTXO in both rounds. Suppose ' +
+            'she publishes the tree of round 1 and tries to exit the old ' +
+            'VTXO on her own as well. Her exit leaf makes her wait ' + DELAY +
+            ' blocks.',
+            'In that time, the server publishes the tree of round 2 and ' +
+            'the refund transaction, which spends both VTXOs with the ' +
+            'signatures Alice gave it. The script engine accepts them on ' +
+            'the real outputs, although they were made before round 2 ' +
+            'existed. Alice ends up with ' + sats(100000 - FEE) + ' under ' +
+            'the policy of her new VTXO, and the server gets back the ' +
+            'money it put into round 2 plus the fee. Nobody loses anything.',
+            'The price: to answer, the server has to publish the whole ' +
+            'branch of the new tree that leads to the new VTXO. The Erk ' +
+            'proposal names this as its main drawback, and it only works ' +
+            'for refreshing one VTXO at a time.'
+          ],
+          facts: [
+            {label: 'Refund transaction', value: refund0.txid}
+          ],
+          checks: [aliceExit, refund0, refund1]
+        },
+        {
+          title: 'Nobody exits: the server sweeps',
+          text: [
+            'Usually nobody publishes anything. Once round 1 has expired, ' +
+            'the server sweeps its output with its own key, without ' +
+            'publishing the tree, and gets back the money it put into ' +
+            'round 2. Bob, who also has a VTXO in round 1, has to refresh ' +
+            'before then as well, or the server takes it.',
+            'Where BIP 448 helps: OP_TEMPLATEHASH replaces the pre-signed ' +
+            'trees, so users sign nothing for a round. OP_CHECKSIGFROMSTACK ' +
+            'over the template hash, with OP_INTERNALKEY for the key, makes ' +
+            'the refresh signature rebindable. A user can sign it before ' +
+            'the new round exists and does not have to be online when it ' +
+            'is built.'
+          ],
+          checks: [sweepLate, sweepEarly]
+        }
+      ]
+    };
+  }
+
   const BUILDERS = {
     rebind: buildRebind,
     oracle: buildOracle,
     delegation: buildDelegation,
     payout: buildPayout,
     pool: buildPool,
-    channel: buildChannel
+    channel: buildChannel,
+    ark: buildArk
   };
 
   vm.build = function () {

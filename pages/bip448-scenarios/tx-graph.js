@@ -86,6 +86,14 @@
     return lines;
   }
 
+  // A transaction is valid if the script engine accepts all of its inputs
+  // that were checked.
+  function txValid(node) {
+    return node.inputs.concat([{check: node.check}]).every(function (input) {
+      return !input.check || input.check.valid;
+    });
+  }
+
   // ---- building a graph --------------------------------------------------
 
   function create() {
@@ -159,20 +167,22 @@
       if (node.kind === 'tx') {
         // Line 0 is the status, which depends on the step.
         add([{text: '', indent: 0, status: true}]);
-        if (node.spends) {
-          const source = node.spends.split(':');
+        node.inputs.forEach(function (input, i) {
+          const source = input.spends.split(':');
           const from = nodes.find(function (n) {
             return n.id === source[0];
           });
-          const spends = wrap('spends ' + from.title +
+          const prefix = node.inputs.length > 1 ? 'in #' + i + ': ' : '';
+          const spends = wrap(prefix + 'spends ' + from.title +
             (source[1] !== undefined ? ' #' + source[1] : ''), 0, 'section');
           spends[0].source = from.id;
-          add(spends, 'in');
-          if (node.via) {
-            add(wrap('via ' + node.via, 1));
+          spends[0].missing = prefix + 'spends: does not exist yet';
+          add(spends, 'in' + i);
+          if (input.via) {
+            add(wrap('via ' + input.via, 1));
           }
-          add(wrap('witness: ' + node.witness.join(', '), 1), 'wit');
-        }
+          add(wrap('witness: ' + input.witness.join(', '), 1), 'wit' + i);
+        });
         (node.notes || []).forEach(function (text) {
           add(wrap(text, 0, 'muted'));
         });
@@ -225,8 +235,18 @@
       // The transaction of a check.
       //   opts: {col, row, title, check, spends: 'id' or 'id:vout', via,
       //          witness: [labels], notes: [lines], active, show, draft}
+      // A transaction with several inputs lists them, each with its own
+      // check, instead of spends, via, witness and check:
+      //   inputs: [{spends, via, witness, check}]
       tx: function (id, opts) {
-        addNode('tx', id, opts);
+        const node = addNode('tx', id, opts);
+        if (!node.inputs) {
+          node.inputs = node.spends ? [{
+            spends: node.spends, via: node.via, witness: node.witness,
+            check: node.check
+          }] : [];
+        }
+        node.check = node.check || node.inputs[0].check;
         return builder;
       },
 
@@ -241,13 +261,13 @@
         nodes.forEach(function (node) {
           // By default a node stays visible from the first step it plays a
           // part in, except a rejected transaction: that one never happened.
-          const rejected = node.kind === 'tx' && !node.check.valid;
+          const rejected = node.kind === 'tx' && !txValid(node);
           if (!node.show) {
             node.show = rejected ? node.active :
               range(Math.min.apply(null, node.active), stepCount);
           }
           node.draft = node.draft || [];
-          node.valid = node.kind !== 'tx' || node.check.valid;
+          node.valid = node.kind !== 'tx' || txValid(node);
           angular.extend(node, nodeLines(node));
         });
         return {nodes: nodes};
@@ -315,13 +335,13 @@
       });
     };
     placed.forEach(function (node) {
-      if (node.spends) {
-        const source = node.spends.split(':');
-        connect(byId[source[0]], 'out' + (source[1] || 0), node, 'in',
+      (node.inputs || []).forEach(function (input, i) {
+        const source = input.spends.split(':');
+        connect(byId[source[0]], 'out' + (source[1] || 0), node, 'in' + i,
           'spend');
-      }
+      });
       (node.usedBy || []).forEach(function (id) {
-        connect(node, null, byId[id], 'wit', 'sig');
+        connect(node, null, byId[id], 'wit0', 'sig');
       });
     });
 
@@ -336,8 +356,12 @@
   // ---- drawing -----------------------------------------------------------
 
   function statusLine(node) {
-    if (!node.check.valid) {
-      return {text: '✗ ' + node.check.errorCode, cls: 'bad'};
+    if (!node.valid) {
+      const failed = node.inputs.concat([{check: node.check}])
+        .find(function (input) {
+          return input.check && !input.check.valid;
+        });
+      return {text: '✗ ' + failed.check.errorCode, cls: 'bad'};
     }
     return {
       text: (node.isDraft ? '✓ prepared' : '✓ valid') + ' · txid ' +
@@ -394,7 +418,7 @@
       }
       if (line.source && !visible[line.source]) {
         line = angular.extend({}, line,
-          {text: 'spends: does not exist yet'});
+          {text: line.missing});
       }
       svg += '<text class="txg-line' + (line.cls ? ' txg-' + line.cls : '') +
         '" x="' + (PAD + line.indent * INDENT) + '" y="' +
