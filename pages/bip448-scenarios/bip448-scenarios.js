@@ -1046,7 +1046,7 @@ function Bip448ScenariosPageController($scope, bip448, txGraph) {
     const makeState = function (n, aliceBalance, bobBalance) {
       const settleTx = function (outpoint, sequence) {
         return {
-          version: 2,
+          version: 3,
           locktime: 0,
           inputs: [{
             txid: outpoint.txid, vout: outpoint.vout,
@@ -1077,7 +1077,7 @@ function Bip448ScenariosPageController($scope, bip448, txGraph) {
 
       const updateTx = function (outpoint) {
         return {
-          version: 2,
+          version: 3,
           locktime: STATE_BASE + n,
           inputs: [{
             txid: outpoint.txid, vout: outpoint.vout, sequence: NO_DELAY
@@ -1218,42 +1218,43 @@ function Bip448ScenariosPageController($scope, bip448, txGraph) {
       return 'lock time ' + (STATE_BASE + state.n);
     };
     const delayed = 'sequence ' + DELAY + ': waits ' + DELAY + ' blocks';
+    const truc = 'version 3, no fee';
     graph
       .output('funding', {col: 0, row: 0, title: 'Funding output',
         check: close2, active: [0, 3, 4]})
       .tx('update2', {col: 1, row: 0, title: 'Update 2', check: close2,
         spends: 'funding', witness: updateWitness(2),
-        notes: [lockTime(state2)],
+        notes: [truc, lockTime(state2)],
         active: [2, 3, 5], show: [2, 3, 5], draft: [2]})
       .tx('settle2', {col: 2, row: 0, title: 'Settlement 2', check: settle2,
         spends: 'update2:0', via: 'settlement leaf',
-        witness: ['no signature'], notes: [delayed],
+        witness: ['no signature'], notes: [truc, delayed],
         active: [2, 3], show: [2, 3], draft: [2]})
       .tx('settle2Early', {col: 2, row: 1, title: 'Settlement 2, no delay',
         check: settle2Early, spends: 'update2:0', via: 'settlement leaf',
-        witness: ['no signature'], notes: ['sequence ' + NO_DELAY],
+        witness: ['no signature'], notes: [truc, 'sequence ' + NO_DELAY],
         active: [3]})
       .tx('downgrade', {col: 2, row: 2, title: 'Update 1 on state 2',
         check: downgrade, spends: 'update2:0', via: 'update leaf',
-        witness: updateWitness(1), notes: [lockTime(state1)], active: [5]})
+        witness: updateWitness(1), notes: [truc, lockTime(state1)], active: [5]})
       .tx('settleWrong', {col: 2, row: 3, title: 'Settlement 1 on state 2',
         check: settleWrong, spends: 'update2:0', via: 'settlement leaf',
-        witness: ['no signature'], notes: [delayed], active: [5]})
+        witness: ['no signature'], notes: [truc, delayed], active: [5]})
       .tx('update1', {col: 1, row: 4, title: 'Update 1', check: close1,
         spends: 'funding', witness: updateWitness(1),
-        notes: [lockTime(state1)],
+        notes: [truc, lockTime(state1)],
         active: [1, 4], show: [1, 2, 4], draft: [1, 2]})
       .tx('settle1', {col: 2, row: 4, title: 'Settlement 1', check: settle1,
         spends: 'update1:0', via: 'settlement leaf',
-        witness: ['no signature'], notes: [delayed],
+        witness: ['no signature'], notes: [truc, delayed],
         active: [1], show: [1, 2, 4], draft: [1, 2, 4]})
       .tx('replace1', {col: 2, row: 5, title: 'Update 2 on state 1',
         check: replace1, spends: 'update1:0', via: 'update leaf',
         witness: ['state 2 signature (the same)', 'annex'],
-        notes: [lockTime(state2)], active: [4], show: [4]})
+        notes: [truc, lockTime(state2)], active: [4], show: [4]})
       .tx('settle2Again', {col: 3, row: 5, title: 'Settlement 2',
         check: settle2Again, spends: 'replace1:0', via: 'settlement leaf',
-        witness: ['no signature'], notes: [delayed], active: [4], show: [4]});
+        witness: ['no signature'], notes: [truc, delayed], active: [4], show: [4]});
 
     const sats = function (value) {
       return value.toLocaleString('en-US') + ' sat';
@@ -1351,8 +1352,11 @@ function Bip448ScenariosPageController($scope, bip448, txGraph) {
             'once the spent output is old enough (BIP 68). The check ' +
             'below shows the script side of it, a settlement that drops ' +
             'the delay is a different transaction.',
-            'Both transactions pay no fee. The fee is added by spending ' +
-            'the anchor output in a child transaction.'
+            'Both are version 3 (TRUC) transactions that pay no fee. ' +
+            'Whoever publishes one adds a child transaction that spends the ' +
+            'anchor output and pays the fee for both, at the fee rate of ' +
+            'the moment. The version is part of the template hash, so it is ' +
+            'fixed when the state is signed.'
           ],
           facts: [
             {label: 'Update 2 spending the funding output', value: close2.txid},
