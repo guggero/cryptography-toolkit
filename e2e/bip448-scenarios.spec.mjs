@@ -189,6 +189,7 @@ test.describe('bip448-scenarios', () => {
       [],
       ['valid', 'valid', 'ErrEvalFalse'],
       ['valid', 'valid', 'valid'],
+      ['valid', 'valid', 'valid'],
       ['ErrUnsatisfiedLockTime', 'ErrEvalFalse'],
     ]);
 
@@ -266,6 +267,7 @@ test.describe('bip448-scenarios', () => {
       ['funding', 'settle1', 'settle2', 'update1', 'update2'],
       ['funding', 'settle2', 'settle2Early', 'update2'],
       ['funding', 'replace1', 'settle1', 'settle2Again', 'update1'],
+      ['funding', 'ratchet1', 'ratchet2', 'ratchet3'],
       ['downgrade', 'funding', 'settleWrong', 'update2'],
     ];
     for (let i = 0; i < expected.length; i++) {
@@ -290,7 +292,27 @@ test.describe('bip448-scenarios', () => {
     await expect(graphNode(page, 'replace1')).toHaveAttribute('data-txid',
       (await fact('Update 2 spending state output 1').innerText()).trim());
 
+    // Alice steps through the old states one at a time, Bob ends it. The
+    // whole channel value stays in every state output.
     await page.locator('.sc-steps li').nth(5).click();
+    for (const [id, label, previous] of [
+      ['ratchet1', 'Update 1 (Alice)', 'Funding output'],
+      ['ratchet2', 'Update 2 on state output 1 (Alice)', 'Update 1 #0'],
+      ['ratchet3', 'Update 3 on state output 2 (Bob)', 'Update 2 on state 1 #0'],
+    ]) {
+      await expect(graphNode(page, id)).toHaveAttribute('data-txid',
+        (await fact(label).innerText()).trim());
+      await expect(graphNode(page, id)).toContainText(`spends ${previous}`);
+      await expect(graphNode(page, id)).toContainText('#0 1,000,000 sat');
+      await expect(graphNode(page, id)).toContainText('version 3, no fee');
+    }
+    await expect(fact('Value of every state output')).toHaveText('1,000,000 sat');
+    // Update 2 is the same transaction Bob published in the step before.
+    const ratchet2 = await graphNode(page, 'ratchet2').getAttribute('data-txid');
+    await page.locator('.sc-steps li').nth(4).click();
+    await expect(fact('Update 2 spending state output 1')).toHaveText(ratchet2);
+
+    await page.locator('.sc-steps li').nth(6).click();
     await expect(graphNode(page, 'downgrade')).toContainText('ErrUnsatisfiedLockTime');
     await expect(graphNode(page, 'settleWrong')).toContainText('ErrEvalFalse');
     await expect(page.locator('.txg-edge-rejected')).toHaveCount(2);

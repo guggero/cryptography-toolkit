@@ -1109,6 +1109,7 @@ function Bip448ScenariosPageController($scope, bip448, txGraph) {
     };
     const state1 = makeState(1, 600000, 400000);
     const state2 = makeState(2, 500000, 500000);
+    const state3 = makeState(3, 550000, 450000);
 
     // An update transaction spending the funding output.
     const publish = function (label, expectValid, state, note) {
@@ -1177,6 +1178,23 @@ function Bip448ScenariosPageController($scope, bip448, txGraph) {
       replace1, DELAY
     );
 
+    // Alice ratchets through old states one at a time, Bob ends it with
+    // the latest one.
+    const ratchet1 = publish(
+      'Alice publishes update 1, spending the funding output', true, state1
+    );
+    const ratchet2 = replace(
+      'Alice spends state output 1 with update 2', true, state2, state1,
+      ratchet1,
+      'The same transaction Bob published in the previous step. Every ' +
+      'signed state can follow any older one.'
+    );
+    const ratchet3 = replace(
+      'Bob spends state output 2 with update 3', true, state3, state2,
+      ratchet2,
+      'Nothing can follow update 3 except its own settlement.'
+    );
+
     // What the scripts rule out.
     const downgrade = replace(
       'Update 1 spends state output 2', false, state1, state2, close2,
@@ -1201,7 +1219,7 @@ function Bip448ScenariosPageController($scope, bip448, txGraph) {
       .name(channelKey, 'Alice+Bob')
       .describe(ANCHOR.scriptPubKey, ['P2A anchor, anyone can spend'])
       .taproot(funding.pkScript, channelKey, [{asm: rebindAsm}]);
-    [state1, state2].forEach(function (state) {
+    [state1, state2, state3].forEach(function (state) {
       graph
         .name(state.settleHash, 'settlement ' + state.n + ' hash')
         .name(scriptNum(STATE_BASE + state.n + 1),
@@ -1221,11 +1239,11 @@ function Bip448ScenariosPageController($scope, bip448, txGraph) {
     const truc = 'version 3, no fee';
     graph
       .output('funding', {col: 0, row: 0, title: 'Funding output',
-        check: close2, active: [0, 3, 4]})
+        check: close2, active: [0, 3, 4, 5]})
       .tx('update2', {col: 1, row: 0, title: 'Update 2', check: close2,
         spends: 'funding', witness: updateWitness(2),
         notes: [truc, lockTime(state2)],
-        active: [2, 3, 5], show: [2, 3, 5], draft: [2]})
+        active: [2, 3, 6], show: [2, 3, 6], draft: [2]})
       .tx('settle2', {col: 2, row: 0, title: 'Settlement 2', check: settle2,
         spends: 'update2:0', via: 'settlement leaf',
         witness: ['no signature'], notes: [truc, delayed],
@@ -1236,10 +1254,11 @@ function Bip448ScenariosPageController($scope, bip448, txGraph) {
         active: [3]})
       .tx('downgrade', {col: 2, row: 2, title: 'Update 1 on state 2',
         check: downgrade, spends: 'update2:0', via: 'update leaf',
-        witness: updateWitness(1), notes: [truc, lockTime(state1)], active: [5]})
+        witness: updateWitness(1), notes: [truc, lockTime(state1)],
+        active: [6]})
       .tx('settleWrong', {col: 2, row: 3, title: 'Settlement 1 on state 2',
         check: settleWrong, spends: 'update2:0', via: 'settlement leaf',
-        witness: ['no signature'], notes: [truc, delayed], active: [5]})
+        witness: ['no signature'], notes: [truc, delayed], active: [6]})
       .tx('update1', {col: 1, row: 4, title: 'Update 1', check: close1,
         spends: 'funding', witness: updateWitness(1),
         notes: [truc, lockTime(state1)],
@@ -1254,7 +1273,18 @@ function Bip448ScenariosPageController($scope, bip448, txGraph) {
         notes: [truc, lockTime(state2)], active: [4], show: [4]})
       .tx('settle2Again', {col: 3, row: 5, title: 'Settlement 2',
         check: settle2Again, spends: 'replace1:0', via: 'settlement leaf',
-        witness: ['no signature'], notes: [truc, delayed], active: [4], show: [4]});
+        witness: ['no signature'], notes: [truc, delayed], active: [4], show: [4]})
+      .tx('ratchet1', {col: 1, row: 6, title: 'Update 1', check: ratchet1,
+        spends: 'funding', witness: updateWitness(1),
+        notes: [truc, lockTime(state1)], active: [5], show: [5]})
+      .tx('ratchet2', {col: 2, row: 6, title: 'Update 2 on state 1',
+        check: ratchet2, spends: 'ratchet1:0', via: 'update leaf',
+        witness: updateWitness(2), notes: [truc, lockTime(state2)],
+        active: [5], show: [5]})
+      .tx('ratchet3', {col: 3, row: 6, title: 'Update 3 on state 2',
+        check: ratchet3, spends: 'ratchet2:0', via: 'update leaf',
+        witness: updateWitness(3), notes: [truc, lockTime(state3)],
+        active: [5], show: [5]});
 
     const sats = function (value) {
       return value.toLocaleString('en-US') + ' sat';
@@ -1389,6 +1419,44 @@ function Bip448ScenariosPageController($scope, bip448, txGraph) {
             {label: 'Signature of update 2 (both times)', value: state2.sig}
           ],
           checks: [close1, replace1, settle2Again]
+        },
+        {
+          title: 'Ratcheting through old states',
+          text: [
+            'Say Alice and Bob did not close after state 2 but kept using ' +
+            'the channel: Bob paid 50,000 satoshis back, which is state 3. ' +
+            'Alice can still publish update 1. Once it is confirmed she ' +
+            'can publish update 2 on top of it, which is just as valid: ' +
+            'its lock time is higher than the one state output 1 asks for. ' +
+            'Every signed state can follow any older one, so with many ' +
+            'states she could take many steps.',
+            'She gains nothing from the balances, but every step starts ' +
+            'the ' + DELAY + ' block wait of the settlement again. A delay ' +
+            'like that can be worth something to her, for example when ' +
+            'payments in flight in the channel time out. Bob ends it the ' +
+            'moment he publishes the latest state: update 3 can spend any ' +
+            'of the state outputs, and nothing can follow it except ' +
+            'settlement 3.',
+            'This is where the fees matter. Every update moves the whole ' +
+            '1,000,000 satoshis and pays no fee itself. Whoever publishes ' +
+            'one pays the fee with a child that spends its anchor, from ' +
+            'their own wallet. Alice pays for both of her steps, Bob for ' +
+            'his one, and the channel keeps its full value. If the updates ' +
+            'paid their fee from the channel instead, every step Alice ' +
+            'forces would take a part of it, and the fixed value of the ' +
+            'outputs would not match the shrinking value of the state ' +
+            'outputs they spend.'
+          ],
+          facts: [
+            {label: 'State 3 balances', value: 'Alice ' +
+              sats(state3.aliceBalance) + ', Bob ' + sats(state3.bobBalance)},
+            {label: 'Lock time of update 3', value: String(STATE_BASE + 3)},
+            {label: 'Update 1 (Alice)', value: ratchet1.txid},
+            {label: 'Update 2 on state output 1 (Alice)', value: ratchet2.txid},
+            {label: 'Update 3 on state output 2 (Bob)', value: ratchet3.txid},
+            {label: 'Value of every state output', value: sats(CAPACITY)}
+          ],
+          checks: [ratchet1, ratchet2, ratchet3]
         },
         {
           title: 'What cannot happen',
